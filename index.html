@@ -24,8 +24,7 @@ body{max-width:480px;margin:0 auto;}
 /* NAV */
 .nav{position:sticky;top:0;z-index:100;background:rgba(10,10,11,0.93);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;}
 .nav-brand{display:flex;align-items:center;gap:10px;cursor:pointer;}
-.nav-logo{width:36px;height:36px;border-radius:50%;border:2px solid var(--orange);overflow:hidden;flex-shrink:0;user-select:none;-webkit-touch-callout:none;-webkit-user-select:none;touch-action:manipulation;position:relative;}
-.nav-logo img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;-webkit-touch-callout:none;-webkit-user-select:none;-webkit-user-drag:none;user-select:none;}
+.nav-logo{width:36px;height:36px;border-radius:50%;border:2px solid var(--orange);overflow:hidden;flex-shrink:0;user-select:none;-webkit-touch-callout:none;-webkit-user-select:none;touch-action:manipulation;position:relative;background-size:cover;background-position:center;}
 .nav-logo::after{content:'';position:absolute;inset:0;z-index:1;}
 .nav-title{font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:2px;}
 .nav-title span{color:var(--orange);}
@@ -41,8 +40,7 @@ body{max-width:480px;margin:0 auto;}
 
 /* AUTH SCREENS */
 .auth-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
-.auth-logo{width:96px;height:96px;border-radius:50%;border:3px solid var(--orange);overflow:hidden;margin-bottom:20px;box-shadow:0 0 40px rgba(240,90,40,0.3);}
-.auth-logo img{width:100%;height:100%;object-fit:cover;}
+.auth-logo{width:96px;height:96px;border-radius:50%;border:3px solid var(--orange);overflow:hidden;margin-bottom:20px;box-shadow:0 0 40px rgba(240,90,40,0.3);background-size:cover;background-position:center;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation;}
 .auth-title{font-family:'Oswald',sans-serif;font-size:28px;font-weight:700;letter-spacing:3px;text-align:center;margin-bottom:4px;}
 .auth-title span{color:var(--orange);}
 .auth-subtitle{font-size:13px;color:var(--text2);text-align:center;margin-bottom:32px;}
@@ -522,9 +520,9 @@ function navBarHTML(showBack=false,backFn=''){
     ${showBack?`<button class="nav-back" onclick="${backFn}">${IC.back}</button>`:`<div class="nav-spacer"></div>`}
     <div class="nav-brand" onclick="nav('home')">
       <div class="nav-logo" oncontextmenu="return false" ondragstart="return false"
+        style="background-image:url('data:image/jpeg;base64,${LOGO}')"
         onmousedown="handleLogoMouseDown()" onmouseup="handleLogoMouseUp()" onmouseleave="cancelLogoHold()"
         ontouchstart="handleLogoTouchStart(event)" ontouchend="handleLogoTouchEnd(event)" ontouchcancel="cancelLogoHold()" ontouchmove="cancelLogoHold()">
-        <img src="data:image/jpeg;base64,${LOGO}" alt="Fusion Studio" oncontextmenu="return false" ondragstart="return false">
       </div>
       <div class="nav-title">FUSION<span>STUDIO</span></div>
     </div>
@@ -553,9 +551,9 @@ let authState={ mode:'login', name:'', email:'', pw:'', pw2:'', err:'', loading:
 
 function renderAuth(){
   const logoImg=`<div class="auth-logo" oncontextmenu="return false" ondragstart="return false"
+      style="background-image:url('data:image/jpeg;base64,${LOGO}')"
       onmousedown="handleLogoMouseDown()" onmouseup="handleLogoMouseUp()" onmouseleave="cancelLogoHold()"
       ontouchstart="handleLogoTouchStart(event)" ontouchend="handleLogoTouchEnd(event)" ontouchcancel="cancelLogoHold()" ontouchmove="cancelLogoHold()">
-      <img src="data:image/jpeg;base64,${LOGO}" alt="Fusion Studio" oncontextmenu="return false" ondragstart="return false">
     </div>`;
   if(authState.mode==='login') return renderLogin(logoImg);
   return renderRegister(logoImg);
