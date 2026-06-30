@@ -1045,7 +1045,13 @@ function renderTabWeeks(){
         ${wd.days.length>1?`<button class="adm-btn adm-btn-red" onclick="removeDay(${i},${di})">${IC.trash}</button>`:''}
       </div>`).join('');
     return `<div class="ex-edit-card">
-      <div class="ex-edit-card-header"><span class="ex-edit-title">SEMANA ${wd.week}</span><button class="adm-btn adm-btn-red" onclick="removeWeek(${i})">${IC.trash}</button></div>
+      <div class="ex-edit-card-header">
+        <span class="ex-edit-title">SEMANA ${wd.week}</span>
+        <div style="display:flex;gap:6px">
+          <button class="adm-btn adm-btn-blue" onclick="duplicateWeek(${i})">📋 Duplicar</button>
+          <button class="adm-btn adm-btn-red" onclick="removeWeek(${i})">${IC.trash}</button>
+        </div>
+      </div>
       ${dayRows}
       <button class="adm-btn adm-btn-blue" onclick="addDay(${i})" style="width:100%;justify-content:center;margin-top:4px">${IC.plus} Agregar día</button>
     </div>`;
@@ -1057,7 +1063,35 @@ function renderTabWeeks(){
 }
 
 function addWeek(){ plan.push(buildDefaultWeek(plan.length+1)); renderModal(); }
-function removeWeek(i){ if(plan.length<=1){showToast('Debe haber al menos 1 semana');return;} if(!confirm('¿Eliminar semana '+(i+1)+'?'))return; plan.splice(i,1); renderModal(); }
+
+function duplicateWeek(i){
+  const source = plan[i];
+  const newWeekNum = plan.length + 1;
+  const clone = JSON.parse(JSON.stringify(source)); // deep copy
+  clone.week = newWeekNum;
+
+  // Regenerate every exercise id so progress isn't shared with the source week
+  const stamp = Date.now();
+  clone.days.forEach((day, di) => {
+    day.blocks.forEach((block, bi) => {
+      block.exercises.forEach((ex, ei) => {
+        ex.id = `w${newWeekNum}d${di}b${bi}x${stamp}${ei}`;
+      });
+    });
+  });
+
+  plan.push(clone);
+  renderModal();
+  showToast(`✅ Semana ${source.week} duplicada como Semana ${newWeekNum}`);
+}
+
+function removeWeek(i){
+  if(plan.length<=1){showToast('Debe haber al menos 1 semana');return;}
+  if(!confirm('¿Eliminar semana '+plan[i].week+'?'))return;
+  plan.splice(i,1);
+  plan.forEach((wd,idx)=>{ wd.week = idx+1; }); // keep week numbers sequential
+  renderModal();
+}
 function addDay(wi){ const n=plan[wi].days.length+1; plan[wi].days.push({id:'d'+n,name:'DÍA '+n,days:'NUEVO DÍA',icon:'📌',blocks:[{id:'u',name:'TREN SUPERIOR',icon:'💪',exercises:[]},{id:'l',name:'TREN INFERIOR',icon:'🦵',exercises:[]}]}); renderModal(); }
 function removeDay(wi,di){ if(plan[wi].days.length<=1){showToast('Debe haber al menos 1 día');return;} plan[wi].days.splice(di,1); renderModal(); }
 function updateDayName(wi,di,v){ plan[wi].days[di].name=v; }
