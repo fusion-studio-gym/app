@@ -24,8 +24,9 @@ body{max-width:480px;margin:0 auto;}
 /* NAV */
 .nav{position:sticky;top:0;z-index:100;background:rgba(10,10,11,0.93);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;}
 .nav-brand{display:flex;align-items:center;gap:10px;cursor:pointer;}
-.nav-logo{width:36px;height:36px;border-radius:50%;border:2px solid var(--orange);overflow:hidden;flex-shrink:0;user-select:none;}
-.nav-logo img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;}
+.nav-logo{width:36px;height:36px;border-radius:50%;border:2px solid var(--orange);overflow:hidden;flex-shrink:0;user-select:none;-webkit-touch-callout:none;-webkit-user-select:none;touch-action:manipulation;position:relative;}
+.nav-logo img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;-webkit-touch-callout:none;-webkit-user-select:none;-webkit-user-drag:none;user-select:none;}
+.nav-logo::after{content:'';position:absolute;inset:0;z-index:1;}
 .nav-title{font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:2px;}
 .nav-title span{color:var(--orange);}
 .nav-back{width:36px;height:36px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;color:var(--text);}
@@ -456,7 +457,8 @@ function nav(view,extra={}){ ST={...ST,view,...extra}; render(); window.scrollTo
 
 // user menu state
 let userMenuOpen=false;
-function toggleUserMenu(){ userMenuOpen=!userMenuOpen; render(); }
+let suppressNextClick=false;
+function toggleUserMenu(){ if(suppressNextClick){suppressNextClick=false;return;} userMenuOpen=!userMenuOpen; render(); }
 function closeUserMenu(){ if(userMenuOpen){userMenuOpen=false;render();} }
 
 // admin state
@@ -464,8 +466,52 @@ let adminState={ open:false, pwOk:false, pwErr:'', tab:0, editWeekIdx:0, editDay
 
 // logo hold
 let logoTimer=null;
-function startLogoHold(){ logoTimer=setTimeout(()=>{ logoTimer=null; openAdmin(); },1500); }
+let logoTapCount=0;
+let logoTapResetTimer=null;
+
+function handleLogoTouchStart(e){
+  e.preventDefault();
+  logoTimer=setTimeout(()=>{ logoTimer=null; if(navigator.vibrate)navigator.vibrate(40); openAdmin(); },1200);
+}
+function handleLogoTouchEnd(e){
+  e.preventDefault();
+  if(logoTimer){ clearTimeout(logoTimer); logoTimer=null; registerLogoTap(); }
+}
+function handleLogoMouseDown(){
+  logoTimer=setTimeout(()=>{ logoTimer=null; openAdmin(); },1200);
+}
+function handleLogoMouseUp(){
+  if(logoTimer){ clearTimeout(logoTimer); logoTimer=null; registerLogoTap(); }
+}
 function cancelLogoHold(){ if(logoTimer){clearTimeout(logoTimer);logoTimer=null;} }
+
+// Fallback: 5 quick taps also opens admin (in case long-press is unreliable on some devices)
+function registerLogoTap(){
+  logoTapCount++;
+  if(logoTapResetTimer) clearTimeout(logoTapResetTimer);
+  logoTapResetTimer=setTimeout(()=>{ logoTapCount=0; },1500);
+  if(logoTapCount>=5){ logoTapCount=0; openAdmin(); }
+}
+
+// Secondary admin access: long-press on user avatar (top right) — more reliable on some devices
+let avatarTimer=null;
+let avatarHeld=false;
+function handleAvatarTouchStart(e){
+  avatarHeld=false;
+  avatarTimer=setTimeout(()=>{ avatarHeld=true; avatarTimer=null; suppressNextClick=true; if(navigator.vibrate)navigator.vibrate(40); openAdmin(); },1200);
+}
+function handleAvatarTouchEnd(e){
+  if(avatarTimer){ clearTimeout(avatarTimer); avatarTimer=null; }
+  if(avatarHeld){ e.preventDefault(); e.stopPropagation(); avatarHeld=false; }
+}
+function handleAvatarMouseDown(){
+  avatarHeld=false;
+  avatarTimer=setTimeout(()=>{ avatarHeld=true; avatarTimer=null; suppressNextClick=true; openAdmin(); },1200);
+}
+function handleAvatarMouseUp(){
+  if(avatarTimer){ clearTimeout(avatarTimer); avatarTimer=null; }
+}
+function cancelAvatarHold(){ if(avatarTimer){clearTimeout(avatarTimer);avatarTimer=null;} avatarHeld=false; }
 
 // ============================================================
 // NAV BAR
@@ -475,12 +521,18 @@ function navBarHTML(showBack=false,backFn=''){
   return `<nav class="nav">
     ${showBack?`<button class="nav-back" onclick="${backFn}">${IC.back}</button>`:`<div class="nav-spacer"></div>`}
     <div class="nav-brand" onclick="nav('home')">
-      <div class="nav-logo" onmousedown="startLogoHold()" onmouseup="cancelLogoHold()" onmouseleave="cancelLogoHold()" ontouchstart="startLogoHold()" ontouchend="cancelLogoHold()">
-        <img src="data:image/jpeg;base64,${LOGO}" alt="Fusion Studio">
+      <div class="nav-logo" oncontextmenu="return false" ondragstart="return false"
+        onmousedown="handleLogoMouseDown()" onmouseup="handleLogoMouseUp()" onmouseleave="cancelLogoHold()"
+        ontouchstart="handleLogoTouchStart(event)" ontouchend="handleLogoTouchEnd(event)" ontouchcancel="cancelLogoHold()" ontouchmove="cancelLogoHold()">
+        <img src="data:image/jpeg;base64,${LOGO}" alt="Fusion Studio" oncontextmenu="return false" ondragstart="return false">
       </div>
       <div class="nav-title">FUSION<span>STUDIO</span></div>
     </div>
-    ${session?`<div class="nav-user" onclick="toggleUserMenu()"><div class="nav-avatar">${initials}</div></div>`:` <div class="nav-spacer"></div>`}
+    ${session?`<div class="nav-user" onclick="toggleUserMenu()" oncontextmenu="return false"
+        onmousedown="handleAvatarMouseDown()" onmouseup="handleAvatarMouseUp()" onmouseleave="cancelAvatarHold()"
+        ontouchstart="handleAvatarTouchStart(event)" ontouchend="handleAvatarTouchEnd(event)" ontouchcancel="cancelAvatarHold()" ontouchmove="cancelAvatarHold()">
+        <div class="nav-avatar">${initials}</div>
+      </div>`:` <div class="nav-spacer"></div>`}
   </nav>
   ${userMenuOpen?userMenuHTML():''}`;
 }
