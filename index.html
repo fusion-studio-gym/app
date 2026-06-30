@@ -234,7 +234,7 @@ input[type=number]{-moz-appearance:textfield;}
 </style>
 </head>
 <body>
-<div id="app"></div>
+<div id="app"><div style="min-height:100vh;display:flex;align-items:center;justify-content:center;color:#a0a0a8;font-family:'Inter',sans-serif;font-size:14px;">Cargando…</div></div>
 <div class="toast" id="toast"></div>
 <div id="modal-root"></div>
 
@@ -265,11 +265,32 @@ function hashStr(s){ let h=5381; for(let i=0;i<s.length;i++) h=((h<<5)+h)+s.char
 // ============================================================
 // STORAGE HELPERS
 // ============================================================
-async function sharedGet(key){ try{ const r=await window.storage.get(key,true); return r?JSON.parse(r.value):null; }catch(e){return null;} }
-async function sharedSet(key,val){ try{ await window.storage.set(key,JSON.stringify(val),true); }catch(e){} }
+async function sharedGet(key){
+  // Wait briefly for Firebase module to load if not ready yet
+  let tries=0; while(!window.__fsCloudReady && tries<50){ await new Promise(r=>setTimeout(r,100)); tries++; }
+  if(window.__fsCloudReady){
+    const v=await window.__fsCloudGet(key);
+    if(v!==null) return JSON.parse(v);
+  }
+  return null;
+}
+async function sharedSet(key,val){
+  let tries=0; while(!window.__fsCloudReady && tries<50){ await new Promise(r=>setTimeout(r,100)); tries++; }
+  if(window.__fsCloudReady) await window.__fsCloudSet(key,JSON.stringify(val));
+}
 
-async function personalGet(key){ try{ const r=await window.storage.get(key); return r?JSON.parse(r.value):null; }catch(e){return null;} }
-async function personalSet(key,val){ try{ await window.storage.set(key,JSON.stringify(val)); }catch(e){} }
+async function personalGet(key){
+  let tries=0; while(!window.__fsCloudReady && tries<50){ await new Promise(r=>setTimeout(r,100)); tries++; }
+  if(window.__fsCloudReady){
+    const v=await window.__fsCloudGet(key);
+    if(v!==null) return JSON.parse(v);
+  }
+  return null;
+}
+async function personalSet(key,val){
+  let tries=0; while(!window.__fsCloudReady && tries<50){ await new Promise(r=>setTimeout(r,100)); tries++; }
+  if(window.__fsCloudReady) await window.__fsCloudSet(key,JSON.stringify(val));
+}
 
 function lsGet(key){ try{ const v=localStorage.getItem(key); return v?JSON.parse(v):null; }catch(e){return null;} }
 function lsSet(key,val){ try{ localStorage.setItem(key,JSON.stringify(val)); }catch(e){} }
@@ -1091,13 +1112,63 @@ function render(){
 // ============================================================
 // INIT
 // ============================================================
-(async function init(){
+let __fsInitDone=false;
+window.__fsAppInit = async function(){
+  if(__fsInitDone) return;
+  __fsInitDone=true;
   loadSession();
   await loadUsers();
   await loadPlan();
   if(session && session.uid!=='__pending__') await loadProgress();
   render();
-})();
+};
+
+// Try immediately in case Firebase module already loaded by the time we get here;
+// also called again from the Firebase module script once it's ready.
+window.__fsAppInit();
+</script>
+<script type="module">
+// ============================================================
+// FIREBASE INIT (Firestore as shared/personal cloud storage)
+// ============================================================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, doc, getDoc, setDoc
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC6iwVIKL_uKzneUfjmEpTEbH_OSm5FuYw",
+  authDomain: "fusion-studio-app.firebaseapp.com",
+  projectId: "fusion-studio-app",
+  storageBucket: "fusion-studio-app.firebasestorage.app",
+  messagingSenderId: "331263488503",
+  appId: "1:331263488503:web:48a97d6a62856bd5bf3ef2"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+
+// Single collection "fusion_data", each document keyed by our storage key.
+// Document shape: { value: <JSON string> }
+window.__fsCloudGet = async function(key){
+  try{
+    const ref = doc(db, "fusion_data", key);
+    const snap = await getDoc(ref);
+    if(!snap.exists()) return null;
+    const data = snap.data();
+    return data && typeof data.value === 'string' ? data.value : null;
+  }catch(e){ console.error('Firestore get error', key, e); return null; }
+};
+
+window.__fsCloudSet = async function(key, valueStr){
+  try{
+    const ref = doc(db, "fusion_data", key);
+    await setDoc(ref, { value: valueStr, updatedAt: Date.now() });
+    return true;
+  }catch(e){ console.error('Firestore set error', key, e); return false; }
+};
+
+window.__fsCloudReady = true;
 </script>
 </body>
 </html>
