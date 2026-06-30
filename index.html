@@ -552,7 +552,11 @@ function userMenuHTML(){
 let authState={ mode:'login', name:'', email:'', pw:'', pw2:'', err:'', loading:false };
 
 function renderAuth(){
-  const logoImg=`<div class="auth-logo"><img src="data:image/jpeg;base64,${LOGO}" alt="Fusion Studio"></div>`;
+  const logoImg=`<div class="auth-logo" oncontextmenu="return false" ondragstart="return false"
+      onmousedown="handleLogoMouseDown()" onmouseup="handleLogoMouseUp()" onmouseleave="cancelLogoHold()"
+      ontouchstart="handleLogoTouchStart(event)" ontouchend="handleLogoTouchEnd(event)" ontouchcancel="cancelLogoHold()" ontouchmove="cancelLogoHold()">
+      <img src="data:image/jpeg;base64,${LOGO}" alt="Fusion Studio" oncontextmenu="return false" ondragstart="return false">
+    </div>`;
   if(authState.mode==='login') return renderLogin(logoImg);
   return renderRegister(logoImg);
 }
