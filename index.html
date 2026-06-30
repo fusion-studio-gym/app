@@ -252,7 +252,7 @@ const K = {
   PLAN:     'fs_plan_v1',       // shared: plan JSON
   PROG:     (uid) => `fs_prog_${uid}_v1`,  // personal per user
   SESSION:  'fs_session_v1',    // local: {uid, email, name}
-  ADMINPW:  'fs_adminpw_v1',    // local: hashed admin pw
+  ADMINPW:  'fs_adminpw_v1',    // shared: hashed admin pw (same across all devices)
 };
 const DEFAULT_ADMIN_PW = 'fusion2025';
 const STATUS = { PENDING:'pending', ACTIVE:'active', BLOCKED:'blocked' };
@@ -806,10 +806,16 @@ function renderAdminPw(){
   </div>`;
 }
 
-function checkAdminPw(){
+async function checkAdminPw(){
   const val=document.getElementById('adm-pw-inp').value;
-  const stored=lsGet(K.ADMINPW)||hashStr(DEFAULT_ADMIN_PW);
-  if(hashStr(val)===stored){ adminState.pwOk=true; adminState.pwErr=''; renderModal(); }
+  const remote=await sharedGet(K.ADMINPW);
+  const stored=remote || lsGet(K.ADMINPW) || hashStr(DEFAULT_ADMIN_PW);
+  if(remote) lsSet(K.ADMINPW,remote); // keep local cache in sync
+  if(hashStr(val)===stored){
+    adminState.pwOk=true; adminState.pwErr='';
+    await loadUsers(); // always show freshest user list when entering admin
+    renderModal();
+  }
   else{ adminState.pwErr='Contraseña incorrecta.'; renderModal(); }
 }
 
@@ -825,7 +831,7 @@ function renderAdminBody(){
   return `<div class="admin-nav">${nav}</div>${body}`;
 }
 
-function setAdminTab(i){ adminState.tab=i; renderModal(); }
+async function setAdminTab(i){ adminState.tab=i; if(i===0) await loadUsers(); renderModal(); }
 
 // ---- TAB: USUARIOS ----
 function renderTabUsers(){
@@ -861,9 +867,9 @@ function renderTabUsers(){
     ${adminState.viewUserIdx?renderUserProgress():''} `;
 }
 
-async function approveUser(id){ users[id].status=STATUS.ACTIVE; await saveUsers(); renderModal(); showToast('✅ Usuario aprobado'); }
-async function blockUser(id){ users[id].status=STATUS.BLOCKED; await saveUsers(); renderModal(); showToast('Usuario bloqueado'); }
-async function unblockUser(id){ users[id].status=STATUS.ACTIVE; await saveUsers(); renderModal(); showToast('✅ Usuario reactivado'); }
+async function approveUser(id){ await loadUsers(); users[id].status=STATUS.ACTIVE; await saveUsers(); renderModal(); showToast('✅ Usuario aprobado'); }
+async function blockUser(id){ await loadUsers(); users[id].status=STATUS.BLOCKED; await saveUsers(); renderModal(); showToast('Usuario bloqueado'); }
+async function unblockUser(id){ await loadUsers(); users[id].status=STATUS.ACTIVE; await saveUsers(); renderModal(); showToast('✅ Usuario reactivado'); }
 
 let viewProgData=null;
 async function viewUserProgress(id){
@@ -1049,18 +1055,21 @@ function renderTabPw(){
   </div>`;
 }
 
-function changeAdminPw(){
+async function changeAdminPw(){
   const cur=document.getElementById('pw-cur').value;
   const n1=document.getElementById('pw-new').value;
   const n2=document.getElementById('pw-new2').value;
   const err=document.getElementById('pw-ch-err');
-  const stored=lsGet(K.ADMINPW)||hashStr(DEFAULT_ADMIN_PW);
+  const remote=await sharedGet(K.ADMINPW);
+  const stored=remote || lsGet(K.ADMINPW) || hashStr(DEFAULT_ADMIN_PW);
   if(hashStr(cur)!==stored){err.textContent='Contraseña actual incorrecta.';err.style.display='block';return;}
   if(n1.length<4){err.textContent='Mínimo 4 caracteres.';err.style.display='block';return;}
   if(n1!==n2){err.textContent='No coinciden.';err.style.display='block';return;}
-  lsSet(K.ADMINPW,hashStr(n1));
+  const newHash=hashStr(n1);
+  await sharedSet(K.ADMINPW,newHash);
+  lsSet(K.ADMINPW,newHash);
   err.style.display='none';
-  showToast('✅ Contraseña actualizada');
+  showToast('✅ Contraseña actualizada en todos los dispositivos');
 }
 
 // ============================================================
