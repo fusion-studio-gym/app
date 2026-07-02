@@ -491,7 +491,7 @@ function toggleUserMenu(){ if(suppressNextClick){suppressNextClick=false;return;
 function closeUserMenu(){ if(userMenuOpen){userMenuOpen=false;render();} }
 
 // admin state
-let adminState={ open:false, pwOk:false, pwErr:'', tab:0, editWeekIdx:0, editDayIdx:0, editBlockIdx:0, viewUserIdx:null, viewUserWeek:0 };
+let adminState={ open:false, pwOk:false, pwErr:'', tab:0, editWeekIdx:0, editDayIdx:0, editBlockIdx:0, viewUserIdx:null, viewUserWeek:0, userSubTab:'active', userSearch:'' };
 
 // logo hold
 let logoTimer=null;
@@ -852,100 +852,187 @@ function renderAdminBody(){
   return `<div class="admin-nav">${nav}</div>${body}`;
 }
 
-async function setAdminTab(i){ adminState.tab=i; if(i===0) await loadUsers(); renderModal(); }
+async function setAdminTab(i){
+  if(i!==0) adminState.viewUserIdx=null; // clear progress view when leaving users tab
+  adminState.tab=i;
+  if(i===0) await loadUsers();
+  renderModal();
+}
 
 // ---- TAB: USUARIOS ----
 function renderTabUsers(){
-  const all=Object.values(users);
-  if(!all.length) return `<p style="color:var(--text3);font-size:13px;text-align:center;padding:20px">No hay usuarios registrados aún.</p>`;
+  // If viewing a specific user's progress, show that full-panel instead
+  if(adminState.viewUserIdx) return renderUserProgress();
 
-  function statusBadge(s){
-    if(s===STATUS.PENDING) return `<span class="badge badge-pending">PENDIENTE</span>`;
-    if(s===STATUS.ACTIVE)  return `<span class="badge badge-active">ACTIVO</span>`;
-    return `<span class="badge badge-blocked">BLOQUEADO</span>`;
+  const all=Object.values(users);
+  const pending=all.filter(u=>u.status===STATUS.PENDING);
+  const active=all.filter(u=>u.status===STATUS.ACTIVE||u.status===STATUS.BLOCKED);
+
+  const subTabs=`<div style="display:flex;gap:8px;margin-bottom:16px">
+    <div class="admin-tab ${adminState.userSubTab==='active'?'active':''}" onclick="setUserSubTab('active')">
+      ✅ Activos ${active.length?`<span style="background:rgba(255,255,255,0.2);border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px">${active.length}</span>`:''}
+    </div>
+    <div class="admin-tab ${adminState.userSubTab==='pending'?'active':''}" onclick="setUserSubTab('pending')" style="${pending.length?'border-color:var(--yellow);color:var(--yellow)':''}">
+      ⏳ Solicitudes ${pending.length?`<span style="background:rgba(245,158,11,0.25);border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px;color:var(--yellow)">${pending.length}</span>`:''}
+    </div>
+  </div>`;
+
+  if(adminState.userSubTab==='pending'){
+    if(!pending.length) return subTabs+`<div style="text-align:center;padding:32px 0;color:var(--text3);font-size:13px">
+      <div style="font-size:36px;margin-bottom:12px">🎉</div>
+      No hay solicitudes pendientes
+    </div>`;
+    const rows=pending.map(u=>renderUserRow(u)).join('');
+    return subTabs+`<div class="admin-section-title">SOLICITUDES PENDIENTES (${pending.length})</div>${rows}`;
   }
 
-  const rows=all.map(u=>{
-    const ini=u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
-    return `<div class="user-row">
-      <div class="user-row-avatar">${ini}</div>
-      <div class="user-row-info">
-        <div class="user-row-name">${escH(u.name)}</div>
-        <div class="user-row-email">${escH(u.email)}</div>
-        <div style="margin-top:4px">${statusBadge(u.status)}</div>
-      </div>
-      <div class="user-row-actions">
-        ${u.status===STATUS.PENDING?`<button class="adm-btn adm-btn-green" style="padding:6px 10px" onclick="approveUser('${u.id}')">✓</button>`:''}
-        ${u.status===STATUS.ACTIVE?`<button class="adm-btn adm-btn-red" style="padding:6px 10px" onclick="blockUser('${u.id}')">✕</button>`:''}
-        ${u.status===STATUS.BLOCKED?`<button class="adm-btn adm-btn-blue" style="padding:6px 10px" onclick="unblockUser('${u.id}')">↩</button>`:''}
-        <button class="adm-btn adm-btn-ghost" style="padding:6px 10px" onclick="viewUserProgress('${u.id}')" title="Ver progreso">${IC.eye}</button>
-      </div>
-    </div>`;
-  }).join('');
+  // Active tab — with search
+  const searchBar=`<div style="position:relative;margin-bottom:12px">
+    <input class="adm-inp" style="margin:0;padding-left:36px" placeholder="Buscar por nombre..."
+      value="${escH(adminState.userSearch)}"
+      oninput="adminState.userSearch=this.value;renderModal()">
+    <div style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </div>
+  </div>`;
 
-  return `<div class="admin-section-title">ALUMNOS REGISTRADOS (${all.length})</div>
-    ${rows}
-    ${adminState.viewUserIdx?renderUserProgress():''} `;
+  const q=adminState.userSearch.toLowerCase().trim();
+  const filtered=active.filter(u=>!q||u.name.toLowerCase().includes(q));
+  const rows=filtered.map(u=>renderUserRow(u)).join('');
+  const emptyMsg=q
+    ? `<p style="color:var(--text3);font-size:13px;text-align:center;padding:20px">Sin resultados para "${escH(q)}"</p>`
+    : `<p style="color:var(--text3);font-size:13px;text-align:center;padding:20px">No hay alumnos activos aún.</p>`;
+
+  return subTabs+searchBar+(filtered.length?`<div class="admin-section-title">ALUMNOS (${filtered.length}${q?' encontrados':''})</div>${rows}`:emptyMsg);
 }
 
-async function approveUser(id){ await loadUsers(); users[id].status=STATUS.ACTIVE; await saveUsers(); renderModal(); showToast('✅ Usuario aprobado'); }
-async function blockUser(id){ await loadUsers(); users[id].status=STATUS.BLOCKED; await saveUsers(); renderModal(); showToast('Usuario bloqueado'); }
-async function unblockUser(id){ await loadUsers(); users[id].status=STATUS.ACTIVE; await saveUsers(); renderModal(); showToast('✅ Usuario reactivado'); }
+function renderUserRow(u){
+  const ini=u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+  const isPending=u.status===STATUS.PENDING;
+  const isBlocked=u.status===STATUS.BLOCKED;
+  return `<div class="user-row">
+    <div class="user-row-avatar">${ini}</div>
+    <div class="user-row-info">
+      <div class="user-row-name">${escH(u.name)}</div>
+      <div class="user-row-email">${escH(u.email)}</div>
+      ${isBlocked?`<div style="margin-top:3px"><span class="badge badge-blocked">BLOQUEADO</span></div>`:''}
+    </div>
+    <div class="user-row-actions">
+      ${isPending?`<button class="adm-btn adm-btn-green" style="padding:6px 12px;font-weight:700" onclick="approveUser('${u.id}')">✓ Aprobar</button>`:''}
+      ${!isPending&&!isBlocked?`<button class="adm-btn adm-btn-red" style="padding:6px 10px" onclick="blockUser('${u.id}')" title="Bloquear">✕</button>`:''}
+      ${isBlocked?`<button class="adm-btn adm-btn-blue" style="padding:6px 10px" onclick="unblockUser('${u.id}')" title="Reactivar">↩</button>`:''}
+      ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 10px" onclick="viewUserProgress('${u.id}')" title="Ver progreso">${IC.eye}</button>`:''}
+    </div>
+  </div>`;
+}
+
+function setUserSubTab(tab){ adminState.userSubTab=tab; adminState.userSearch=''; renderModal(); }
+
+async function approveUser(id){
+  await loadUsers(); users[id].status=STATUS.ACTIVE; await saveUsers();
+  adminState.userSubTab='active'; // switch to active tab after approving
+  renderModal(); showToast('✅ Usuario aprobado');
+}
+async function blockUser(id){
+  await loadUsers(); users[id].status=STATUS.BLOCKED; await saveUsers();
+  renderModal(); showToast('Usuario bloqueado');
+}
+async function unblockUser(id){
+  await loadUsers(); users[id].status=STATUS.ACTIVE; await saveUsers();
+  renderModal(); showToast('✅ Usuario reactivado');
+}
 
 let viewProgData=null;
 async function viewUserProgress(id){
   adminState.viewUserIdx=id;
   adminState.viewUserWeek=0;
-  const pk=K.PROG(id);
-  viewProgData=await personalGet(pk)||lsGet(pk)||{};
+  viewProgData=await personalGet(K.PROG(id))||{};
   renderModal();
 }
 
 function renderUserProgress(){
   const u=getUserById(adminState.viewUserIdx);
   if(!u) return '';
-  const weekTabs=plan.map((_,i)=>`<div class="prog-week-tab ${adminState.viewUserWeek===i?'active':''}" onclick="setProgWeek(${i})">S${i+1}</div>`).join('');
+
+  const weekTabs=plan.map((_,i)=>`
+    <div class="prog-week-tab ${adminState.viewUserWeek===i?'active':''}" onclick="setProgWeek(${i})">S${i+1}</div>
+  `).join('');
+
   const wd=plan[adminState.viewUserWeek];
   let entries='';
+
   wd.days.forEach(day=>{
     day.blocks.forEach(block=>{
+      let blockEntries='';
       block.exercises.forEach(ex=>{
         if(ex.type==='single'){
           ex.sets.forEach((s,si)=>{
             const k=`${ex.id}_s${si}`; const d=viewProgData[k];
             if(d&&(d.weight||d.notes||d.done)){
-              entries+=`<div class="prog-entry">
-                <div class="prog-entry-header">${day.name} · ${block.name} · ${ex.name}</div>
-                <div class="prog-entry-row"><span class="prog-entry-label">Serie ${si+1}</span><span class="prog-entry-val">${d.weight?d.weight+'kg':'-'}</span>${d.done?`<span class="prog-entry-done">✓</span>`:''}</div>
-                ${d.notes?`<div class="prog-entry-notes">"${escH(d.notes)}"</div>`:''}
-              </div>`;
+              blockEntries+=`<div class="prog-entry-row">
+                <span class="set-label" style="width:60px;flex-shrink:0">SERIE ${si+1}</span>
+                <span class="prog-entry-val">${d.weight?d.weight+' kg':'— kg'}</span>
+                ${d.done?`<span class="prog-entry-done">✓</span>`:`<span style="color:var(--text3);font-size:11px">pendiente</span>`}
+              </div>
+              ${d.notes?`<div class="prog-entry-notes">"${escH(d.notes)}"</div>`:''}`;
             }
           });
+          if(blockEntries) entries+=`<div class="prog-entry">
+            <div class="prog-entry-header">${day.name} · ${block.name}</div>
+            <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">${ex.name}</div>
+            ${blockEntries}
+          </div>`;
         } else {
           for(let si=0;si<ex.count;si++){
             ex.parts.forEach(p=>{
               const k=`${ex.id}_${p.pid}_s${si}`; const d=viewProgData[k];
               if(d&&(d.weight||d.notes||d.done)){
-                entries+=`<div class="prog-entry">
-                  <div class="prog-entry-header">${day.name} · ${block.name} · ${p.name}</div>
-                  <div class="prog-entry-row"><span class="prog-entry-label">Serie ${si+1}</span><span class="prog-entry-val">${d.weight?d.weight+'kg':'-'}</span>${d.done?`<span class="prog-entry-done">✓</span>`:''}</div>
-                  ${d.notes?`<div class="prog-entry-notes">"${escH(d.notes)}"</div>`:''}
-                </div>`;
+                blockEntries+=`<div class="prog-entry-row">
+                  <span class="set-label" style="width:60px;flex-shrink:0">S${si+1}</span>
+                  <span style="font-size:11px;color:var(--text2);flex:1">${p.name}</span>
+                  <span class="prog-entry-val">${d.weight?d.weight+' kg':'—'}</span>
+                  ${d.done?`<span class="prog-entry-done">✓</span>`:``}
+                </div>
+                ${d.notes?`<div class="prog-entry-notes">"${escH(d.notes)}"</div>`:''}`;
               }
             });
           }
+          if(blockEntries) entries+=`<div class="prog-entry">
+            <div class="prog-entry-header">${day.name} · ${block.name}</div>
+            <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">${ex.parts.map(p=>p.name).join(' + ')}</div>
+            ${blockEntries}
+          </div>`;
         }
       });
     });
   });
 
-  return `<div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <div class="admin-section-title" style="margin:0">📊 PROGRESO: ${escH(u.name.toUpperCase())}</div>
-      <button class="adm-btn adm-btn-ghost" style="padding:4px 10px;font-size:12px" onclick="adminState.viewUserIdx=null;renderModal()">✕</button>
+  const ini=u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+  return `<div>
+    <!-- Back button -->
+    <button class="adm-btn adm-btn-ghost" style="margin-bottom:14px;gap:8px"
+      onclick="adminState.viewUserIdx=null;renderModal()">
+      ${IC.back} Volver a usuarios
+    </button>
+
+    <!-- User header -->
+    <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:16px">
+      <div class="user-row-avatar" style="width:46px;height:46px;font-size:17px;flex-shrink:0">${ini}</div>
+      <div>
+        <div style="font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;letter-spacing:1px">${escH(u.name)}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">${escH(u.email)}</div>
+      </div>
     </div>
-    <div class="prog-week-tabs">${weekTabs}</div>
-    ${entries||'<p style="color:var(--text3);font-size:13px;padding:12px 0">Sin registros en esta semana.</p>'}
+
+    <!-- Week selector -->
+    <div class="admin-section-title">SEMANA</div>
+    <div class="prog-week-tabs" style="margin-bottom:14px">${weekTabs}</div>
+
+    <!-- Entries -->
+    ${entries||`<div style="text-align:center;padding:32px 0;color:var(--text3)">
+      <div style="font-size:32px;margin-bottom:10px">📭</div>
+      <div style="font-size:13px">Sin registros en la Semana ${adminState.viewUserWeek+1}</div>
+    </div>`}
   </div>`;
 }
 
