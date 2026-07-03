@@ -959,48 +959,72 @@ function renderUserProgress(){
   `).join('');
 
   const wd=plan[adminState.viewUserWeek];
+
+  // Helper: does a progress entry have any real data worth showing?
+  function hasData(d){ return d && (d.done===true || (d.weight&&d.weight.toString().trim()!=='') || (d.notes&&d.notes.trim()!=='')); }
+
   let entries='';
 
   wd.days.forEach(day=>{
     day.blocks.forEach(block=>{
-      let blockEntries='';
       block.exercises.forEach(ex=>{
+
         if(ex.type==='single'){
+          // Collect only sets that have real data
+          let setRows='';
           ex.sets.forEach((s,si)=>{
             const k=`${ex.id}_s${si}`; const d=viewProgData[k];
-            if(d&&(d.weight||d.notes||d.done)){
-              blockEntries+=`<div class="prog-entry-row">
-                <span class="set-label" style="width:60px;flex-shrink:0">SERIE ${si+1}</span>
-                <span class="prog-entry-val">${d.weight?d.weight+' kg':'— kg'}</span>
-                ${d.done?`<span class="prog-entry-done">✓</span>`:`<span style="color:var(--text3);font-size:11px">pendiente</span>`}
-              </div>
-              ${d.notes?`<div class="prog-entry-notes">"${escH(d.notes)}"</div>`:''}`;
-            }
+            if(!hasData(d)) return;
+            setRows+=`<div class="prog-entry-row" style="margin-bottom:4px">
+              <span class="set-label" style="width:64px;flex-shrink:0">SERIE ${si+1}</span>
+              <span class="prog-entry-val">${d.weight?d.weight+' kg':'— kg'}</span>
+              ${d.done?`<span class="prog-entry-done">✓</span>`:`<span style="color:var(--text3);font-size:11px">sin check</span>`}
+            </div>
+            ${d.notes?`<div class="prog-entry-notes" style="margin-bottom:2px">"${escH(d.notes)}"</div>`:''}`;
           });
-          if(blockEntries) entries+=`<div class="prog-entry">
+          if(!setRows) return; // skip exercise entirely if no data
+          entries+=`<div class="prog-entry">
             <div class="prog-entry-header">${day.name} · ${block.name}</div>
-            <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">${ex.name}</div>
-            ${blockEntries}
+            <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">${ex.name}</div>
+            ${setRows}
           </div>`;
+
         } else {
+          // Superset — group by serie number, one card per exercise within the set
+          // Only show series where at least one part has real data
+          let anyData=false;
+          let serieBlocks='';
+
           for(let si=0;si<ex.count;si++){
+            // Check if any part of this serie has data
+            const partsWithData=ex.parts.filter(p=>hasData(viewProgData[`${ex.id}_${p.pid}_s${si}`]));
+            if(!partsWithData.length) continue;
+            anyData=true;
+
+            let partRows='';
             ex.parts.forEach(p=>{
               const k=`${ex.id}_${p.pid}_s${si}`; const d=viewProgData[k];
-              if(d&&(d.weight||d.notes||d.done)){
-                blockEntries+=`<div class="prog-entry-row">
-                  <span class="set-label" style="width:60px;flex-shrink:0">S${si+1}</span>
-                  <span style="font-size:11px;color:var(--text2);flex:1">${p.name}</span>
-                  <span class="prog-entry-val">${d.weight?d.weight+' kg':'—'}</span>
-                  ${d.done?`<span class="prog-entry-done">✓</span>`:``}
-                </div>
-                ${d.notes?`<div class="prog-entry-notes">"${escH(d.notes)}"</div>`:''}`;
-              }
+              const hasd=hasData(d);
+              partRows+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;padding:4px 0;border-bottom:1px solid var(--border)">
+                <span style="font-size:11px;color:var(--text2);flex:1;line-height:1.3">${p.name}</span>
+                <span class="prog-entry-val" style="font-size:12px">${hasd&&d.weight?d.weight+' kg':'—'}</span>
+                ${hasd&&d.done?`<span class="prog-entry-done">✓</span>`:`<span style="color:var(--text3);font-size:10px;width:16px"></span>`}
+              </div>
+              ${hasd&&d.notes?`<div class="prog-entry-notes" style="margin-bottom:4px">"${escH(d.notes)}"</div>`:''}`;
             });
+
+            serieBlocks+=`<div style="margin-bottom:10px">
+              <div class="set-label" style="margin-bottom:6px">SERIE ${si+1}</div>
+              ${partRows}
+            </div>`;
           }
-          if(blockEntries) entries+=`<div class="prog-entry">
+
+          if(!anyData) return; // skip entire exercise if no data in any serie
+          entries+=`<div class="prog-entry">
             <div class="prog-entry-header">${day.name} · ${block.name}</div>
-            <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px">${ex.parts.map(p=>p.name).join(' + ')}</div>
-            ${blockEntries}
+            <div style="font-size:11px;font-weight:600;color:var(--orange);margin-bottom:8px;letter-spacing:.5px">BLOQUE COMBINADO</div>
+            <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:10px">${ex.parts.map(p=>p.name).join(' + ')}</div>
+            ${serieBlocks}
           </div>`;
         }
       });
@@ -1009,13 +1033,10 @@ function renderUserProgress(){
 
   const ini=u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
   return `<div>
-    <!-- Back button -->
     <button class="adm-btn adm-btn-ghost" style="margin-bottom:14px;gap:8px"
       onclick="adminState.viewUserIdx=null;renderModal()">
       ${IC.back} Volver a usuarios
     </button>
-
-    <!-- User header -->
     <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:16px">
       <div class="user-row-avatar" style="width:46px;height:46px;font-size:17px;flex-shrink:0">${ini}</div>
       <div>
@@ -1023,12 +1044,8 @@ function renderUserProgress(){
         <div style="font-size:11px;color:var(--text3);margin-top:2px">${escH(u.email)}</div>
       </div>
     </div>
-
-    <!-- Week selector -->
     <div class="admin-section-title">SEMANA</div>
     <div class="prog-week-tabs" style="margin-bottom:14px">${weekTabs}</div>
-
-    <!-- Entries -->
     ${entries||`<div style="text-align:center;padding:32px 0;color:var(--text3)">
       <div style="font-size:32px;margin-bottom:10px">📭</div>
       <div style="font-size:13px">Sin registros en la Semana ${adminState.viewUserWeek+1}</div>
