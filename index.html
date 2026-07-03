@@ -924,14 +924,15 @@ function renderHome(){
     </div>`;
   }).join('');
   return `${navBarHTML()}
-    <div class="page">
+    <div class="page-tabbed">
       <div class="home-hero">
         <div class="home-greeting">HOLA, ${escH(session.name.split(' ')[0].toUpperCase())} 👋</div>
         <h1>PLAN DE<br><span>FUERZA</span></h1>
         <p>Seleccioná tu semana actual</p>
       </div>
       <div class="weeks-grid">${cards}</div>
-    </div>`;
+    </div>
+    ${tabBarHTML()}`;
 }
 
 // ============================================================
@@ -985,7 +986,7 @@ function renderWeek(){
   ).join('');
 
   return `${navBarHTML(true,"nav('home')")}
-    <div class="page">
+    <div class="page-tabbed">
       <div class="page-header"><div></div><div>
         <div class="page-subtitle">SEMANA ${wd.week}</div>
         <div class="page-title" style="font-size:18px">SELECCIONÁ EL DÍA</div>
@@ -996,7 +997,8 @@ function renderWeek(){
         <button class="rpe-btn" style="margin-left:6px;vertical-align:middle" onclick="openRpePopup('${mainRpe}')">?</button>
       </div>`:''}
       ${days}
-    </div>`;
+    </div>
+    ${tabBarHTML()}`;
 }
 
 function renderDay(){
@@ -1009,10 +1011,11 @@ function renderDay(){
     </div>`
   ).join('');
   return `${navBarHTML(true,`nav('week',{week:${ST.week}})`)}
-    <div class="page">
+    <div class="page-tabbed">
       <div class="page-header"><div></div><div><div class="page-subtitle">SEM. ${wd.week} · ${day.name}</div><div class="page-title" style="font-size:17px">${day.days}</div></div><div></div></div>
       ${blocks}
-    </div>`;
+    </div>
+    ${tabBarHTML()}`;
 }
 
 function renderWorkout(){
