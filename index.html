@@ -568,65 +568,84 @@ async function savePrs(){
   lsSet(K.PRS(session.uid),prs);
 }
 
-// Recalculate ALL PRs from scratch by scanning all progress data
-// This is the only correct approach: handles deletions, edits, and cross-device sync
-function recalcPrsFromProgress(){
-  if(!plan||!progress) return;
-  const trList = tracked||DEFAULT_TRACKED;
-  const newPrs = {};
-
+// Build a lookup map: progressKey → {exName, repsStr, weekNum}
+// This is derived from the CURRENT plan in Firebase
+function buildProgressKeyMap(){
+  const map = {};
+  if(!plan) return map;
   plan.forEach(wd=>{
     wd.days.forEach(day=>{
       day.blocks.forEach(block=>{
         block.exercises.forEach(ex=>{
           if(ex.type==='single'){
-            const matched = matchTracked(ex.name, trList);
-            if(!matched) return;
             ex.sets.forEach((s,si)=>{
-              const d = progress[`${ex.id}_s${si}`];
-              if(!d||!d.weight) return;
-              const w = parseFloat(d.weight);
-              if(!w||isNaN(w)||w<=0) return;
-              const reps = parseReps(s.r);
-              const rk = getPrRangeKey(reps);
-              if(!rk) return;
-              const tn = matched.name;
-              if(!newPrs[tn]) newPrs[tn]={};
-              if(!newPrs[tn][rk]||w>newPrs[tn][rk].weight){
-                // Preserve newPr flag only if this was already a PR
-                const wasNew = prs[tn]&&prs[tn][rk]&&prs[tn][rk].newPr&&prs[tn][rk].weight===w;
-                newPrs[tn][rk]={ weight:w, week:wd.week, newPr:!!wasNew };
-              }
+              map[`${ex.id}_s${si}`]={ exName:ex.name, repsStr:s.r, weekNum:wd.week };
             });
           } else {
-            ex.parts.forEach(p=>{
-              const matched = matchTracked(p.name, trList);
-              if(!matched) return;
-              for(let si=0;si<ex.count;si++){
-                const d = progress[`${ex.id}_${p.pid}_s${si}`];
-                if(!d||!d.weight) return;
-                const w = parseFloat(d.weight);
-                if(!w||isNaN(w)||w<=0) return;
-                const reps = parseReps(p.r);
-                const rk = getPrRangeKey(reps);
-                if(!rk) return;
-                const tn = matched.name;
-                if(!newPrs[tn]) newPrs[tn]={};
-                if(!newPrs[tn][rk]||w>newPrs[tn][rk].weight){
-                  const wasNew = prs[tn]&&prs[tn][rk]&&prs[tn][rk].newPr&&prs[tn][rk].weight===w;
-                  newPrs[tn][rk]={ weight:w, week:wd.week, newPr:!!wasNew };
-                }
-              }
-            });
+            for(let si=0;si<ex.count;si++){
+              ex.parts.forEach(p=>{
+                map[`${ex.id}_${p.pid}_s${si}`]={ exName:p.name, repsStr:p.r, weekNum:wd.week };
+              });
+            }
           }
         });
       });
     });
   });
+  return map;
+}
+
+// Recalculate ALL PRs by scanning every key in progress and matching to plan
+function recalcPrsFromProgress(){
+  if(!plan||!progress) return;
+  const trList = tracked||DEFAULT_TRACKED;
+  const newPrs = {};
+  const keyMap = buildProgressKeyMap();
+
+  // Scan ALL progress keys — this works even if the plan changed
+  Object.entries(progress).forEach(([k, d])=>{
+    if(!d||!d.weight) return;
+    const w = parseFloat(d.weight);
+    if(!w||isNaN(w)||w<=0) return;
+
+    // Find this key in the current plan map
+    const meta = keyMap[k];
+    if(!meta) return; // key exists in progress but not in current plan — skip
+
+    const matched = matchTracked(meta.exName, trList);
+    if(!matched) return;
+
+    const reps = parseReps(meta.repsStr);
+    const rk = getPrRangeKey(reps);
+    if(!rk) return;
+
+    const tn = matched.name;
+    if(!newPrs[tn]) newPrs[tn]={};
+    if(!newPrs[tn][rk]||w>newPrs[tn][rk].weight){
+      const wasNew = prs[tn]&&prs[tn][rk]&&prs[tn][rk].newPr&&prs[tn][rk].weight===w;
+      newPrs[tn][rk]={ weight:w, week:meta.weekNum, newPr:!!wasNew };
+    }
+  });
 
   prs = newPrs;
   savePrs();
 }
+
+// Debug: log what progress keys exist and whether they match the current plan
+// Call window.__debugPrs() from browser console to diagnose
+window.__debugPrs = function(){
+  const keyMap = buildProgressKeyMap();
+  const progKeys = Object.keys(progress).filter(k=>progress[k]&&progress[k].weight);
+  console.log('=== PR DEBUG ===');
+  console.log('Progress keys with weight:', progKeys.length);
+  console.log('Plan keys:', Object.keys(keyMap).length);
+  progKeys.forEach(k=>{
+    const meta=keyMap[k];
+    const d=progress[k];
+    const match=meta?matchTracked(meta.exName,tracked||DEFAULT_TRACKED):null;
+    console.log(k,'→ weight:',d.weight,'| plan meta:',meta?meta.exName:'NOT IN PLAN','| tracked:',match?match.name:'NO MATCH');
+  });
+};
 
 // ============================================================
 // PROGRESS (per-user)
