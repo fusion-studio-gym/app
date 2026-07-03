@@ -807,12 +807,23 @@ function closeAdmin(){ adminState.open=false; document.getElementById('modal-roo
 function renderModal(){
   if(!adminState.open) return;
   const root=document.getElementById('modal-root');
+
+  // Save scroll position before re-render
+  const existingModal=root.querySelector('.modal');
+  const savedScroll=existingModal?existingModal.scrollTop:0;
+
   root.innerHTML=`<div class="modal-overlay" onclick="closeAdminBg(event)">
     <div class="modal">
       <div class="modal-header"><span class="modal-title">${IC.lock} ADMIN</span><button class="modal-close" onclick="closeAdmin()">✕</button></div>
       <div class="modal-body">${adminState.pwOk?renderAdminBody():renderAdminPw()}</div>
     </div>
   </div>`;
+
+  // Restore scroll — but reset to top when entering a user detail view
+  const newModal=root.querySelector('.modal');
+  if(newModal){
+    newModal.scrollTop = adminState.viewUserIdx ? 0 : savedScroll;
+  }
 }
 
 function closeAdminBg(e){ if(e.target.classList.contains('modal-overlay')) closeAdmin(); }
