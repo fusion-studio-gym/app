@@ -254,7 +254,11 @@ input[type=number]{-moz-appearance:textfield;}
 // ============================================================
 // LOGO
 // ============================================================
-const LOGO_URL = "logo.jpg";
+// Resolve logo URL relative to the HTML file location (works on GitHub Pages subdirectories)
+const LOGO_URL = (()=>{
+  const base = window.location.href.replace(/\/[^\/]*$/, '/');
+  return base + 'logo.jpg';
+})();
 
 // ============================================================
 // CONSTANTS & KEYS
@@ -558,7 +562,7 @@ function toggleUserMenu(){ if(suppressNextClick){suppressNextClick=false;return;
 function closeUserMenu(){ if(userMenuOpen){userMenuOpen=false;render();} }
 
 // admin state
-let adminState={ open:false, pwOk:false, pwErr:'', tab:0, editWeekIdx:0, editDayIdx:0, editBlockIdx:0, viewUserIdx:null, viewUserWeek:0, userSubTab:'active', userSearch:'' };
+let adminState={ open:false, pwOk:false, pwErr:'', tab:0, editWeekIdx:0, editDayIdx:0, editBlockIdx:0, viewUserIdx:null, viewUserWeek:0, userSubTab:'active', userSearch:'', savedScroll:0 };
 
 // logo hold
 let logoTimer=null;
@@ -618,7 +622,7 @@ function navBarHTML(showBack=false,backFn=''){
     ${showBack?`<button class="nav-back" onclick="${backFn}">${IC.back}</button>`:`<div class="nav-spacer"></div>`}
     <div class="nav-brand" onclick="nav('home')">
       <div class="nav-logo" oncontextmenu="return false" ondragstart="return false"
-        style="background-image:url('data:image/jpeg;base64,${LOGO_URL}')"
+        style="background-image:url('${LOGO_URL}')"
         onmousedown="handleLogoMouseDown()" onmouseup="handleLogoMouseUp()" onmouseleave="cancelLogoHold()"
         ontouchstart="handleLogoTouchStart(event)" ontouchend="handleLogoTouchEnd(event)" ontouchcancel="cancelLogoHold()" ontouchmove="cancelLogoHold()">
       </div>
@@ -649,7 +653,7 @@ let authState={ mode:'login', name:'', email:'', pw:'', pw2:'', err:'', loading:
 
 function renderAuth(){
   const logoImg=`<div class="auth-logo" oncontextmenu="return false" ondragstart="return false"
-      style="background-image:url('data:image/jpeg;base64,${LOGO_URL}')"
+      style="background-image:url('${LOGO_URL}')"
       onmousedown="handleLogoMouseDown()" onmouseup="handleLogoMouseUp()" onmouseleave="cancelLogoHold()"
       ontouchstart="handleLogoTouchStart(event)" ontouchend="handleLogoTouchEnd(event)" ontouchcancel="cancelLogoHold()" ontouchmove="cancelLogoHold()">
     </div>`;
@@ -812,9 +816,6 @@ function closeRpePopup(){
 function renderWeek(){
   const wd=plan[ST.week];
   const mainRpe=getWeekMainRpe(wd);
-  const rpeBtn=mainRpe&&mainRpe!=='-'
-    ? `<button class="rpe-btn" onclick="openRpePopup('${mainRpe}')" title="¿Qué significa ${mainRpe}?">?</button>`
-    : '';
 
   const days=wd.days.map((day,di)=>
     `<div class="day-card" onclick="nav('day',{week:${ST.week},dayIdx:${di}})">
@@ -828,9 +829,7 @@ function renderWeek(){
     <div class="page">
       <div class="page-header"><div></div><div>
         <div class="page-subtitle">SEMANA ${wd.week}</div>
-        <div class="page-title" style="font-size:18px;display:flex;align-items:center;justify-content:center;gap:10px">
-          SELECCIONÁ EL DÍA ${rpeBtn}
-        </div>
+        <div class="page-title" style="font-size:18px">SELECCIONÁ EL DÍA</div>
       </div><div></div></div>
       ${mainRpe&&mainRpe!=='-'?`<div style="text-align:center;margin:-8px 0 18px">
         <span style="font-size:12px;color:var(--text3)">Intensidad principal esta semana: </span>
@@ -928,11 +927,18 @@ function renderModal(){
   const existingModal=root.querySelector('.modal');
 
   if(existingModal){
-    // Modal already exists — only update body content, preserving scroll
+    // Save scroll BEFORE touching the DOM
+    const savedScroll = existingModal.scrollTop;
+    const goingIntoDetail = adminState.viewUserIdx !== null;
+
+    // Update only the body content — never touch .modal itself
     const body=existingModal.querySelector('.modal-body');
     if(body) body.innerHTML=adminState.pwOk?renderAdminBody():renderAdminPw();
-    // Scroll to top only when entering a user detail view
-    if(adminState.viewUserIdx) existingModal.scrollTop=0;
+
+    // After DOM update: scroll to top for detail views, restore position when returning
+    requestAnimationFrame(()=>{
+      existingModal.scrollTop = goingIntoDetail ? 0 : savedScroll;
+    });
   } else {
     // First render — build full modal structure
     root.innerHTML=`<div class="modal-overlay" onclick="closeAdminBg(event)">
@@ -1074,6 +1080,9 @@ async function unblockUser(id){
 
 let viewProgData=null;
 async function viewUserProgress(id){
+  // Save current scroll position so we can restore it when going back
+  const modal=document.querySelector('#modal-root .modal');
+  adminState.savedScroll=modal?modal.scrollTop:0;
   adminState.viewUserIdx=id;
   adminState.viewUserWeek=0;
   viewProgData=await personalGet(K.PROG(id))||{};
@@ -1164,7 +1173,7 @@ function renderUserProgress(){
   const ini=u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
   return `<div>
     <button class="adm-btn adm-btn-ghost" style="margin-bottom:14px;gap:8px"
-      onclick="adminState.viewUserIdx=null;renderModal()">
+      onclick="goBackToUserList()">
       ${IC.back} Volver a usuarios
     </button>
     <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:16px">
@@ -1181,6 +1190,16 @@ function renderUserProgress(){
       <div style="font-size:13px">Sin registros en la Semana ${adminState.viewUserWeek+1}</div>
     </div>`}
   </div>`;
+}
+
+function goBackToUserList(){
+  adminState.viewUserIdx=null;
+  renderModal();
+  // Restore scroll after the DOM updates
+  requestAnimationFrame(()=>{
+    const modal=document.querySelector('#modal-root .modal');
+    if(modal) modal.scrollTop=adminState.savedScroll;
+  });
 }
 
 function setProgWeek(i){ adminState.viewUserWeek=i; renderModal(); }
