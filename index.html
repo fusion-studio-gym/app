@@ -24,7 +24,7 @@
   --border:#2a2a2f; --border2:#38383f;
   --orange:#f05a28; --orange2:#ff7043; --orange-dim:rgba(240,90,40,0.15); --orange-dim2:rgba(240,90,40,0.08);
   --text:#f0f0f0; --text2:#a0a0a8; --text3:#68686f;
-  --green:#22c55e; --red:#ef4444; --blue:#3b82f6; --yellow:#f59e0b;
+  --green:#22c55e; --red:#ef4444; --blue:#3b82f6; --yellow:#f59e0b; --gold:#f59e0b;
   --radius:14px; --radius-sm:8px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -224,6 +224,71 @@ body{max-width:480px;margin:0 auto;}
 .pw-wrap p{font-size:13px;color:var(--text2);}
 .pw-err{font-size:12px;color:var(--red);}
 
+/* BOTTOM TAB BAR */
+.tab-bar{display:flex;border-top:1px solid var(--border);background:rgba(10,10,11,0.97);position:sticky;bottom:0;z-index:50;}
+.tab-bar-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 0 8px;gap:3px;cursor:pointer;font-size:9px;font-weight:700;letter-spacing:.5px;color:var(--text3);text-transform:uppercase;transition:color .15s;}
+.tab-bar-item.active{color:var(--orange);}
+.tab-bar-icon{font-size:20px;line-height:1;}
+/* Pages with tab bar need bottom padding */
+.page-tabbed{padding:20px 16px 80px;}
+
+/* PR SCREEN */
+.pr-hero{background:linear-gradient(135deg,var(--orange-dim),rgba(240,90,40,0.04));border:1px solid rgba(240,90,40,0.3);border-radius:var(--radius);padding:18px 16px;margin-bottom:16px;display:flex;align-items:center;gap:14px;}
+.pr-hero-icon{font-size:36px;line-height:1;flex-shrink:0;}
+.pr-hero-label{font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;}
+.pr-hero-name{font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.pr-hero-weight{font-family:'Oswald',sans-serif;font-size:40px;font-weight:700;color:var(--orange);line-height:1;}
+.pr-hero-meta{font-size:11px;color:var(--text3);margin-top:3px;}
+.pr-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.pr-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;position:relative;overflow:hidden;}
+.pr-card.has-new{border-color:var(--gold);}
+.pr-new-badge{position:absolute;top:0;right:0;background:var(--gold);color:#000;font-size:8px;font-weight:800;letter-spacing:.5px;padding:3px 7px;border-radius:0 0 0 6px;}
+.pr-card-name{font-size:11px;color:var(--text2);font-weight:500;margin-bottom:8px;line-height:1.3;}
+.pr-ranges{display:flex;flex-direction:column;gap:5px;}
+.pr-range-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.pr-range-label{font-size:10px;color:var(--text3);font-weight:700;letter-spacing:.5px;width:36px;flex-shrink:0;}
+.pr-range-val{font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;color:var(--text);}
+.pr-range-val span{font-size:11px;color:var(--text3);}
+.pr-range-week{font-size:10px;color:var(--text3);}
+.pr-range-new{font-size:9px;font-weight:800;color:var(--gold);background:rgba(245,158,11,0.12);border-radius:3px;padding:1px 5px;}
+.pr-empty{text-align:center;padding:28px 0;color:var(--text3);font-size:13px;}
+
+/* CHART SCREEN */
+.chart-ex-selector{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+.chart-ex-name{font-family:'Oswald',sans-serif;font-size:15px;font-weight:600;letter-spacing:.5px;}
+.chart-stat-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;}
+.chart-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 8px;text-align:center;}
+.chart-stat-label{font-size:9px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px;}
+.chart-stat-val{font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;}
+.chart-stat-val.hi{color:var(--orange);}
+.chart-stat-val.gr{color:var(--green);}
+.chart-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 12px 10px;margin-bottom:14px;}
+.chart-wrap-title{font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;}
+.chart-svg{width:100%;overflow:visible;}
+.chart-week-tabs{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:2px;}
+.chart-week-tabs::-webkit-scrollbar{height:3px;} .chart-week-tabs::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.chart-week-tab{flex-shrink:0;width:30px;height:30px;border-radius:50%;border:1px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;}
+.chart-week-tab.done{border-color:rgba(240,90,40,0.35);color:var(--orange);}
+.chart-week-tab.active{background:var(--orange);border-color:var(--orange);color:white;}
+.chart-week-tab.empty{opacity:.4;}
+.chart-series-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;}
+.chart-series-hdr{background:var(--surface3);padding:7px 12px;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;border-bottom:1px solid var(--border);}
+.chart-series-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border);}
+.chart-series-row:last-child{border-bottom:none;}
+.chart-s-num{font-size:10px;color:var(--text3);width:52px;flex-shrink:0;font-weight:600;}
+.chart-s-bar-wrap{flex:1;height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;}
+.chart-s-bar{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--orange),var(--orange2));}
+.chart-s-val{font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;color:var(--text);width:52px;text-align:right;flex-shrink:0;}
+.chart-s-check{color:var(--green);font-size:13px;flex-shrink:0;width:14px;}
+
+/* Ex picker overlay */
+.ex-picker-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;display:flex;align-items:flex-end;justify-content:center;}
+.ex-picker{background:var(--surface);border:1px solid var(--border2);border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:70vh;overflow-y:auto;padding:8px 0 32px;}
+.ex-picker-handle{width:40px;height:4px;background:var(--border2);border-radius:2px;margin:12px auto 16px;}
+.ex-picker-item{padding:14px 20px;font-family:'Oswald',sans-serif;font-size:16px;font-weight:600;letter-spacing:.5px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s;}
+.ex-picker-item:active{background:var(--surface2);}
+.ex-picker-item.selected{color:var(--orange);}
+
 /* RPE INFO */
 .rpe-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--orange-dim);border:1px solid rgba(240,90,40,0.4);color:var(--orange);font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;transition:background .15s;-webkit-touch-callout:none;user-select:none;}
 .rpe-btn:active{background:var(--orange);color:white;}
@@ -267,12 +332,54 @@ const K = {
   USERS:    'fs_users_v1',
   PLAN:     'fs_plan_v1',
   PROG:     (uid) => `fs_prog_${uid}_v1`,
+  PRS:      (uid) => `fs_prs_${uid}_v1`,   // personal: {exName: {rm1,rm2,rm3,rm4}} each = {weight,week,newPr}
+  TRACKED:  'fs_tracked_v1',               // shared: [{name, matchTerms:[]}]
   SESSION:  'fs_session_v1',
   ADMINPW:  'fs_adminpw_v1',
-  RPE_INFO: 'fs_rpe_info_v1',   // shared: {rpe: {title, items:[]}}
+  RPE_INFO: 'fs_rpe_info_v1',
 };
 const DEFAULT_ADMIN_PW = 'fusion2025';
 const STATUS = { PENDING:'pending', ACTIVE:'active', BLOCKED:'blocked' };
+
+// PR rep ranges
+const PR_RANGES = [
+  { key:'rm1', label:'1RM',  min:1, max:1 },
+  { key:'rm2', label:'2RM',  min:2, max:2 },
+  { key:'rm3', label:'3RM',  min:3, max:3 },
+  { key:'rm4', label:'4RM+', min:4, max:999 },
+];
+
+// Default tracked exercises (base — always present)
+const DEFAULT_TRACKED = [
+  { name:'Banco Plano',  matchTerms:['banco plano'] },
+  { name:'Back Squat',   matchTerms:['back squat','sentadilla'] },
+  { name:'Peso Muerto',  matchTerms:['peso muerto'] },
+];
+
+// Parse reps string like "6", "4/8", "6 c/l", "20\"/30\"" → number or null
+function parseReps(rStr){
+  if(!rStr) return null;
+  const s = rStr.toString().trim();
+  // Take first number found
+  const m = s.match(/\d+/);
+  return m ? parseInt(m[0]) : null;
+}
+
+// Get PR range key for a given rep count
+function getPrRangeKey(reps){
+  if(!reps) return null;
+  const r = PR_RANGES.find(r => reps >= r.min && reps <= r.max);
+  return r ? r.key : null;
+}
+
+// Fuzzy match exercise name against tracked terms
+function matchTracked(exName, tracked){
+  if(!exName) return null;
+  const lower = exName.toLowerCase();
+  return tracked.find(t =>
+    t.matchTerms.some(term => lower.includes(term.toLowerCase()))
+  ) || null;
+}
 
 const DEFAULT_RPE_INFO = {
   '@6':  { title:'@6 — Esfuerzo moderado', items:[
@@ -363,6 +470,8 @@ function lsSet(key,val){ try{ localStorage.setItem(key,JSON.stringify(val)); }ca
 let users = {};    // {id: {id,name,email,hash,status}}
 let plan  = null;
 let rpeInfo = null;
+let prs = {};      // {exName: {rm1:{weight,week,newPr}, rm2:..., rm3:..., rm4:...}}
+let tracked = null; // [{name, matchTerms:[]}]
 
 async function loadUsers(){ const u=await sharedGet(K.USERS); if(u) users=u; }
 async function saveUsers(){ await sharedSet(K.USERS,users); }
@@ -417,6 +526,47 @@ async function loadRpeInfo(){
 }
 async function saveRpeInfo(){ await sharedSet(K.RPE_INFO,rpeInfo); lsSet(K.RPE_INFO,rpeInfo); }
 
+async function loadTracked(){
+  const remote = await sharedGet(K.TRACKED);
+  if(remote){ tracked=remote; lsSet(K.TRACKED,remote); }
+  else { tracked=lsGet(K.TRACKED); }
+  if(!tracked) tracked=JSON.parse(JSON.stringify(DEFAULT_TRACKED));
+}
+async function saveTracked(){ await sharedSet(K.TRACKED,tracked); lsSet(K.TRACKED,tracked); }
+
+async function loadPrs(){
+  if(!session||session.uid==='__pending__') return;
+  const remote=await personalGet(K.PRS(session.uid));
+  if(remote){ prs=remote; lsSet(K.PRS(session.uid),remote); }
+  else { prs=lsGet(K.PRS(session.uid))||{}; }
+}
+async function savePrs(){
+  if(!session||session.uid==='__pending__') return;
+  await personalSet(K.PRS(session.uid),prs);
+  lsSet(K.PRS(session.uid),prs);
+}
+
+// Called every time a weight is saved — checks & updates PRs automatically
+function checkAndUpdatePr(exName, repsStr, weight, weekNum){
+  if(!weight||!exName) return false;
+  const w = parseFloat(weight);
+  if(!w||isNaN(w)||w<=0) return false;
+  const matched = matchTracked(exName, tracked||DEFAULT_TRACKED);
+  if(!matched) return false;
+  const reps = parseReps(repsStr);
+  const rangeKey = getPrRangeKey(reps);
+  if(!rangeKey) return false;
+  const trackName = matched.name;
+  if(!prs[trackName]) prs[trackName]={};
+  const current = prs[trackName][rangeKey];
+  if(!current || w > current.weight){
+    prs[trackName][rangeKey] = { weight:w, week:weekNum, newPr:true };
+    savePrs();
+    return true; // is a new PR
+  }
+  return false;
+}
+
 // ============================================================
 // PROGRESS (per-user)
 // ============================================================
@@ -435,7 +585,16 @@ async function saveProgress(){
 }
 
 function getSetData(k){ return progress[k]||{weight:'',notes:'',done:false}; }
-function setSetData(k,f,v){ if(!progress[k])progress[k]={weight:'',notes:'',done:false}; progress[k][f]=v; saveProgress(); }
+function setSetData(k,f,v){
+  if(!progress[k])progress[k]={weight:'',notes:'',done:false};
+  progress[k][f]=v;
+  saveProgress();
+  // Auto-check PR when weight changes
+  if(f==='weight' && v){
+    const meta=window.__prMeta&&window.__prMeta[k];
+    if(meta) checkAndUpdatePr(meta.exName, meta.reps, v, meta.week);
+  }
+}
 
 // ============================================================
 // DEFAULT ROUTINE BUILDER
@@ -552,7 +711,7 @@ function escH(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').re
 // ============================================================
 // APP STATE
 // ============================================================
-let ST={ view:'home', week:null, dayIdx:null, blockIdx:null };
+let ST={ view:'home', week:null, dayIdx:null, blockIdx:null, mainTab:'plan', chartEx:null, chartWeek:0 };
 function nav(view,extra={}){ ST={...ST,view,...extra}; render(); window.scrollTo(0,0); }
 
 // user menu state
@@ -858,6 +1017,21 @@ function renderDay(){
 
 function renderWorkout(){
   const wd=plan[ST.week]; const day=wd.days[ST.dayIdx]; const block=day.blocks[ST.blockIdx];
+  // Build PR metadata map: setKey → {exName, reps, week}
+  window.__prMeta={};
+  block.exercises.forEach(ex=>{
+    if(ex.type==='single'){
+      ex.sets.forEach((s,si)=>{
+        window.__prMeta[`${ex.id}_s${si}`]={exName:ex.name, reps:s.r, week:wd.week};
+      });
+    } else {
+      for(let si=0;si<ex.count;si++){
+        ex.parts.forEach(p=>{
+          window.__prMeta[`${ex.id}_${p.pid}_s${si}`]={exName:p.name, reps:p.r, week:wd.week};
+        });
+      }
+    }
+  });
   const exsH=block.exercises.map(ex=>renderExercise(ex)).join('');
   return `<div class="workout-header">
       <button class="nav-back" onclick="nav('day',{week:${ST.week},dayIdx:${ST.dayIdx}})">${IC.back}</button>
@@ -882,10 +1056,35 @@ function renderExercise(ex){
   return `<div class="ex-card"><div class="ex-header"><span class="ex-order">${ex.order}</span><div><span class="combined-tag">BLOQUE COMBINADO</span><div class="ex-name">${ex.parts.map(p=>p.name).join(' + ')}</div></div></div><div class="sets-wrap">${sH}</div></div>`;
 }
 
+function getPrBadge(exName, repsStr, weight){
+  if(!weight||!exName) return '';
+  const w=parseFloat(weight); if(!w||isNaN(w)) return '';
+  const matched=matchTracked(exName, tracked||DEFAULT_TRACKED);
+  if(!matched) return '';
+  const reps=parseReps(repsStr);
+  const rk=getPrRangeKey(reps);
+  if(!rk) return '';
+  const ex=prs[matched.name];
+  if(!ex||!ex[rk]) return '';
+  const range=PR_RANGES.find(r=>r.key===rk);
+  if(ex[rk].weight===w && ex[rk].newPr)
+    return `<span style="font-size:10px;font-weight:800;color:var(--gold);letter-spacing:.5px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-radius:4px;padding:2px 6px;flex-shrink:0">🏆 PR ${range.label}</span>`;
+  if(ex[rk].weight===w)
+    return `<span style="font-size:10px;font-weight:700;color:var(--orange);background:var(--orange-dim);border-radius:4px;padding:2px 6px;flex-shrink:0">= ${range.label}</span>`;
+  return '';
+}
+
 function renderSingleSet(exId,si,s){
   const k=`${exId}_s${si}`; const d=getSetData(k);
+  const meta=window.__prMeta&&window.__prMeta[k];
+  const badge=meta&&d.weight?getPrBadge(meta.exName,meta.reps,d.weight):'';
   return `<div class="set-row ${d.done?'done':''}" id="sr_${k}">
-    <div class="set-row-top"><span class="set-label">SERIE ${si+1}</span><span class="set-target">${s.r} <span class="set-target-rpe">${s.rpe!=='-'?s.rpe:''}</span></span></div>
+    <div class="set-row-top"><span class="set-label">SERIE ${si+1}</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        ${badge}
+        <span class="set-target">${s.r} <span class="set-target-rpe">${s.rpe!=='-'?s.rpe:''}</span></span>
+      </div>
+    </div>
     <div class="set-inputs">
       <input class="inp-kg" type="number" inputmode="decimal" placeholder="Kg" value="${escH(d.weight)}" oninput="setSetData('${k}','weight',this.value)">
       <input class="inp-notes" type="text" placeholder="Sensaciones, RPE real..." value="${escH(d.notes)}" oninput="setSetData('${k}','notes',this.value)">
@@ -896,8 +1095,16 @@ function renderSingleSet(exId,si,s){
 
 function renderSSPart(exId,part,si){
   const k=`${exId}_${part.pid}_s${si}`; const d=getSetData(k);
+  const meta=window.__prMeta&&window.__prMeta[k];
+  const badge=meta&&d.weight?getPrBadge(meta.exName,meta.reps,d.weight):'';
   return `<div class="superset-part ${d.done?'part-done':''}" id="sr_${k}">
-    <div class="superset-part-name"><span>${part.name}</span><span class="set-target" style="font-size:11px">${part.r} <span class="set-target-rpe">${part.rpe!=='-'?part.rpe:''}</span></span></div>
+    <div class="superset-part-name">
+      <span>${part.name}</span>
+      <div style="display:flex;align-items:center;gap:5px">
+        ${badge}
+        <span class="set-target" style="font-size:11px">${part.r} <span class="set-target-rpe">${part.rpe!=='-'?part.rpe:''}</span></span>
+      </div>
+    </div>
     <div class="set-inputs">
       <input class="inp-kg" type="number" inputmode="decimal" placeholder="Kg" value="${escH(d.weight)}" oninput="setSetData('${k}','weight',this.value)">
       <input class="inp-notes" type="text" placeholder="Sensaciones..." value="${escH(d.notes)}" oninput="setSetData('${k}','notes',this.value)">
@@ -977,13 +1184,14 @@ async function checkAdminPw(){
 
 // ADMIN TABS
 function renderAdminBody(){
-  const tabs=['👥 Usuarios','📋 Ejercicios','📅 Semanas','📖 RPE','🔑 Contraseña'];
+  const tabs=['👥 Usuarios','📋 Ejercicios','📅 Semanas','📖 RPE','🎯 PRs','🔑 Contraseña'];
   const nav=tabs.map((t,i)=>`<div class="admin-tab ${adminState.tab===i?'active':''}" onclick="setAdminTab(${i})">${t}</div>`).join('');
   let body='';
   if(adminState.tab===0) body=renderTabUsers();
   else if(adminState.tab===1) body=renderTabExercises();
   else if(adminState.tab===2) body=renderTabWeeks();
   else if(adminState.tab===3) body=renderTabRpe();
+  else if(adminState.tab===4) body=renderTabTracked();
   else body=renderTabPw();
   return `<div class="admin-nav">${nav}</div>${body}`;
 }
@@ -1350,6 +1558,55 @@ function removeDay(wi,di){ if(plan[wi].days.length<=1){showToast('Debe haber al 
 function updateDayName(wi,di,v){ plan[wi].days[di].name=v; }
 function updateDayDays(wi,di,v){ plan[wi].days[di].days=v; }
 
+// ---- TAB: PRs / EJERCICIOS TRACKEADOS ----
+function renderTabTracked(){
+  const trList=tracked||DEFAULT_TRACKED;
+  const isDefault=(name)=>DEFAULT_TRACKED.some(d=>d.name===name);
+  const rows=trList.map((t,i)=>`<div class="ex-edit-card">
+    <div class="ex-edit-card-header">
+      <span class="ex-edit-title">${escH(t.name)} ${isDefault(t.name)?'<span style="font-size:9px;color:var(--text3);font-weight:400;letter-spacing:0">(base)</span>':''}</span>
+      ${!isDefault(t.name)?`<button class="adm-btn adm-btn-red" onclick="removeTracked(${i})">${IC.trash}</button>`:'<span style="font-size:10px;color:var(--text3)">no editable</span>'}
+    </div>
+    <div class="admin-section-title" style="margin-top:4px">TÉRMINOS DE BÚSQUEDA</div>
+    <p style="font-size:11px;color:var(--text3);margin-bottom:8px;line-height:1.5">La app busca estos términos en el nombre del ejercicio para detectar automáticamente cuándo registrar un PR.</p>
+    ${t.matchTerms.map((term,ti)=>`<div class="adm-inp-row" style="margin-bottom:6px">
+      <input class="adm-inp" style="margin:0;flex:1" value="${escH(term)}" oninput="updateTrackedTerm(${i},${ti},this.value)" ${isDefault(t.name)?'readonly style="margin:0;flex:1;opacity:.5"':''}>
+      ${!isDefault(t.name)&&t.matchTerms.length>1?`<button class="adm-btn adm-btn-red" style="padding:6px 8px" onclick="removeTrackedTerm(${i},${ti})">${IC.trash}</button>`:''}
+    </div>`).join('')}
+    ${!isDefault(t.name)?`<button class="adm-btn adm-btn-blue" style="margin-top:4px" onclick="addTrackedTerm(${i})">${IC.plus} Término</button>`:''}
+  </div>`).join('');
+
+  return `<div>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:16px;line-height:1.5">
+      Los 3 ejercicios base siempre están presentes. Podés agregar más para trackear PRs y gráficos adicionales.
+    </p>
+    ${rows}
+    <div style="background:var(--surface2);border:1px dashed var(--border2);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px">
+      <div class="admin-section-title" style="margin-bottom:10px">AGREGAR EJERCICIO</div>
+      <input class="adm-inp" id="new-tracked-name" placeholder="Nombre (ej: Banco Inclinado)" style="margin-bottom:8px">
+      <input class="adm-inp" id="new-tracked-term" placeholder="Término de búsqueda (ej: banco inclinado)">
+      <button class="adm-btn adm-btn-orange" onclick="addTracked()" style="width:100%;justify-content:center;margin-top:8px">${IC.plus} Agregar</button>
+    </div>
+    <button class="adm-btn adm-btn-ghost" onclick="doSaveTracked()" style="width:100%;justify-content:center;padding:12px">💾 Guardar cambios</button>
+  </div>`;
+}
+
+function addTracked(){
+  const nameEl=document.getElementById('new-tracked-name');
+  const termEl=document.getElementById('new-tracked-term');
+  const name=nameEl.value.trim(); const term=termEl.value.trim();
+  if(!name||!term){showToast('Completá nombre y término');return;}
+  if(!tracked) tracked=JSON.parse(JSON.stringify(DEFAULT_TRACKED));
+  tracked.push({name, matchTerms:[term.toLowerCase()]});
+  nameEl.value=''; termEl.value='';
+  renderModal();
+}
+function removeTracked(i){ tracked.splice(i,1); renderModal(); }
+function updateTrackedTerm(i,ti,v){ tracked[i].matchTerms[ti]=v.toLowerCase(); }
+function addTrackedTerm(i){ tracked[i].matchTerms.push(''); renderModal(); }
+function removeTrackedTerm(i,ti){ tracked[i].matchTerms.splice(ti,1); renderModal(); }
+async function doSaveTracked(){ await saveTracked(); showToast('✅ Ejercicios guardados'); }
+
 // ---- TAB: CONTRASEÑA ----
 // ---- TAB: RPE ----
 function renderTabRpe(){
@@ -1431,13 +1688,259 @@ async function changeAdminPw(){
 // ============================================================
 // MAIN RENDER
 // ============================================================
+function tabBarHTML(){
+  return `<div class="tab-bar">
+    <div class="tab-bar-item ${ST.mainTab==='plan'?'active':''}" onclick="switchMainTab('plan')">
+      <div class="tab-bar-icon">📅</div>Plan
+    </div>
+    <div class="tab-bar-item ${ST.mainTab==='prs'?'active':''}" onclick="switchMainTab('prs')">
+      <div class="tab-bar-icon">🏆</div>PRs
+    </div>
+    <div class="tab-bar-item ${ST.mainTab==='chart'?'active':''}" onclick="switchMainTab('chart')">
+      <div class="tab-bar-icon">📊</div>Progreso
+    </div>
+  </div>`;
+}
+
+function switchMainTab(tab){
+  ST.mainTab=tab;
+  if(tab!=='plan') ST.view='home'; // reset plan navigation when switching tabs
+  // Reset newPr flags when visiting PR screen
+  if(tab==='prs'){ Object.values(prs).forEach(ex=>Object.values(ex).forEach(r=>{ if(r)r.newPr=false; })); savePrs(); }
+  render();
+}
+
+// ── PR SCREEN ──
+function renderPrs(){
+  const trList=tracked||DEFAULT_TRACKED;
+  // Find overall best PR (highest weight across all tracked exercises)
+  let bestEx=null, bestW=0, bestRange=null, bestWeek=null;
+  trList.forEach(t=>{
+    const ep=prs[t.name];
+    if(!ep) return;
+    PR_RANGES.forEach(r=>{
+      if(ep[r.key]&&ep[r.key].weight>bestW){ bestW=ep[r.key].weight; bestEx=t.name; bestRange=r; bestWeek=ep[r.key].week; }
+    });
+  });
+
+  const heroHTML=bestEx?`<div class="pr-hero">
+    <div class="pr-hero-icon">🏆</div>
+    <div>
+      <div class="pr-hero-label">Tu mejor levantamiento</div>
+      <div class="pr-hero-name">${escH(bestEx.toUpperCase())} · ${bestRange.label}</div>
+      <div class="pr-hero-weight">${bestW}<span style="font-size:20px;color:var(--text3)"> kg</span></div>
+      <div class="pr-hero-meta">Semana ${bestWeek}</div>
+    </div>
+  </div>`:'';
+
+  const cards=trList.map(t=>{
+    const ep=prs[t.name];
+    const hasNew=ep&&PR_RANGES.some(r=>ep[r.key]&&ep[r.key].newPr);
+    const rangeRows=PR_RANGES.map(r=>{
+      const entry=ep&&ep[r.key];
+      if(!entry) return `<div class="pr-range-row"><span class="pr-range-label">${r.label}</span><span style="font-size:12px;color:var(--text3)">—</span></div>`;
+      return `<div class="pr-range-row">
+        <span class="pr-range-label">${r.label}</span>
+        <span class="pr-range-val">${entry.weight}<span> kg</span></span>
+        <span class="pr-range-week">S${entry.week}</span>
+        ${entry.newPr?`<span class="pr-range-new">🏆 NUEVO</span>`:''}
+      </div>`;
+    }).join('');
+    return `<div class="pr-card ${hasNew?'has-new':''}">
+      ${hasNew?`<div class="pr-new-badge">NUEVO PR</div>`:''}
+      <div class="pr-card-name">${escH(t.name)}</div>
+      <div class="pr-ranges">${rangeRows}</div>
+    </div>`;
+  }).join('');
+
+  return `${navBarHTML()}
+    <div class="page-tabbed">
+      ${heroHTML}
+      <div class="admin-section-title" style="margin-bottom:12px">MIS RÉCORDS POR EJERCICIO</div>
+      ${trList.length?`<div class="pr-grid">${cards}</div>`:`<div class="pr-empty">Aún no hay registros.<br>Completá series en el plan para ver tus PRs.</div>`}
+    </div>
+    ${tabBarHTML()}`;
+}
+
+// ── CHART SCREEN ──
+let exPickerOpen=false;
+
+function renderChart(){
+  const trList=tracked||DEFAULT_TRACKED;
+  if(!ST.chartEx) ST.chartEx=trList[0]?.name||null;
+
+  // Build per-week best weight for selected exercise (max across all series of all matching exercises)
+  const weekData=plan.map((wd,wi)=>{
+    let maxW=null; let hasAny=false;
+    wd.days.forEach(day=>{
+      day.blocks.forEach(block=>{
+        block.exercises.forEach(ex=>{
+          const name=ex.type==='single'?ex.name:(ex.parts?ex.parts.map(p=>p.name).join(' '):null);
+          const names=ex.type==='single'?[ex.name]:(ex.parts?ex.parts.map(p=>p.name):[]);
+          names.forEach(n=>{
+            if(!matchTracked(n,[{name:ST.chartEx,matchTerms:[ST.chartEx.toLowerCase()]}])) return;
+            if(ex.type==='single'){
+              ex.sets.forEach((_,si)=>{
+                const d=progress[`${ex.id}_s${si}`];
+                if(d&&d.weight){ hasAny=true; const w=parseFloat(d.weight); if(!isNaN(w)&&(maxW===null||w>maxW)) maxW=w; }
+              });
+            } else {
+              for(let si=0;si<ex.count;si++){
+                ex.parts.forEach(p=>{
+                  if(!matchTracked(p.name,[{name:ST.chartEx,matchTerms:[ST.chartEx.toLowerCase()]}])) return;
+                  const d=progress[`${ex.id}_${p.pid}_s${si}`];
+                  if(d&&d.weight){ hasAny=true; const w=parseFloat(d.weight); if(!isNaN(w)&&(maxW===null||w>maxW)) maxW=w; }
+                });
+              }
+            }
+          });
+        });
+      });
+    });
+    return {week:wd.week, wi, maxW, hasAny};
+  });
+
+  const withData=weekData.filter(d=>d.maxW!==null);
+  const allWeights=withData.map(d=>d.maxW);
+  const bestW=allWeights.length?Math.max(...allWeights):null;
+  const firstW=withData.length?withData[0].maxW:null;
+  const gain=bestW&&firstW?Math.round((bestW-firstW)*10)/10:null;
+
+  // SVG line chart
+  let svgHTML='';
+  if(withData.length>=2){
+    const PAD_L=38,PAD_R=10,PAD_T=16,PAD_B=22,W=290,H=110;
+    const chartW=W-PAD_L-PAD_R, chartH=H-PAD_T-PAD_B;
+    const minW=Math.min(...allWeights)*0.97;
+    const maxWChart=Math.max(...allWeights)*1.02;
+    const xStep=chartW/(plan.length-1||1);
+    const yScale=(v)=>PAD_T+chartH-(((v-minW)/(maxWChart-minW||1))*chartH);
+    const xPos=(wi)=>PAD_L+wi*xStep;
+    const pts=weekData.map(d=>({x:xPos(d.wi),y:d.maxW!==null?yScale(d.maxW):null,d}));
+    const linePts=pts.filter(p=>p.y!==null);
+    const polyline=linePts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    const areaPath=linePts.length?`M${linePts[0].x.toFixed(1)},${(PAD_T+chartH).toFixed(1)} `+linePts.map(p=>`L${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')+` L${linePts[linePts.length-1].x.toFixed(1)},${(PAD_T+chartH).toFixed(1)} Z`:'';
+    // Y grid labels (3 lines)
+    const yLabels=[minW,minW+(maxWChart-minW)*0.5,maxWChart].map(v=>({v:Math.round(v),y:yScale(v)}));
+    const gridLines=yLabels.map(l=>`<line x1="${PAD_L}" y1="${l.y.toFixed(1)}" x2="${W-PAD_R}" y2="${l.y.toFixed(1)}" stroke="#2a2a2f" stroke-width="1"/><text x="${(PAD_L-3).toFixed(1)}" y="${(l.y+3).toFixed(1)}" fill="#68686f" font-size="8" text-anchor="end" font-family="Inter">${l.v}</text>`).join('');
+    const xLabels=weekData.map(d=>`<text x="${xPos(d.wi).toFixed(1)}" y="${(PAD_T+chartH+12).toFixed(1)}" fill="${d.maxW!==null?'#f05a28':'#68686f'}" font-size="8" text-anchor="middle" font-family="Inter" ${d.maxW!==null?'font-weight="700"':''}>S${d.week}</text>`).join('');
+    const dots=pts.filter(p=>p.y!==null).map((p,i)=>{
+      const isLast=i===linePts.length-1; const isPr=p.d.maxW===bestW;
+      return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${isPr?5:3.5}" fill="#f05a28" ${isPr?'stroke="#0a0a0b" stroke-width="2"':''}/>`;
+    }).join('');
+    // Tooltip on best point
+    const bestPt=linePts.find(p=>p.d.maxW===bestW);
+    const tooltip=bestPt?`<rect x="${(bestPt.x-22).toFixed(1)}" y="${(bestPt.y-20).toFixed(1)}" width="44" height="16" rx="4" fill="#f05a28"/><text x="${bestPt.x.toFixed(1)}" y="${(bestPt.y-9).toFixed(1)}" fill="white" font-size="9" font-weight="700" font-family="Oswald" text-anchor="middle">${bestW} kg</text>`:'';
+    svgHTML=`<svg class="chart-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="cg" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#f05a28"/><stop offset="100%" stop-color="#ff7043"/></linearGradient>
+        <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f05a28" stop-opacity="0.2"/><stop offset="100%" stop-color="#f05a28" stop-opacity="0"/></linearGradient>
+      </defs>
+      ${gridLines}${xLabels}
+      <path d="${areaPath}" fill="url(#ag)"/>
+      <polyline points="${polyline}" fill="none" stroke="url(#cg)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      ${dots}${tooltip}
+    </svg>`;
+  } else {
+    svgHTML=`<div style="text-align:center;padding:24px 0;color:var(--text3);font-size:12px">Completá al menos 2 semanas para ver el gráfico</div>`;
+  }
+
+  // Detail for selected week
+  const selWd=plan[ST.chartWeek];
+  let seriesRows='';
+  let maxSerW=0;
+  selWd.days.forEach(day=>{
+    day.blocks.forEach(block=>{
+      block.exercises.forEach(ex=>{
+        const names=ex.type==='single'?[{name:ex.name,id:ex.id,type:'single',sets:ex.sets}]:(ex.parts||[]).map(p=>({name:p.name,id:`${ex.id}_${p.pid}`,type:'part',count:ex.count,pid:p.pid,exId:ex.id,r:p.r}));
+        names.forEach(n=>{
+          if(!matchTracked(n.name,[{name:ST.chartEx,matchTerms:[ST.chartEx.toLowerCase()]}])) return;
+          if(n.type==='single'){
+            n.sets.forEach((_,si)=>{
+              const d=progress[`${n.id}_s${si}`];
+              const w=d&&d.weight?parseFloat(d.weight):null;
+              if(w&&w>maxSerW) maxSerW=w;
+            });
+            n.sets.forEach((s,si)=>{
+              const d=progress[`${n.id}_s${si}`];
+              const w=d&&d.weight?parseFloat(d.weight):null;
+              const pct=w&&maxSerW?Math.round(w/maxSerW*100):0;
+              seriesRows+=`<div class="chart-series-row">
+                <div class="chart-s-num">SERIE ${si+1}</div>
+                <div class="chart-s-bar-wrap"><div class="chart-s-bar" style="width:${pct}%"></div></div>
+                <div class="chart-s-val">${w?w+' kg':'—'}</div>
+                <div class="chart-s-check">${d&&d.done?'✓':''}</div>
+              </div>`;
+            });
+          } else {
+            for(let si=0;si<n.count;si++){
+              const d=progress[`${n.exId}_${n.pid}_s${si}`];
+              const w=d&&d.weight?parseFloat(d.weight):null;
+              if(w&&w>maxSerW) maxSerW=w;
+            }
+            for(let si=0;si<n.count;si++){
+              const d=progress[`${n.exId}_${n.pid}_s${si}`];
+              const w=d&&d.weight?parseFloat(d.weight):null;
+              const pct=w&&maxSerW?Math.round(w/maxSerW*100):0;
+              seriesRows+=`<div class="chart-series-row">
+                <div class="chart-s-num">SERIE ${si+1}</div>
+                <div class="chart-s-bar-wrap"><div class="chart-s-bar" style="width:${pct}%"></div></div>
+                <div class="chart-s-val">${w?w+' kg':'—'}</div>
+                <div class="chart-s-check">${d&&d.done?'✓':''}</div>
+              </div>`;
+            }
+          }
+        });
+      });
+    });
+  });
+
+  const weekTabs=plan.map((wd,wi)=>{
+    const hasD=weekData[wi]&&weekData[wi].hasAny;
+    return `<div class="chart-week-tab ${wi===ST.chartWeek?'active':''} ${hasD?'done':''}" onclick="ST.chartWeek=${wi};render()">S${wd.week}</div>`;
+  }).join('');
+
+  const pickerHTML=exPickerOpen?`<div class="ex-picker-overlay" onclick="exPickerOpen=false;render()">
+    <div class="ex-picker" onclick="event.stopPropagation()">
+      <div class="ex-picker-handle"></div>
+      ${(tracked||DEFAULT_TRACKED).map(t=>`<div class="ex-picker-item ${t.name===ST.chartEx?'selected':''}" onclick="ST.chartEx='${escH(t.name)}';exPickerOpen=false;ST.chartWeek=0;render()">${escH(t.name)}</div>`).join('')}
+    </div>
+  </div>`:'';
+
+  return `${navBarHTML()}
+    ${pickerHTML}
+    <div class="page-tabbed">
+      <div class="chart-ex-selector" onclick="exPickerOpen=true;render()">
+        <div>
+          <div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px">Ejercicio</div>
+          <div class="chart-ex-name">${escH((ST.chartEx||'').toUpperCase())}</div>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#68686f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="chart-stat-row">
+        <div class="chart-stat"><div class="chart-stat-label">Mejor peso</div><div class="chart-stat-val hi">${bestW?bestW+'<span style="font-size:11px;color:var(--text3)">kg</span>':'—'}</div></div>
+        <div class="chart-stat"><div class="chart-stat-label">Progreso</div><div class="chart-stat-val gr">${gain!==null?(gain>0?'+':'')+gain+'<span style="font-size:11px;color:var(--text3)">kg</span>':'—'}</div></div>
+        <div class="chart-stat"><div class="chart-stat-label">Semanas</div><div class="chart-stat-val">${withData.length}<span style="font-size:11px;color:var(--text3)">/${plan.length}</span></div></div>
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-wrap-title">EVOLUCIÓN — PESO MÁXIMO POR SEMANA</div>
+        ${svgHTML}
+      </div>
+      <div class="admin-section-title" style="margin-bottom:10px">DETALLE POR SEMANA</div>
+      <div class="chart-week-tabs">${weekTabs}</div>
+      ${seriesRows?`<div class="chart-series-card"><div class="chart-series-hdr">SEMANA ${selWd.week} · ${escH(ST.chartEx.toUpperCase())}</div>${seriesRows}</div>`:`<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px 0">Sin registros en la Semana ${selWd.week}</div>`}
+    </div>
+    ${tabBarHTML()}`;
+}
+
 function render(){
   const app=document.getElementById('app');
-  // Not logged in
   if(!session){ app.innerHTML=renderAuth(); return; }
-  // Pending approval
   if(session.uid==='__pending__'){ app.innerHTML=renderPending(); return; }
-  // Logged in – normal app
+  // Main tab routing
+  if(ST.mainTab==='prs')   { app.innerHTML=renderPrs(); return; }
+  if(ST.mainTab==='chart') { app.innerHTML=renderChart(); return; }
+  // Plan tab
   if(ST.view==='home')    { app.innerHTML=renderHome(); return; }
   if(ST.view==='week')    { app.innerHTML=renderWeek(); return; }
   if(ST.view==='day')     { app.innerHTML=renderDay(); return; }
@@ -1455,6 +1958,8 @@ window.__fsAppInit = async function(){
   await loadUsers();
   await loadPlan();
   await loadRpeInfo();
+  await loadTracked();
+  if(session && session.uid!=='__pending__') await loadPrs();
   if(session && session.uid!=='__pending__') await loadProgress();
   render();
 };
