@@ -1268,7 +1268,7 @@ async function checkAdminPw(){
 
 // ADMIN TABS
 function renderAdminBody(){
-  const tabs=['👥 Usuarios','📋 Ejercicios','📅 Semanas','📖 RPE','🎯 PRs','🔑 Contraseña'];
+  const tabs=['👥 Usuarios','📋 Ejercicios','📅 Semanas','📖 RPE','🎯 PRs','🔑 Contraseña','🔍 Diagnóstico'];
   const nav=tabs.map((t,i)=>`<div class="admin-tab ${adminState.tab===i?'active':''}" onclick="setAdminTab(${i})">${t}</div>`).join('');
   let body='';
   if(adminState.tab===0) body=renderTabUsers();
@@ -1276,7 +1276,8 @@ function renderAdminBody(){
   else if(adminState.tab===2) body=renderTabWeeks();
   else if(adminState.tab===3) body=renderTabRpe();
   else if(adminState.tab===4) body=renderTabTracked();
-  else body=renderTabPw();
+  else if(adminState.tab===5) body=renderTabPw();
+  else body=renderTabDiag();
   return `<div class="admin-nav">${nav}</div>${body}`;
 }
 
@@ -1691,7 +1692,130 @@ function addTrackedTerm(i){ tracked[i].matchTerms.push(''); renderModal(); }
 function removeTrackedTerm(i,ti){ tracked[i].matchTerms.splice(ti,1); renderModal(); }
 async function doSaveTracked(){ await saveTracked(); showToast('✅ Ejercicios guardados'); }
 
-// ---- TAB: CONTRASEÑA ----
+// ---- TAB: DIAGNÓSTICO ----
+function renderTabDiag(){
+  const keyMap = buildProgressKeyMap();
+  const planKeyCount = Object.keys(keyMap).length;
+
+  // Analyze MY OWN progress (admin's progress)
+  const myProgKeys = Object.keys(progress).filter(k=>progress[k]&&progress[k].weight);
+  const matched = myProgKeys.filter(k=>keyMap[k]);
+  const unmatched = myProgKeys.filter(k=>!keyMap[k]);
+  const trackedHits = matched.filter(k=>{
+    const meta=keyMap[k];
+    return meta && matchTracked(meta.exName, tracked||DEFAULT_TRACKED);
+  });
+
+  // Sample of unmatched keys to show
+  const unmatchedSample = unmatched.slice(0,5).map(k=>`
+    <div style="font-size:10px;color:var(--red);font-family:monospace;padding:3px 0;border-bottom:1px solid var(--border);word-break:break-all">${k} → peso: ${progress[k].weight}</div>
+  `).join('');
+
+  const matchedSample = matched.slice(0,5).map(k=>{
+    const meta=keyMap[k];
+    const tr=meta?matchTracked(meta.exName,tracked||DEFAULT_TRACKED):null;
+    return `<div style="font-size:10px;color:var(--green);font-family:monospace;padding:3px 0;border-bottom:1px solid var(--border);word-break:break-all">${meta?.exName||k} → ${progress[k].weight}kg ${tr?'✓ '+tr.name:''}</div>`;
+  }).join('');
+
+  // Check all users' progress
+  const userList = Object.values(users);
+
+  return `<div>
+    <div class="admin-section-title">ESTADO DEL PLAN</div>
+    <div class="ex-edit-card" style="margin-bottom:10px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+        <div style="text-align:center;padding:10px;background:var(--surface3);border-radius:var(--radius-sm)">
+          <div style="font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Claves en el plan</div>
+          <div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:var(--text)">${planKeyCount}</div>
+        </div>
+        <div style="text-align:center;padding:10px;background:var(--surface3);border-radius:var(--radius-sm)">
+          <div style="font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Mi progreso c/peso</div>
+          <div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:var(--text)">${myProgKeys.length}</div>
+        </div>
+        <div style="text-align:center;padding:10px;background:var(--surface3);border-radius:var(--radius-sm)">
+          <div style="font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Claves que coinciden</div>
+          <div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:${matched.length>0?'var(--green)':'var(--red)'}">${matched.length}</div>
+        </div>
+        <div style="text-align:center;padding:10px;background:var(--surface3);border-radius:var(--radius-sm)">
+          <div style="font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Detectados como PR</div>
+          <div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:var(--orange)">${trackedHits.length}</div>
+        </div>
+      </div>
+
+      ${unmatched.length>0?`
+        <div style="margin-bottom:10px">
+          <div style="font-size:10px;font-weight:700;color:var(--red);letter-spacing:1px;margin-bottom:6px">⚠️ NO COINCIDEN CON EL PLAN ACTUAL (${unmatched.length})</div>
+          ${unmatchedSample}
+          ${unmatched.length>5?`<div style="font-size:10px;color:var(--text3);padding-top:4px">...y ${unmatched.length-5} más</div>`:''}
+        </div>
+      `:'<div style="color:var(--green);font-size:12px;margin-bottom:10px">✅ Todas las claves coinciden con el plan</div>'}
+
+      ${matched.length>0?`
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--green);letter-spacing:1px;margin-bottom:6px">✅ COINCIDEN (${matched.length})</div>
+          ${matchedSample}
+          ${matched.length>5?`<div style="font-size:10px;color:var(--text3);padding-top:4px">...y ${matched.length-5} más</div>`:''}
+        </div>
+      `:''}
+    </div>
+
+    ${unmatched.length>0?`
+    <div class="admin-section-title">SOLUCIÓN</div>
+    <div class="ex-edit-card" style="margin-bottom:10px">
+      <p style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px">
+        Hay <strong style="color:var(--red)">${unmatched.length} registros</strong> que no coinciden con el plan actual. Esto pasa cuando el plan fue regenerado y los IDs cambiaron. El progreso sigue guardado en Firebase — el problema es solo que los IDs no matchean.
+      </p>
+      <p style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:14px">
+        Para solucionarlo sin perder datos, necesitás <strong style="color:var(--orange)">resetear el plan desde cero</strong> usando el mismo código de generación. Eso va a regenerar los IDs correctamente y el progreso existente va a quedar vinculado.
+      </p>
+      <button class="adm-btn adm-btn-orange" onclick="resetPlanToDefault()" style="width:100%;justify-content:center;padding:12px">
+        🔄 Regenerar plan con IDs correctos
+      </button>
+      <p style="font-size:10px;color:var(--text3);margin-top:8px;text-align:center">El progreso guardado NO se borra, solo se regeneran los IDs del plan</p>
+    </div>
+    `:''}
+
+    <div class="admin-section-title">VERIFICAR ALUMNO</div>
+    <div class="ex-edit-card">
+      <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Seleccioná un alumno para ver el estado de sus registros:</p>
+      <select class="adm-inp" id="diag-user-sel" style="margin-bottom:8px">
+        <option value="">— Selecionar alumno —</option>
+        ${userList.map(u=>`<option value="${u.id}">${escH(u.name)}</option>`).join('')}
+      </select>
+      <button class="adm-btn adm-btn-ghost" onclick="runUserDiag()" style="width:100%;justify-content:center">Analizar</button>
+      <div id="diag-user-result" style="margin-top:12px"></div>
+    </div>
+  </div>`;
+}
+
+async function runUserDiag(){
+  const sel=document.getElementById('diag-user-sel');
+  const res=document.getElementById('diag-user-result');
+  if(!sel||!sel.value){res.innerHTML='<p style="color:var(--text3);font-size:12px">Seleccioná un alumno primero</p>';return;}
+  res.innerHTML='<p style="color:var(--text3);font-size:12px">Cargando...</p>';
+  const uid=sel.value;
+  const userProg=await personalGet(K.PROG(uid))||{};
+  const keyMap=buildProgressKeyMap();
+  const withW=Object.keys(userProg).filter(k=>userProg[k]&&userProg[k].weight);
+  const matched=withW.filter(k=>keyMap[k]);
+  const unmatched=withW.filter(k=>!keyMap[k]);
+  const u=getUserById(uid);
+  res.innerHTML=`<div style="font-size:12px;line-height:1.8;color:var(--text2)">
+    <strong style="color:var(--text)">${escH(u?.name||uid)}</strong><br>
+    Registros con peso: <strong style="color:var(--text)">${withW.length}</strong><br>
+    Coinciden con plan: <strong style="color:${matched.length>0?'var(--green)':'var(--red)'}">${matched.length}</strong><br>
+    No coinciden: <strong style="color:${unmatched.length>0?'var(--red)':'var(--green)'}">${unmatched.length}</strong><br>
+    ${unmatched.length>0?`<span style="color:var(--red)">⚠️ IDs desactualizados — los PRs y gráficos no funcionarán hasta regenerar el plan</span>`:`<span style="color:var(--green)">✅ Todo coincide correctamente</span>`}
+  </div>`;
+}
+
+async function resetPlanToDefault(){
+  if(!confirm('¿Regenerar el plan con IDs correctos? El progreso guardado NO se borra.')) return;
+  plan = buildDefaultRoutine();
+  await savePlan();
+  showToast('✅ Plan regenerado. Los IDs ahora coinciden con el progreso guardado.');
+  renderModal();
+}
 // ---- TAB: RPE ----
 function renderTabRpe(){
   const rpeKeys=['@6','@7','@7.5','@8','@8.5/@9','@1','@2'];
