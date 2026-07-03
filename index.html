@@ -353,7 +353,7 @@ const PR_RANGES = [
 // "peso muerto" alone would match "peso muerto rumano" — so we use exact boundary matching in matchTracked
 const DEFAULT_TRACKED = [
   { name:'Banco Plano',  matchTerms:['banco plano'], exact:true },
-  { name:'Back Squat',   matchTerms:['back squat'], exact:true },
+  { name:'Back Squat',   matchTerms:['back squat con target','back squat'], exact:true },
   { name:'Peso Muerto',  matchTerms:['peso muerto'], exact:true },
 ];
 
@@ -374,12 +374,16 @@ function getPrRangeKey(reps){
 }
 
 // Match exercise name against tracked terms
-// Uses word-boundary aware matching: "peso muerto" must not match "peso muerto rumano"
-// Strategy: if the exercise name contains extra words beyond the term, it's a different exercise
+// Rules:
+//   ✅ "Banco Plano C/Barra (Pausa 1\")"  → matches "banco plano" (C/ is abbreviation, not a new word)
+//   ✅ "Peso Muerto C/Pausa 2\""          → matches "peso muerto"
+//   ✅ "Back Squat (Pausa 2\" Abajo)"     → matches "back squat"
+//   ❌ "Peso Muerto Rumano"               → does NOT match "peso muerto" (Rumano is a new word)
+//   ❌ "Peso Muerto Sumo"                 → does NOT match "peso muerto"
 function matchTracked(exName, trackedList){
   if(!exName) return null;
   const lower = exName.toLowerCase().trim();
-  // Sort by specificity (longer matchTerms first) to avoid "peso muerto" matching "peso muerto rumano"
+  // Sort by specificity (longer terms first) to prefer more specific matches
   const sorted = [...trackedList].sort((a,b)=>{
     const aMax = Math.max(...a.matchTerms.map(t=>t.length));
     const bMax = Math.max(...b.matchTerms.map(t=>t.length));
@@ -388,15 +392,20 @@ function matchTracked(exName, trackedList){
   for(const t of sorted){
     for(const term of t.matchTerms){
       const tl = term.toLowerCase().trim();
-      // Check if the exercise name starts with the term and what follows is not an additional word
-      // e.g. "peso muerto" matches "peso muerto (pausa 1\")" but NOT "peso muerto rumano"
       const idx = lower.indexOf(tl);
       if(idx === -1) continue;
-      const after = lower.slice(idx + tl.length).trim();
-      // "after" can be empty, punctuation, or parentheses — but NOT another word
-      // Reject if "after" starts with a letter (meaning it's "peso muerto RUMANO")
-      const afterClean = after.replace(/^[\s\(\"\'\-–—]+/, '');
-      if(afterClean.length > 0 && /^[a-záéíóúüñ]/i.test(afterClean)) continue;
+      const after = lower.slice(idx + tl.length);
+      // What comes after the matched term?
+      // ALLOW: empty, spaces, (, ", ', -, c/ (abbreviation with slash)
+      // BLOCK: a regular word starting with a letter that isn't preceded by /
+      const afterTrimmed = after.trimStart();
+      if(afterTrimmed.length === 0) return t; // exact match
+      // Allow if next char is (, ", space, or c/ pattern
+      if(/^[\(\"\'\-\s]/.test(afterTrimmed)) return t;
+      // Allow "c/" abbreviation pattern (e.g. "c/barra", "c/pausa")
+      if(/^c\//.test(afterTrimmed)) return t;
+      // Block if next char is a regular letter (different word like "rumano", "sumo")
+      if(/^[a-záéíóúüñ]/i.test(afterTrimmed)) continue;
       return t;
     }
   }
