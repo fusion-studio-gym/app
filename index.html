@@ -349,11 +349,12 @@ const PR_RANGES = [
   { key:'rm4', label:'4RM+', min:4, max:999 },
 ];
 
-// Default tracked exercises (base — always present)
+// Default tracked exercises — matchTerms use exact-ish matching to avoid false positives
+// "peso muerto" alone would match "peso muerto rumano" — so we use exact boundary matching in matchTracked
 const DEFAULT_TRACKED = [
-  { name:'Banco Plano',  matchTerms:['banco plano'] },
-  { name:'Back Squat',   matchTerms:['back squat','sentadilla'] },
-  { name:'Peso Muerto',  matchTerms:['peso muerto'] },
+  { name:'Banco Plano',  matchTerms:['banco plano'], exact:true },
+  { name:'Back Squat',   matchTerms:['back squat'], exact:true },
+  { name:'Peso Muerto',  matchTerms:['peso muerto'], exact:true },
 ];
 
 // Parse reps string like "6", "4/8", "6 c/l", "20\"/30\"" → number or null
@@ -372,13 +373,34 @@ function getPrRangeKey(reps){
   return r ? r.key : null;
 }
 
-// Fuzzy match exercise name against tracked terms
-function matchTracked(exName, tracked){
+// Match exercise name against tracked terms
+// Uses word-boundary aware matching: "peso muerto" must not match "peso muerto rumano"
+// Strategy: if the exercise name contains extra words beyond the term, it's a different exercise
+function matchTracked(exName, trackedList){
   if(!exName) return null;
-  const lower = exName.toLowerCase();
-  return tracked.find(t =>
-    t.matchTerms.some(term => lower.includes(term.toLowerCase()))
-  ) || null;
+  const lower = exName.toLowerCase().trim();
+  // Sort by specificity (longer matchTerms first) to avoid "peso muerto" matching "peso muerto rumano"
+  const sorted = [...trackedList].sort((a,b)=>{
+    const aMax = Math.max(...a.matchTerms.map(t=>t.length));
+    const bMax = Math.max(...b.matchTerms.map(t=>t.length));
+    return bMax - aMax;
+  });
+  for(const t of sorted){
+    for(const term of t.matchTerms){
+      const tl = term.toLowerCase().trim();
+      // Check if the exercise name starts with the term and what follows is not an additional word
+      // e.g. "peso muerto" matches "peso muerto (pausa 1\")" but NOT "peso muerto rumano"
+      const idx = lower.indexOf(tl);
+      if(idx === -1) continue;
+      const after = lower.slice(idx + tl.length).trim();
+      // "after" can be empty, punctuation, or parentheses — but NOT another word
+      // Reject if "after" starts with a letter (meaning it's "peso muerto RUMANO")
+      const afterClean = after.replace(/^[\s\(\"\'\-–—]+/, '');
+      if(afterClean.length > 0 && /^[a-záéíóúüñ]/i.test(afterClean)) continue;
+      return t;
+    }
+  }
+  return null;
 }
 
 const DEFAULT_RPE_INFO = {
@@ -546,25 +568,64 @@ async function savePrs(){
   lsSet(K.PRS(session.uid),prs);
 }
 
-// Called every time a weight is saved — checks & updates PRs automatically
-function checkAndUpdatePr(exName, repsStr, weight, weekNum){
-  if(!weight||!exName) return false;
-  const w = parseFloat(weight);
-  if(!w||isNaN(w)||w<=0) return false;
-  const matched = matchTracked(exName, tracked||DEFAULT_TRACKED);
-  if(!matched) return false;
-  const reps = parseReps(repsStr);
-  const rangeKey = getPrRangeKey(reps);
-  if(!rangeKey) return false;
-  const trackName = matched.name;
-  if(!prs[trackName]) prs[trackName]={};
-  const current = prs[trackName][rangeKey];
-  if(!current || w > current.weight){
-    prs[trackName][rangeKey] = { weight:w, week:weekNum, newPr:true };
-    savePrs();
-    return true; // is a new PR
-  }
-  return false;
+// Recalculate ALL PRs from scratch by scanning all progress data
+// This is the only correct approach: handles deletions, edits, and cross-device sync
+function recalcPrsFromProgress(){
+  if(!plan||!progress) return;
+  const trList = tracked||DEFAULT_TRACKED;
+  const newPrs = {};
+
+  plan.forEach(wd=>{
+    wd.days.forEach(day=>{
+      day.blocks.forEach(block=>{
+        block.exercises.forEach(ex=>{
+          if(ex.type==='single'){
+            const matched = matchTracked(ex.name, trList);
+            if(!matched) return;
+            ex.sets.forEach((s,si)=>{
+              const d = progress[`${ex.id}_s${si}`];
+              if(!d||!d.weight) return;
+              const w = parseFloat(d.weight);
+              if(!w||isNaN(w)||w<=0) return;
+              const reps = parseReps(s.r);
+              const rk = getPrRangeKey(reps);
+              if(!rk) return;
+              const tn = matched.name;
+              if(!newPrs[tn]) newPrs[tn]={};
+              if(!newPrs[tn][rk]||w>newPrs[tn][rk].weight){
+                // Preserve newPr flag only if this was already a PR
+                const wasNew = prs[tn]&&prs[tn][rk]&&prs[tn][rk].newPr&&prs[tn][rk].weight===w;
+                newPrs[tn][rk]={ weight:w, week:wd.week, newPr:!!wasNew };
+              }
+            });
+          } else {
+            ex.parts.forEach(p=>{
+              const matched = matchTracked(p.name, trList);
+              if(!matched) return;
+              for(let si=0;si<ex.count;si++){
+                const d = progress[`${ex.id}_${p.pid}_s${si}`];
+                if(!d||!d.weight) return;
+                const w = parseFloat(d.weight);
+                if(!w||isNaN(w)||w<=0) return;
+                const reps = parseReps(p.r);
+                const rk = getPrRangeKey(reps);
+                if(!rk) return;
+                const tn = matched.name;
+                if(!newPrs[tn]) newPrs[tn]={};
+                if(!newPrs[tn][rk]||w>newPrs[tn][rk].weight){
+                  const wasNew = prs[tn]&&prs[tn][rk]&&prs[tn][rk].newPr&&prs[tn][rk].weight===w;
+                  newPrs[tn][rk]={ weight:w, week:wd.week, newPr:!!wasNew };
+                }
+              }
+            });
+          }
+        });
+      });
+    });
+  });
+
+  prs = newPrs;
+  savePrs();
 }
 
 // ============================================================
@@ -576,6 +637,10 @@ async function loadProgress(){
   const remote=await personalGet(K.PROG(session.uid));
   if(remote){ progress=remote; lsSet(K.PROG(session.uid),remote); }
   else{ progress=lsGet(K.PROG(session.uid))||{}; }
+  // Always recalculate PRs from the freshly loaded progress data
+  // This ensures cross-device sync: if you deleted a weight on another device,
+  // the PR recalculates correctly here too
+  recalcPrsFromProgress();
 }
 async function saveProgress(){
   if(!session) return;
@@ -589,11 +654,8 @@ function setSetData(k,f,v){
   if(!progress[k])progress[k]={weight:'',notes:'',done:false};
   progress[k][f]=v;
   saveProgress();
-  // Auto-check PR when weight changes
-  if(f==='weight' && v){
-    const meta=window.__prMeta&&window.__prMeta[k];
-    if(meta) checkAndUpdatePr(meta.exName, meta.reps, v, meta.week);
-  }
+  // Recalculate ALL PRs from scratch whenever weight changes (handles edits and deletions correctly)
+  if(f==='weight') recalcPrsFromProgress();
 }
 
 // ============================================================
@@ -1716,25 +1778,42 @@ function switchMainTab(tab){
 // ── PR SCREEN ──
 function renderPrs(){
   const trList=tracked||DEFAULT_TRACKED;
-  // Find overall best PR (highest weight across all tracked exercises)
-  let bestEx=null, bestW=0, bestRange=null, bestWeek=null;
-  trList.forEach(t=>{
-    const ep=prs[t.name];
-    if(!ep) return;
-    PR_RANGES.forEach(r=>{
-      if(ep[r.key]&&ep[r.key].weight>bestW){ bestW=ep[r.key].weight; bestEx=t.name; bestRange=r; bestWeek=ep[r.key].week; }
-    });
-  });
+  const baseExercises=DEFAULT_TRACKED; // always show the 3 base ones in the hero
 
-  const heroHTML=bestEx?`<div class="pr-hero">
-    <div class="pr-hero-icon">🏆</div>
-    <div>
-      <div class="pr-hero-label">Tu mejor levantamiento</div>
-      <div class="pr-hero-name">${escH(bestEx.toUpperCase())} · ${bestRange.label}</div>
-      <div class="pr-hero-weight">${bestW}<span style="font-size:20px;color:var(--text3)"> kg</span></div>
-      <div class="pr-hero-meta">Semana ${bestWeek}</div>
+  // Hero: show the 3 base exercises with their best mark across all ranges
+  const heroCards=baseExercises.map(t=>{
+    const ep=prs[t.name];
+    // Find the best weight+range combo for this exercise
+    let bestW=null, bestLabel=null, bestWeek=null, hasNew=false;
+    PR_RANGES.forEach(r=>{
+      if(ep&&ep[r.key]){
+        if(bestW===null||ep[r.key].weight>bestW){
+          bestW=ep[r.key].weight; bestLabel=r.label; bestWeek=ep[r.key].week;
+        }
+        if(ep[r.key].newPr) hasNew=true;
+      }
+    });
+    const icons={'Banco Plano':'🏋️','Back Squat':'🦵','Peso Muerto':'⚡'};
+    const icon=icons[t.name]||'💪';
+    return `<div style="flex:1;background:${hasNew?'linear-gradient(135deg,rgba(245,158,11,0.12),rgba(240,90,40,0.08))':'var(--surface2)'};border:1px solid ${hasNew?'rgba(245,158,11,0.4)':'var(--border)'};border-radius:var(--radius-sm);padding:12px 10px;text-align:center;position:relative;overflow:hidden;min-width:0;">
+      ${hasNew?`<div style="position:absolute;top:0;right:0;background:var(--gold);color:#000;font-size:7px;font-weight:800;padding:2px 6px;border-radius:0 0 0 5px;letter-spacing:.5px">NUEVO</div>`:''}
+      <div style="font-size:22px;margin-bottom:6px">${icon}</div>
+      <div style="font-size:9px;color:var(--text3);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px;line-height:1.2">${escH(t.name)}</div>
+      ${bestW!==null
+        ? `<div style="font-family:'Oswald',sans-serif;font-size:24px;font-weight:700;color:${hasNew?'var(--gold)':'var(--orange)'};line-height:1">${bestW}<span style="font-size:12px;color:var(--text3)"> kg</span></div>
+           <div style="font-size:9px;color:var(--text3);margin-top:3px">${bestLabel} · S${bestWeek}</div>`
+        : `<div style="font-size:18px;color:var(--text3);margin-top:4px">—</div>
+           <div style="font-size:9px;color:var(--text3);margin-top:3px">sin registro</div>`
+      }
+    </div>`;
+  }).join('');
+
+  const heroHTML=`<div style="margin-bottom:20px">
+    <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text3);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px">
+      <span>🏆</span> MOVIMIENTOS PRINCIPALES
     </div>
-  </div>`:'';
+    <div style="display:flex;gap:8px">${heroCards}</div>
+  </div>`;
 
   const cards=trList.map(t=>{
     const ep=prs[t.name];
@@ -1759,7 +1838,7 @@ function renderPrs(){
   return `${navBarHTML()}
     <div class="page-tabbed">
       ${heroHTML}
-      <div class="admin-section-title" style="margin-bottom:12px">MIS RÉCORDS POR EJERCICIO</div>
+      <div class="admin-section-title" style="margin-bottom:12px">TODOS MIS RÉCORDS</div>
       ${trList.length?`<div class="pr-grid">${cards}</div>`:`<div class="pr-empty">Aún no hay registros.<br>Completá series en el plan para ver tus PRs.</div>`}
     </div>
     ${tabBarHTML()}`;
