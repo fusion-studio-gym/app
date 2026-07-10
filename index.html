@@ -870,7 +870,7 @@ function navBarHTML(showBack=false,backFn=''){
   const initials=session?session.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase():'?';
   const impBanner=adminState.impersonating?`<div style="background:rgba(245,158,11,0.15);border-bottom:2px solid var(--yellow);padding:6px 16px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--yellow);font-weight:600">
     <span>👤 Viendo como ${escH(adminState.impersonating.name)}</span>
-    <button onclick="exitImpersonation()" style="background:var(--yellow);color:#000;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;cursor:pointer">SALIR</button>
+    <button id="exit-imp-btn" ontouchend="event.preventDefault();exitImpersonation()" onclick="exitImpersonation()" style="background:var(--yellow);color:#000;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;cursor:pointer">SALIR</button>
   </div>`:'';
 
   return impBanner+`<nav class="nav">
@@ -1307,11 +1307,12 @@ async function setAdminTab(i){
 }
 
 // Load activity status for all active users (has anyone ever recorded anything?)
+let userActivityMap={};
 async function loadUserActivityStatus(){
   const active=Object.values(users).filter(u=>u.status===STATUS.ACTIVE||u.status===STATUS.BLOCKED);
   await Promise.all(active.map(async u=>{
     const prog=await personalGet(K.PROG(u.id))||{};
-    u._hasRecords=Object.values(prog).some(d=>d&&(d.weight||d.done));
+    userActivityMap[u.id]=Object.values(prog).some(d=>d&&(d.weight||d.done));
   }));
 }
 
@@ -1362,8 +1363,8 @@ function buildUserListHTML(active, q, actFilter){
   const qn=(q||'').toLowerCase().trim();
   const filtered=active.filter(u=>{
     if(qn && !u.name.toLowerCase().includes(qn)) return false;
-    if(actFilter==='recording') return u._hasRecords===true;
-    if(actFilter==='silent') return u._hasRecords===false;
+    if(actFilter==='recording') return userActivityMap[u.id]===true;
+    if(actFilter==='silent') return userActivityMap[u.id]===false;
     return true;
   });
   if(!filtered.length) return `<p style="color:var(--text3);font-size:13px;text-align:center;padding:20px">Sin resultados</p>`;
@@ -1385,7 +1386,7 @@ function renderUserRow(u){
   const ini=u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
   const isPending=u.status===STATUS.PENDING;
   const isBlocked=u.status===STATUS.BLOCKED;
-  const hasRec=u._hasRecords;
+  const hasRec=userActivityMap[u.id];
   const recBadge=(!isPending&&hasRec===false)?`<span style="font-size:9px;font-weight:700;color:var(--red);background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:4px;padding:1px 6px;margin-top:3px;display:inline-block">SIN REGISTROS</span>`
     :(!isPending&&hasRec===true)?`<span style="font-size:9px;font-weight:700;color:var(--green);background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);border-radius:4px;padding:1px 6px;margin-top:3px;display:inline-block">📝 ANOTANDO</span>`:'';
   return `<div class="user-row">
