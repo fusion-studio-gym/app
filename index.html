@@ -2250,27 +2250,39 @@ function renderChart(){
     ${tabBarHTML()}`;
 }
 
-// Impersonation banner — rendered as a fixed DOM element with real event listeners
+// Impersonation banner — injected as first child of #app
 function renderImpBanner(){
-  const existing=document.getElementById('imp-banner-bar');
-  if(adminState.impersonating){
-    if(!existing){
-      const bar=document.createElement('div');
-      bar.id='imp-banner-bar';
-      bar.style.cssText='position:fixed;top:0;left:0;right:0;max-width:480px;margin:0 auto;background:rgba(245,158,11,0.97);padding:9px 16px;display:flex;align-items:center;justify-content:space-between;font-size:13px;color:#000;font-weight:700;z-index:9999;box-shadow:0 2px 12px rgba(0,0,0,0.3)';
-      bar.innerHTML='<span>\u{1F464} ' + escH(adminState.impersonating.name) + '</span><button id="exit-imp-real-btn" style="background:#000;color:#f59e0b;border:none;border-radius:6px;padding:6px 16px;font-size:12px;font-weight:800;cursor:pointer;-webkit-tap-highlight-color:transparent">\u2715 SALIR</button>';
-      document.body.appendChild(bar);
-      const btn=document.getElementById('exit-imp-real-btn');
-      btn.addEventListener('click', exitImpersonation);
-      btn.addEventListener('touchend', function(e){ e.preventDefault(); e.stopPropagation(); exitImpersonation(); });
-    } else {
-      // Update name in case it changed
-      existing.querySelector('span').textContent='\u{1F464} '+adminState.impersonating.name;
-    }
-  } else {
-    if(existing) existing.remove();
-  }
+  // Remove existing banner
+  const old = document.getElementById('imp-banner-bar');
+  if(old) old.remove();
+  if(!adminState.impersonating) return;
+  // Create banner and prepend to app container
+  const app = document.getElementById('app');
+  if(!app) return;
+  const bar = document.createElement('div');
+  bar.id = 'imp-banner-bar';
+  bar.setAttribute('style',
+    'width:100%;background:#f59e0b;padding:10px 16px;display:flex;' +
+    'align-items:center;justify-content:space-between;' +
+    'font-size:13px;color:#000;font-weight:700;' +
+    'position:sticky;top:0;z-index:9999;box-sizing:border-box;');
+  const name = document.createTextNode('\u{1F464} ' + (adminState.impersonating.name||''));
+  const nameSpan = document.createElement('span');
+  nameSpan.appendChild(name);
+  const btn = document.createElement('button');
+  btn.textContent = '\u2715 SALIR';
+  btn.setAttribute('style',
+    'background:#000;color:#f59e0b;border:none;border-radius:6px;' +
+    'padding:8px 18px;font-size:13px;font-weight:800;cursor:pointer;' +
+    'min-width:80px;min-height:40px;-webkit-tap-highlight-color:rgba(0,0,0,0.2);');
+  // Use pointer events for maximum compatibility
+  function doExit(e){ e.preventDefault(); e.stopPropagation(); exitImpersonation(); }
+  btn.addEventListener('pointerup', doExit);
+  bar.appendChild(nameSpan);
+  bar.appendChild(btn);
+  app.insertBefore(bar, app.firstChild);
 }
+
 
 function render(){
   const app=document.getElementById('app');
