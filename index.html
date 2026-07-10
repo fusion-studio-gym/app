@@ -672,9 +672,10 @@ async function loadProgress(){
 }
 async function saveProgress(){
   if(!session) return;
-  const str=progress;
-  await personalSet(K.PROG(session.uid),str);
-  lsSet(K.PROG(session.uid),str);
+  // When impersonating, save to the impersonated user's storage, not admin's
+  const targetUid = adminState.impersonating ? adminState.impersonating.uid : session.uid;
+  await personalSet(K.PROG(targetUid), progress);
+  lsSet(K.PROG(targetUid), progress);
 }
 
 function getSetData(k){ return progress[k]||{weight:'',notes:'',done:false}; }
@@ -811,7 +812,7 @@ function toggleUserMenu(){ if(suppressNextClick){suppressNextClick=false;return;
 function closeUserMenu(){ if(userMenuOpen){userMenuOpen=false;render();} }
 
 // admin state
-let adminState={ open:false, pwOk:false, pwErr:'', tab:0, editWeekIdx:0, editDayIdx:0, editBlockIdx:0, viewUserIdx:null, viewUserWeek:0, userSubTab:'active', userSearch:'', savedScroll:0 };
+let adminState={ open:false, pwOk:false, pwErr:'', tab:0, editWeekIdx:0, editDayIdx:0, editBlockIdx:0, viewUserIdx:null, viewUserWeek:0, userSubTab:'active', userSearch:'', savedScroll:0, userActivityFilter:'all', impersonating:null };
 
 // logo hold
 let logoTimer=null;
@@ -867,7 +868,12 @@ function cancelAvatarHold(){ if(avatarTimer){clearTimeout(avatarTimer);avatarTim
 // ============================================================
 function navBarHTML(showBack=false,backFn=''){
   const initials=session?session.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase():'?';
-  return `<nav class="nav">
+  const impBanner=adminState.impersonating?`<div style="background:rgba(245,158,11,0.15);border-bottom:2px solid var(--yellow);padding:6px 16px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--yellow);font-weight:600">
+    <span>👤 Viendo como ${escH(adminState.impersonating.name)}</span>
+    <button onclick="exitImpersonation()" style="background:var(--yellow);color:#000;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;cursor:pointer">SALIR</button>
+  </div>`:'';
+
+  return impBanner+`<nav class="nav">
     ${showBack?`<button class="nav-back" onclick="${backFn}">${IC.back}</button>`:`<div class="nav-spacer"></div>`}
     <div class="nav-brand" onclick="nav('home')">
       <div class="nav-logo" oncontextmenu="return false" ondragstart="return false"
@@ -1293,20 +1299,31 @@ function renderAdminBody(){
 async function setAdminTab(i){
   if(i!==0) adminState.viewUserIdx=null;
   adminState.tab=i;
-  if(i===0) await loadUsers();
+  if(i===0){
+    await loadUsers();
+    await loadUserActivityStatus(); // load has-records flag for each user
+  }
   renderModal();
+}
+
+// Load activity status for all active users (has anyone ever recorded anything?)
+async function loadUserActivityStatus(){
+  const active=Object.values(users).filter(u=>u.status===STATUS.ACTIVE||u.status===STATUS.BLOCKED);
+  await Promise.all(active.map(async u=>{
+    const prog=await personalGet(K.PROG(u.id))||{};
+    u._hasRecords=Object.values(prog).some(d=>d&&(d.weight||d.done));
+  }));
 }
 
 // ---- TAB: USUARIOS ----
 function renderTabUsers(){
-  // If viewing a specific user's progress, show that full-panel instead
   if(adminState.viewUserIdx) return renderUserProgress();
 
   const all=Object.values(users);
   const pending=all.filter(u=>u.status===STATUS.PENDING);
   const active=all.filter(u=>u.status===STATUS.ACTIVE||u.status===STATUS.BLOCKED);
 
-  const subTabs=`<div style="display:flex;gap:8px;margin-bottom:16px">
+  const subTabs=`<div style="display:flex;gap:8px;margin-bottom:12px">
     <div class="admin-tab ${adminState.userSubTab==='active'?'active':''}" onclick="setUserSubTab('active')">
       ✅ Activos ${active.length?`<span style="background:rgba(255,255,255,0.2);border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px">${active.length}</span>`:''}
     </div>
@@ -1316,55 +1333,79 @@ function renderTabUsers(){
   </div>`;
 
   if(adminState.userSubTab==='pending'){
-    if(!pending.length) return subTabs+`<div style="text-align:center;padding:32px 0;color:var(--text3);font-size:13px">
-      <div style="font-size:36px;margin-bottom:12px">🎉</div>
-      No hay solicitudes pendientes
-    </div>`;
+    if(!pending.length) return subTabs+`<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="font-size:36px;margin-bottom:12px">🎉</div>No hay solicitudes pendientes</div>`;
     const rows=pending.map(u=>renderUserRow(u)).join('');
     return subTabs+`<div class="admin-section-title">SOLICITUDES PENDIENTES (${pending.length})</div>${rows}`;
   }
 
-  // Active tab — with search
+  // Activity filter
+  const actFilter=`<div style="display:flex;gap:6px;margin-bottom:10px;overflow-x:auto">
+    <div class="admin-tab ${adminState.userActivityFilter==='all'?'active':''}" style="font-size:11px;padding:4px 10px;flex-shrink:0" onclick="setUserActivityFilter('all')">Todos</div>
+    <div class="admin-tab ${adminState.userActivityFilter==='recording'?'active':''}" style="font-size:11px;padding:4px 10px;flex-shrink:0" onclick="setUserActivityFilter('recording')">📝 Anotando</div>
+    <div class="admin-tab ${adminState.userActivityFilter==='silent'?'active':''}" style="font-size:11px;padding:4px 10px;flex-shrink:0;${adminState.userActivityFilter==='silent'?'':'border-color:rgba(239,68,68,0.4);color:var(--red)'}" onclick="setUserActivityFilter('silent')">😴 Sin registros</div>
+  </div>`;
+
+  // Search — oninput calls filterUsers() to update only the list without re-rendering modal
   const searchBar=`<div style="position:relative;margin-bottom:12px">
-    <input class="adm-inp" style="margin:0;padding-left:36px" placeholder="Buscar por nombre..."
-      value="${escH(adminState.userSearch)}"
-      oninput="adminState.userSearch=this.value;renderModal()">
+    <input class="adm-inp" id="user-search-inp" style="margin:0;padding-left:36px" placeholder="Buscar por nombre..."
+      value="${escH(adminState.userSearch)}" oninput="filterUsers(this.value)">
     <div style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     </div>
   </div>`;
 
-  const q=adminState.userSearch.toLowerCase().trim();
-  const filtered=active.filter(u=>!q||u.name.toLowerCase().includes(q));
-  const rows=filtered.map(u=>renderUserRow(u)).join('');
-  const emptyMsg=q
-    ? `<p style="color:var(--text3);font-size:13px;text-align:center;padding:20px">Sin resultados para "${escH(q)}"</p>`
-    : `<p style="color:var(--text3);font-size:13px;text-align:center;padding:20px">No hay alumnos activos aún.</p>`;
-
-  return subTabs+searchBar+(filtered.length?`<div class="admin-section-title">ALUMNOS (${filtered.length}${q?' encontrados':''})</div>${rows}`:emptyMsg);
+  const listHTML=buildUserListHTML(active, adminState.userSearch, adminState.userActivityFilter);
+  return subTabs+actFilter+searchBar+`<div id="user-list-wrap">${listHTML}</div>`;
 }
+
+function buildUserListHTML(active, q, actFilter){
+  const qn=(q||'').toLowerCase().trim();
+  const filtered=active.filter(u=>{
+    if(qn && !u.name.toLowerCase().includes(qn)) return false;
+    if(actFilter==='recording') return u._hasRecords===true;
+    if(actFilter==='silent') return u._hasRecords===false;
+    return true;
+  });
+  if(!filtered.length) return `<p style="color:var(--text3);font-size:13px;text-align:center;padding:20px">Sin resultados</p>`;
+  return `<div class="admin-section-title">ALUMNOS (${filtered.length})</div>`+filtered.map(u=>renderUserRow(u)).join('');
+}
+
+// Update only the list div — no modal re-render, preserves input focus
+function filterUsers(val){
+  adminState.userSearch=val;
+  const wrap=document.getElementById('user-list-wrap');
+  if(!wrap) return;
+  const active=Object.values(users).filter(u=>u.status===STATUS.ACTIVE||u.status===STATUS.BLOCKED);
+  wrap.innerHTML=buildUserListHTML(active, val, adminState.userActivityFilter);
+}
+
+function setUserActivityFilter(f){ adminState.userActivityFilter=f; renderModal(); }
 
 function renderUserRow(u){
   const ini=u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
   const isPending=u.status===STATUS.PENDING;
   const isBlocked=u.status===STATUS.BLOCKED;
+  const hasRec=u._hasRecords;
+  const recBadge=(!isPending&&hasRec===false)?`<span style="font-size:9px;font-weight:700;color:var(--red);background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:4px;padding:1px 6px;margin-top:3px;display:inline-block">SIN REGISTROS</span>`
+    :(!isPending&&hasRec===true)?`<span style="font-size:9px;font-weight:700;color:var(--green);background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);border-radius:4px;padding:1px 6px;margin-top:3px;display:inline-block">📝 ANOTANDO</span>`:'';
   return `<div class="user-row">
     <div class="user-row-avatar">${ini}</div>
     <div class="user-row-info">
       <div class="user-row-name">${escH(u.name)}</div>
       <div class="user-row-email">${escH(u.email)}</div>
-      ${isBlocked?`<div style="margin-top:3px"><span class="badge badge-blocked">BLOQUEADO</span></div>`:''}
+      ${isBlocked?`<div style="margin-top:3px"><span class="badge badge-blocked">BLOQUEADO</span></div>`:recBadge?`<div>${recBadge}</div>`:''}
     </div>
     <div class="user-row-actions">
       ${isPending?`<button class="adm-btn adm-btn-green" style="padding:6px 12px;font-weight:700" onclick="approveUser('${u.id}')">✓ Aprobar</button>`:''}
-      ${!isPending&&!isBlocked?`<button class="adm-btn adm-btn-red" style="padding:6px 10px" onclick="blockUser('${u.id}')" title="Bloquear">✕</button>`:''}
-      ${isBlocked?`<button class="adm-btn adm-btn-blue" style="padding:6px 10px" onclick="unblockUser('${u.id}')" title="Reactivar">↩</button>`:''}
-      ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 10px" onclick="viewUserProgress('${u.id}')" title="Ver progreso">${IC.eye}</button>`:''}
+      ${!isPending&&!isBlocked?`<button class="adm-btn adm-btn-red" style="padding:6px 8px" onclick="blockUser('${u.id}')" title="Bloquear">✕</button>`:''}
+      ${isBlocked?`<button class="adm-btn adm-btn-blue" style="padding:6px 8px" onclick="unblockUser('${u.id}')" title="Reactivar">↩</button>`:''}
+      ${!isPending?`<button class="adm-btn adm-btn-blue" style="padding:6px 8px" onclick="impersonateUser('${u.id}')" title="Entrar como alumno">👤</button>`:''}
+      ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserProgress('${u.id}')" title="Ver progreso">${IC.eye}</button>`:''}
     </div>
   </div>`;
 }
 
-function setUserSubTab(tab){ adminState.userSubTab=tab; adminState.userSearch=''; renderModal(); }
+function setUserSubTab(tab){ adminState.userSubTab=tab; adminState.userSearch=''; adminState.userActivityFilter='all'; renderModal(); }
 
 async function approveUser(id){
   await loadUsers(); users[id].status=STATUS.ACTIVE; await saveUsers();
@@ -1381,6 +1422,12 @@ async function unblockUser(id){
 }
 
 let viewProgData=null;
+
+// Check if a user has ever recorded any weight entry
+async function hasUserEverRecorded(uid){
+  const prog = await personalGet(K.PROG(uid)) || lsGet(K.PROG(uid)) || {};
+  return Object.values(prog).some(d => d && (d.weight || d.done));
+}
 async function viewUserProgress(id){
   // Save current scroll position so we can restore it when going back
   const modal=document.querySelector('#modal-root .modal');
@@ -1497,11 +1544,46 @@ function renderUserProgress(){
 function goBackToUserList(){
   adminState.viewUserIdx=null;
   renderModal();
-  // Restore scroll after the DOM updates
   requestAnimationFrame(()=>{
     const modal=document.querySelector('#modal-root .modal');
     if(modal) modal.scrollTop=adminState.savedScroll;
   });
+}
+
+// ── IMPERSONATION ──
+let _realSession=null;
+let _realProgress={};
+let _realPrs={};
+
+async function impersonateUser(uid){
+  const u=getUserById(uid);
+  if(!u){ showToast('Usuario no encontrado'); return; }
+  _realSession={...session};
+  _realProgress={...progress};
+  _realPrs={...prs};
+  // Load target user data
+  const userProg=await personalGet(K.PROG(uid))||lsGet(K.PROG(uid))||{};
+  const userPrs=await personalGet(K.PRS(uid))||lsGet(K.PRS(uid))||{};
+  progress=userProg;
+  prs=userPrs;
+  adminState.impersonating={uid, name:u.name};
+  session={..._realSession, name:u.name, impersonated:true};
+  closeAdmin();
+  ST.view='home'; ST.mainTab='plan';
+  render();
+  showToast('👤 Viendo como '+u.name);
+}
+
+function exitImpersonation(){
+  if(!_realSession) return;
+  session={..._realSession};
+  progress={..._realProgress};
+  prs={..._realPrs};
+  adminState.impersonating=null;
+  _realSession=null; _realProgress={}; _realPrs={};
+  ST.view='home'; ST.mainTab='plan';
+  render();
+  showToast('✅ Volviste a tu cuenta admin');
 }
 
 function setProgWeek(i){ adminState.viewUserWeek=i; renderModal(); }
