@@ -868,12 +868,9 @@ function cancelAvatarHold(){ if(avatarTimer){clearTimeout(avatarTimer);avatarTim
 // ============================================================
 function navBarHTML(showBack=false,backFn=''){
   const initials=session?session.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase():'?';
-  const impBanner=adminState.impersonating?`<div style="background:rgba(245,158,11,0.15);border-bottom:2px solid var(--yellow);padding:6px 16px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--yellow);font-weight:600">
-    <span>👤 Viendo como ${escH(adminState.impersonating.name)}</span>
-    <button id="exit-imp-btn" ontouchend="event.preventDefault();exitImpersonation()" onclick="exitImpersonation()" style="background:var(--yellow);color:#000;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;cursor:pointer">SALIR</button>
-  </div>`:'';
+  const impBanner='';
 
-  return impBanner+`<nav class="nav">
+  return `<nav class="nav">
     ${showBack?`<button class="nav-back" onclick="${backFn}">${IC.back}</button>`:`<div class="nav-spacer"></div>`}
     <div class="nav-brand" onclick="nav('home')">
       <div class="nav-logo" oncontextmenu="return false" ondragstart="return false"
@@ -1275,7 +1272,9 @@ async function checkAdminPw(){
   if(remote) lsSet(K.ADMINPW,remote); // keep local cache in sync
   if(hashStr(val)===stored){
     adminState.pwOk=true; adminState.pwErr='';
-    await loadUsers(); // always show freshest user list when entering admin
+    await loadUsers();
+    renderModal();
+    await loadUserActivityStatus();
     renderModal();
   }
   else{ adminState.pwErr='Contraseña incorrecta.'; renderModal(); }
@@ -1301,9 +1300,10 @@ async function setAdminTab(i){
   adminState.tab=i;
   if(i===0){
     await loadUsers();
-    await loadUserActivityStatus(); // load has-records flag for each user
-  }
-  renderModal();
+    renderModal(); // show immediately
+    await loadUserActivityStatus(); // load activity badges
+    renderModal(); // re-render with badges
+  } else { renderModal(); return; }
 }
 
 // Load activity status for all active users (has anyone ever recorded anything?)
@@ -2250,18 +2250,39 @@ function renderChart(){
     ${tabBarHTML()}`;
 }
 
+// Impersonation banner — rendered as a fixed DOM element with real event listeners
+function renderImpBanner(){
+  const existing=document.getElementById('imp-banner-bar');
+  if(adminState.impersonating){
+    if(!existing){
+      const bar=document.createElement('div');
+      bar.id='imp-banner-bar';
+      bar.style.cssText='position:fixed;top:0;left:0;right:0;max-width:480px;margin:0 auto;background:rgba(245,158,11,0.97);padding:9px 16px;display:flex;align-items:center;justify-content:space-between;font-size:13px;color:#000;font-weight:700;z-index:9999;box-shadow:0 2px 12px rgba(0,0,0,0.3)';
+      bar.innerHTML='<span>\u{1F464} ' + escH(adminState.impersonating.name) + '</span><button id="exit-imp-real-btn" style="background:#000;color:#f59e0b;border:none;border-radius:6px;padding:6px 16px;font-size:12px;font-weight:800;cursor:pointer;-webkit-tap-highlight-color:transparent">\u2715 SALIR</button>';
+      document.body.appendChild(bar);
+      const btn=document.getElementById('exit-imp-real-btn');
+      btn.addEventListener('click', exitImpersonation);
+      btn.addEventListener('touchend', function(e){ e.preventDefault(); e.stopPropagation(); exitImpersonation(); });
+    } else {
+      // Update name in case it changed
+      existing.querySelector('span').textContent='\u{1F464} '+adminState.impersonating.name;
+    }
+  } else {
+    if(existing) existing.remove();
+  }
+}
+
 function render(){
   const app=document.getElementById('app');
-  if(!session){ app.innerHTML=renderAuth(); return; }
-  if(session.uid==='__pending__'){ app.innerHTML=renderPending(); return; }
-  // Main tab routing
-  if(ST.mainTab==='prs')   { app.innerHTML=renderPrs(); return; }
-  if(ST.mainTab==='chart') { app.innerHTML=renderChart(); return; }
-  // Plan tab
-  if(ST.view==='home')    { app.innerHTML=renderHome(); return; }
-  if(ST.view==='week')    { app.innerHTML=renderWeek(); return; }
-  if(ST.view==='day')     { app.innerHTML=renderDay(); return; }
-  if(ST.view==='workout') { app.innerHTML=renderWorkout(); return; }
+  if(!session){ app.innerHTML=renderAuth(); renderImpBanner(); return; }
+  if(session.uid==='__pending__'){ app.innerHTML=renderPending(); renderImpBanner(); return; }
+  if(ST.mainTab==='prs')   { app.innerHTML=renderPrs(); }
+  else if(ST.mainTab==='chart') { app.innerHTML=renderChart(); }
+  else if(ST.view==='home')    { app.innerHTML=renderHome(); }
+  else if(ST.view==='week')    { app.innerHTML=renderWeek(); }
+  else if(ST.view==='day')     { app.innerHTML=renderDay(); }
+  else if(ST.view==='workout') { app.innerHTML=renderWorkout(); }
+  renderImpBanner();
 }
 
 // ============================================================
@@ -2330,4 +2351,3 @@ window.__fsCloudReady = true;
 </script>
 </body>
 </html>
-<!-- update -->
