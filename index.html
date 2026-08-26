@@ -289,25 +289,24 @@ body{max-width:480px;margin:0 auto;}
 .ex-picker-item:active{background:var(--surface2);}
 .ex-picker-item.selected{color:var(--orange);}
 
-/* PR HISTORY CHART */
+/* PR TIMELINE */
 .pr-detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:250;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn .2s ease;}
 .pr-detail-sheet{background:var(--surface);border:1px solid var(--border2);border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;padding:8px 0 40px;}
 .pr-detail-handle{width:40px;height:4px;background:var(--border2);border-radius:2px;margin:14px auto 18px;}
-.pr-detail-title{font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:1.5px;padding:0 20px;margin-bottom:4px;}
-.pr-detail-sub{font-size:12px;color:var(--text3);padding:0 20px;margin-bottom:20px;}
-.pr-range-tabs{display:flex;gap:8px;padding:0 20px;margin-bottom:16px;overflow-x:auto;}
+.pr-range-tabs{display:flex;gap:8px;padding:0 20px;margin-bottom:20px;overflow-x:auto;}
 .pr-range-tab{flex-shrink:0;padding:5px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--surface2);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;color:var(--text2);}
 .pr-range-tab.active{background:var(--orange);border-color:var(--orange);color:white;}
-.pr-chart-box{margin:0 20px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 12px 10px;}
-.pr-chart-label{font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;}
-.pr-history-list{padding:0 20px;}
-.pr-history-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
-.pr-history-row:last-child{border-bottom:none;}
-.pr-history-week{font-size:11px;color:var(--text3);width:56px;flex-shrink:0;font-weight:600;}
-.pr-history-bar-wrap{flex:1;height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;}
-.pr-history-bar{height:100%;border-radius:3px;}
-.pr-history-weight{font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;color:var(--text);width:60px;text-align:right;flex-shrink:0;}
-.pr-history-badge{font-size:9px;font-weight:800;color:var(--gold);flex-shrink:0;}
+/* Timeline */
+.pr-timeline{padding:0 20px;position:relative;}
+.pr-timeline-line{position:absolute;left:36px;top:0;bottom:0;width:2px;background:var(--border);z-index:0;}
+.pr-timeline-item{display:flex;align-items:flex-start;gap:16px;margin-bottom:20px;position:relative;z-index:1;}
+.pr-timeline-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;margin-top:3px;border:2px solid var(--bg);box-shadow:0 0 0 2px currentColor;}
+.pr-timeline-dot.current{width:18px;height:18px;margin-top:1px;}
+.pr-timeline-card{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;}
+.pr-timeline-card.current{border-color:var(--orange);background:var(--orange-dim2);}
+.pr-timeline-week{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
+.pr-timeline-weight{font-family:'Oswald',sans-serif;font-size:28px;font-weight:700;line-height:1;}
+.pr-timeline-delta{font-size:11px;font-weight:600;margin-top:4px;}
 
 /* RPE INFO */
 .rpe-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--orange-dim);border:1px solid rgba(240,90,40,0.4);color:var(--orange);font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;transition:background .15s;-webkit-touch-callout:none;user-select:none;}
@@ -351,6 +350,8 @@ const LOGO_URL = (()=>{
 const K = {
   USERS:    'fs_users_v1',
   PLAN:     'fs_plan_v1',
+  BLOCKS:   'fs_blocks_v1',              // shared: [{id, name, archivedAt, plan}]
+  PROG_BLOCK: (uid,bid) => `fs_prog_${uid}_b${bid}_v1`,  // personal: progress per block
   PROG:     (uid) => `fs_prog_${uid}_v1`,
   PRS:      (uid) => `fs_prs_${uid}_v2`,   // personal: {exName: {rm1,rm2,rm3,rm4}} each = {weight,week,newPr, history:[{weight,week}]}
   TRACKED:  'fs_tracked_v1',               // shared: [{name, matchTerms:[]}]
@@ -521,6 +522,8 @@ function lsSet(key,val){ try{ localStorage.setItem(key,JSON.stringify(val)); }ca
 let users = {};    // {id: {id,name,email,hash,status}}
 let plan  = null;
 let rpeInfo = null;
+let archivedBlocks = []; // [{id, name, archivedAt, plan}]
+let currentBlockId = 'current'; // ID of the block being viewed in history
 let prs = {};      // {exName: {rm1:{weight,week,newPr}, rm2:..., rm3:..., rm4:...}}
 let tracked = null; // [{name, matchTerms:[]}]
 
@@ -568,6 +571,41 @@ async function loadPlan(){
   if(!plan) plan=buildDefaultRoutine();
 }
 async function savePlan(){ await sharedSet(K.PLAN,plan); lsSet(K.PLAN,plan); }
+
+async function loadBlocks(){
+  const remote = await sharedGet(K.BLOCKS);
+  if(remote){ archivedBlocks=remote; lsSet(K.BLOCKS,remote); }
+  else { archivedBlocks=lsGet(K.BLOCKS)||[]; }
+}
+async function saveBlocks(){ await sharedSet(K.BLOCKS,archivedBlocks); lsSet(K.BLOCKS,archivedBlocks); }
+
+async function archiveCurrentBlock(name){
+  // Save current plan as archived block
+  const bid = 'b_'+Date.now();
+  const block = { id:bid, name, archivedAt:Date.now(), weekCount:plan.length };
+  archivedBlocks.unshift(block); // newest first
+  await saveBlocks();
+  // Save current plan snapshot under block id
+  await sharedSet('fs_plan_'+bid, plan);
+  // Plan itself stays as-is until admin creates new one
+  return bid;
+}
+
+async function loadBlockPlan(bid){
+  if(bid==='current') return plan;
+  const remote = await sharedGet('fs_plan_'+bid);
+  return remote || null;
+}
+
+async function loadBlockProgress(uid, bid){
+  if(bid==='current') return await personalGet(K.PROG(uid))||{};
+  const remote = await personalGet(K.PROG_BLOCK(uid,bid));
+  if(remote) return remote;
+  // Fallback: try old key format
+  return await personalGet(K.PROG(uid)+`_${bid}`)||{};
+}
+
+async function loadBlocks(){ const remote=await sharedGet(K.BLOCKS); if(remote){archivedBlocks=remote;lsSet(K.BLOCKS,remote);}else{archivedBlocks=lsGet(K.BLOCKS)||[];} }
 
 async function loadRpeInfo(){
   const remote=await sharedGet(K.RPE_INFO);
@@ -1153,6 +1191,18 @@ function renderHome(){
       ${activeBanner}
       <div class="admin-section-title" style="margin-bottom:12px">TODAS LAS SEMANAS</div>
       <div class="weeks-grid">${cards}</div>
+      ${archivedBlocks.length?`
+      <div class="admin-section-title" style="margin-top:24px;margin-bottom:12px">📁 BLOQUES ANTERIORES</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${archivedBlocks.map(b=>`
+          <div onclick="openArchivedBlock('${b.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;transition:border-color .2s" onmouseover="this.style.borderColor='var(--orange)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div>
+              <div style="font-family:'Oswald',sans-serif;font-size:15px;font-weight:600;color:var(--text)">${escH(b.name)}</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:2px">${b.weekCount} semanas · Archivado ${new Date(b.archivedAt).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'})}</div>
+            </div>
+            <div style="color:var(--text3)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
+          </div>`).join('')}
+      </div>`:''}
     </div>
     ${tabBarHTML()}`;
 }
@@ -1683,6 +1733,143 @@ function goBackToUserList(){
   });
 }
 
+// ── ARCHIVED BLOCK VIEW ──
+let archivedBlockView = { blockId:null, blockPlan:null, weekIdx:null };
+
+async function openArchivedBlock(bid){
+  const block = archivedBlocks.find(b=>b.id===bid);
+  if(!block) return;
+  showToast('Cargando bloque...');
+  const blockPlan = await loadBlockPlan(bid);
+  if(!blockPlan){ showToast('No se pudo cargar este bloque'); return; }
+  archivedBlockView = { blockId:bid, blockPlan, weekIdx:null, block };
+  ST.view='archived_block';
+  render();
+  window.scrollTo(0,0);
+}
+
+function renderArchivedBlock(){
+  const {block, blockPlan, weekIdx} = archivedBlockView;
+  if(!blockPlan) return navBarHTML(true,"ST.view='home';render()") + '<div class="page"><p>Error cargando bloque</p></div>';
+
+  if(weekIdx !== null){
+    return renderArchivedWeek();
+  }
+
+  const weeks = blockPlan.map((wd,i)=>{
+    return `<div class="day-card" onclick="archivedBlockView.weekIdx=${i};render()">
+      <div class="day-icon-wrap" style="font-size:18px">📅</div>
+      <div class="day-info">
+        <div class="day-name">SEMANA ${wd.week}</div>
+        <div class="day-days">${wd.days.length} días</div>
+      </div>
+      <div>${IC.chevron}</div>
+    </div>`;
+  }).join('');
+
+  return `${navBarHTML(true,"ST.view='home';archivedBlockView={blockId:null,blockPlan:null,weekIdx:null,block:null};render()")}
+    <div class="page-tabbed">
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:20px">
+        <div style="font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px">Bloque archivado</div>
+        <div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700">${escH(block.name)}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Archivado el ${new Date(block.archivedAt).toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'})}</div>
+      </div>
+      <div class="admin-section-title" style="margin-bottom:12px">SEMANAS</div>
+      ${weeks}
+    </div>
+    ${tabBarHTML()}`;
+}
+
+function renderArchivedWeek(){
+  const {block, blockPlan, weekIdx} = archivedBlockView;
+  const wd = blockPlan[weekIdx];
+  const days = wd.days.map((day,di)=>`
+    <div class="day-card" onclick="openArchivedDay(${weekIdx},${di})">
+      <div class="day-icon-wrap">${day.icon}</div>
+      <div class="day-info">
+        <div class="day-name">${day.name}</div>
+        <div class="day-days">${day.days}</div>
+      </div>
+      <div>${IC.chevron}</div>
+    </div>`).join('');
+
+  return `${navBarHTML(true,"archivedBlockView.weekIdx=null;render()")}
+    <div class="page-tabbed">
+      <div class="page-header"><div></div><div>
+        <div class="page-subtitle">${escH(block.name)} · Semana ${wd.week}</div>
+        <div class="page-title" style="font-size:17px">SELECCIONÁ EL DÍA</div>
+      </div><div></div></div>
+      ${days}
+    </div>
+    ${tabBarHTML()}`;
+}
+
+let archivedDayProgress = {};
+async function openArchivedDay(weekIdx, dayIdx){
+  const uid = adminState.impersonating ? adminState.impersonating.uid : session.uid;
+  const bid = archivedBlockView.blockId;
+  // Load block progress for this user
+  archivedDayProgress = await loadBlockProgress(uid, bid);
+  archivedBlockView.dayIdx=dayIdx;
+  archivedBlockView.showingDay=true;
+  render();
+  window.scrollTo(0,0);
+}
+
+function renderArchivedDay(){
+  const {block, blockPlan, weekIdx, dayIdx} = archivedBlockView;
+  const wd=blockPlan[weekIdx]; const day=wd.days[dayIdx];
+  // Show exercises read-only with saved values
+  const exsHTML=day.blocks.map(bl=>`
+    <div style="margin-bottom:20px">
+      <div class="admin-section-title" style="margin-bottom:10px">${bl.icon} ${bl.name}</div>
+      ${bl.exercises.map(ex=>{
+        if(ex.type==='single'){
+          return `<div class="ex-card"><div class="ex-header"><span class="ex-order">${ex.order}</span><div class="ex-name">${ex.name}</div></div>
+            <div class="sets-wrap">${ex.sets.map((s,si)=>{
+              const k=`${ex.id}_s${si}`; const d=archivedDayProgress[k]||{};
+              return `<div class="set-row ${d.done?'done':''}">
+                <div class="set-row-top"><span class="set-label">SERIE ${si+1}</span><span class="set-target">${s.r} <span class="set-target-rpe">${s.rpe!=='-'?s.rpe:''}</span></span></div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+                  <div style="width:68px;height:38px;background:var(--surface3);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:${d.weight?'var(--text)':'var(--text3)'}">${d.weight?d.weight+' kg':'—'}</div>
+                  ${d.notes?`<div style="font-size:12px;color:var(--text3);font-style:italic">"${escH(d.notes)}"</div>`:''}
+                  ${d.done?`<div style="margin-left:auto;color:var(--green);font-size:18px">✓</div>`:''}
+                </div>
+              </div>`;
+            }).join('')}</div></div>`;
+        } else {
+          let rows='';
+          for(let si=0;si<ex.count;si++){
+            rows+=`<div class="superset-set-block"><div class="superset-set-header">SERIE ${si+1}</div>
+              ${ex.parts.map(p=>{
+                const k=`${ex.id}_${p.pid}_s${si}`; const d=archivedDayProgress[k]||{};
+                return `<div class="superset-part ${d.done?'part-done':''}">
+                  <div class="superset-part-name"><span>${p.name}</span><span class="set-target" style="font-size:11px">${p.r}</span></div>
+                  <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+                    <div style="width:68px;height:34px;background:var(--surface3);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:${d.weight?'var(--text)':'var(--text3)'}">${d.weight?d.weight+' kg':'—'}</div>
+                    ${d.notes?`<div style="font-size:11px;color:var(--text3);font-style:italic">"${escH(d.notes)}"</div>`:''}
+                    ${d.done?`<div style="margin-left:auto;color:var(--green)">✓</div>`:''}
+                  </div>
+                </div>`;
+              }).join('')}
+            </div>`;
+          }
+          return `<div class="ex-card"><div class="ex-header"><span class="ex-order">${ex.order}</span><div><span class="combined-tag">BLOQUE COMBINADO</span><div class="ex-name">${ex.parts.map(p=>p.name).join(' + ')}</div></div></div><div class="sets-wrap">${rows}</div></div>`;
+        }
+      }).join('')}
+    </div>`).join('');
+
+  return `${navBarHTML(true,"archivedBlockView.showingDay=false;archivedBlockView.dayIdx=null;render()")}
+    <div class="workout-content" style="padding-bottom:80px">
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:16px;text-align:center">
+        <div style="font-size:10px;color:var(--orange);font-weight:700;letter-spacing:1px">BLOQUE ARCHIVADO — SOLO LECTURA</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">${escH(block.name)} · Semana ${wd.week} · ${day.name}</div>
+      </div>
+      ${exsHTML}
+    </div>
+    ${tabBarHTML()}`;
+}
+
 // ── IMPERSONATION ──
 let _realSession=null;
 let _realProgress={};
@@ -1991,7 +2178,18 @@ function renderTabDashboard(){
       </div>`;
     }).join('')}`:'';
 
+  // Archive block button
+  const archiveBtn=`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:20px">
+    <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">GESTIÓN DE BLOQUE</div>
+    <p style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:12px">Al cerrar el bloque actual, el plan y todos los registros quedan archivados. Los alumnos podrán consultarlos pero no modificarlos. Luego podés armar el nuevo bloque desde cero.</p>
+    <button class="adm-btn adm-btn-orange" onclick="promptArchiveBlock()" style="width:100%;justify-content:center;padding:12px;font-size:14px">
+      📦 Cerrar y archivar bloque actual
+    </button>
+    ${archivedBlocks.length?`<div style="margin-top:10px;font-size:11px;color:var(--text3);text-align:center">📁 ${archivedBlocks.length} bloque${archivedBlocks.length>1?'s':''} archivado${archivedBlocks.length>1?'s':''}: ${archivedBlocks.map(b=>b.name).join(', ')}</div>`:''}
+  </div>`;
+
   return `<div>
+    ${archiveBtn}
     ${statCards}
     ${progressBar}
     ${pending.length?`<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
@@ -2002,6 +2200,19 @@ function renderTabDashboard(){
     ${recordingList}
     ${!silent.length&&!recording.length?`<div style="text-align:center;padding:32px 0;color:var(--text3);font-size:13px">Cargando datos de actividad...</div>`:''}
   </div>`;
+}
+
+async function promptArchiveBlock(){
+  const name = prompt('Nombre para este bloque (ej: Bloque 1 — Jul 2026)');
+  if(!name||!name.trim()) return;
+  if(!confirm('¿Cerrar y archivar "'+name.trim()+'"? El plan actual quedará guardado y se creará uno nuevo en blanco.')) return;
+  await archiveCurrentBlock(name.trim());
+  // Reset plan to empty for new block
+  plan = [];
+  await savePlan();
+  showToast('✅ Bloque "'+name.trim()+'" archivado correctamente');
+  renderModal();
+  render();
 }
 
 // ---- TAB: DIAGNÓSTICO ----
@@ -2326,7 +2537,7 @@ function renderPrDetailSheet(){
   const ep=prs[exName]||{};
   const selectedRk=prDetailState.rangeKey;
 
-  // Range tabs — only show ranges that have data
+  // Range tabs — only show ranges with PR history
   const rangeTabs=PR_RANGES.map(r=>{
     const hasData=ep[r.key]&&ep[r.key].history&&ep[r.key].history.length>0;
     if(!hasData) return '';
@@ -2335,69 +2546,49 @@ function renderPrDetailSheet(){
     return `<div class="pr-range-tab ${isActive?'active':''}" style="${isActive?'background:'+color+';border-color:'+color:''}" onclick="setPrDetailRange('${r.key}')">${r.label}</div>`;
   }).join('');
 
-  // History for selected range
   const rangeData=ep[selectedRk];
   const history=(rangeData&&rangeData.history)||[];
   const color=RANGE_COLORS[selectedRk]||'var(--orange)';
-  const maxW=history.length?Math.max(...history.map(h=>h.weight)):0;
 
-  // SVG line chart
-  let svgHTML='';
-  if(history.length>=2){
-    const PAD_L=34,PAD_R=10,PAD_T=14,PAD_B=20,W=280,H=90;
-    const cW=W-PAD_L-PAD_R, cH=H-PAD_T-PAD_B;
-    const minW=Math.min(...history.map(h=>h.weight))*0.97;
-    const maxWC=maxW*1.02;
-    const xStep=cW/(history.length-1||1);
-    const yScale=v=>PAD_T+cH-(((v-minW)/(maxWC-minW||1))*cH);
-    const pts=history.map((h,i)=>({x:PAD_L+i*xStep,y:yScale(h.weight),h}));
-    const poly=pts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-    const area=`M${pts[0].x.toFixed(1)},${(PAD_T+cH).toFixed(1)} `+pts.map(p=>`L${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')+` L${pts[pts.length-1].x.toFixed(1)},${(PAD_T+cH).toFixed(1)} Z`;
-    const dots=pts.map((p,i)=>{
-      const isLast=i===pts.length-1;
-      return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${isLast?5:3}" fill="${color}" ${isLast?'stroke="#18181b" stroke-width="2"':''}/>`;
-    }).join('');
-    const xLabels=pts.map(p=>`<text x="${p.x.toFixed(1)}" y="${(PAD_T+cH+13).toFixed(1)}" fill="#68686f" font-size="8" text-anchor="middle" font-family="Inter">S${p.h.week}</text>`).join('');
-    const tooltip=pts.length?`<rect x="${(pts[pts.length-1].x-22).toFixed(1)}" y="${(pts[pts.length-1].y-18).toFixed(1)}" width="44" height="14" rx="3" fill="${color}"/>
-      <text x="${pts[pts.length-1].x.toFixed(1)}" y="${(pts[pts.length-1].y-7).toFixed(1)}" fill="white" font-size="9" font-weight="700" font-family="Oswald" text-anchor="middle">${maxW} kg</text>`:'';
-    svgHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="prg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${color}" stop-opacity="0.2"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient>
-      </defs>
-      <line x1="${PAD_L}" y1="${PAD_T}" x2="${PAD_L}" y2="${PAD_T+cH}" stroke="#2a2a2f" stroke-width="1"/>
-      <line x1="${PAD_L}" y1="${PAD_T+cH}" x2="${W-PAD_R}" y2="${PAD_T+cH}" stroke="#2a2a2f" stroke-width="1"/>
-      <path d="${area}" fill="url(#prg)"/>
-      <polyline points="${poly}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
-      ${dots}${xLabels}${tooltip}
-    </svg>`;
-  } else if(history.length===1){
-    svgHTML=`<div style="text-align:center;padding:16px 0;color:var(--text3);font-size:12px">Solo 1 registro — necesitás al menos 2 para ver el gráfico</div>`;
-  } else {
-    svgHTML=`<div style="text-align:center;padding:16px 0;color:var(--text3);font-size:12px">Sin registros para este rango</div>`;
-  }
-
-  // History list
-  const historyRows=history.slice().reverse().map((h,i)=>{
-    const pct=maxW?Math.round(h.weight/maxW*100):0;
-    const isFirst=i===history.length-1;
-    return `<div class="pr-history-row">
-      <span class="pr-history-week">SEM ${h.week}</span>
-      <div class="pr-history-bar-wrap"><div class="pr-history-bar" style="width:${pct}%;background:${color}"></div></div>
-      <span class="pr-history-weight">${h.weight} kg</span>
-      <span class="pr-history-badge">${isFirst?'🏁':i===0?'🏆':''}</span>
+  // Build timeline — newest first, only PR-setting moments
+  let timelineHTML='';
+  if(history.length){
+    const reversed=[...history].reverse(); // newest first
+    timelineHTML=`<div class="pr-timeline">
+      <div class="pr-timeline-line"></div>
+      ${reversed.map((h,i)=>{
+        const isCurrent=i===0;
+        const prev=reversed[i+1];
+        const delta=prev?h.weight-prev.weight:null;
+        const label=PR_RANGES.find(r=>r.key===selectedRk)?.label||'';
+        return `<div class="pr-timeline-item">
+          <div class="pr-timeline-dot ${isCurrent?'current':''}" style="color:${isCurrent?color:'var(--border2)'};background:${isCurrent?color:'var(--surface3)'}"></div>
+          <div class="pr-timeline-card ${isCurrent?'current':''}">
+            <div class="pr-timeline-week" style="color:${isCurrent?color:'var(--text3)'}">
+              ${isCurrent?'🏆 RÉCORD ACTUAL':'SEMANA '+h.week}${!isCurrent?' · '+label:''}
+            </div>
+            ${isCurrent?`<div style="font-size:10px;color:var(--text3);margin-bottom:4px">SEMANA ${h.week} · ${label}</div>`:''}
+            <div class="pr-timeline-weight" style="color:${isCurrent?color:'var(--text)'}">${h.weight} <span style="font-size:16px;color:var(--text3)">kg</span></div>
+            ${delta!==null?`<div class="pr-timeline-delta" style="color:${delta>0?'var(--green)':'var(--text3)'}">
+              ${delta>0?'↑ +'+delta+' kg respecto al PR anterior':'= igual al anterior'}
+            </div>`:'<div class="pr-timeline-delta" style="color:var(--text3)">Primer registro</div>'}
+          </div>
+        </div>`;
+      }).join('')}
     </div>`;
-  }).join('');
+  } else {
+    timelineHTML=`<div style="text-align:center;padding:32px 20px;color:var(--text3);font-size:13px">Sin registros para este rango todavía.</div>`;
+  }
 
   return `<div class="pr-detail-overlay" onclick="closePrDetail()">
     <div class="pr-detail-sheet" onclick="event.stopPropagation()">
       <div class="pr-detail-handle"></div>
-      <div class="pr-detail-title">${escH(exName.toUpperCase())}</div>
-      <div class="pr-detail-sub">Historial de récords por rango</div>
+      <div style="padding:0 20px;margin-bottom:6px">
+        <div style="font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px">Historial de récords</div>
+        <div style="font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;letter-spacing:1px">${escH(exName.toUpperCase())}</div>
+      </div>
       <div class="pr-range-tabs">${rangeTabs||'<span style="color:var(--text3);font-size:12px;padding:4px 0">Sin datos aún</span>'}</div>
-      ${history.length?`<div class="pr-chart-box"><div class="pr-chart-label">EVOLUCIÓN — ${PR_RANGES.find(r=>r.key===selectedRk)?.label||''}</div>${svgHTML}</div>
-      <div class="admin-section-title" style="padding:0 20px;margin-bottom:10px">HISTORIAL</div>
-      <div class="pr-history-list">${historyRows}</div>`
-      :`<div style="text-align:center;padding:32px 20px;color:var(--text3);font-size:13px">Sin registros para este ejercicio todavía.</div>`}
+      ${timelineHTML}
     </div>
   </div>`;
 }
@@ -2610,6 +2801,10 @@ function render(){
   if(session.uid==='__pending__'){ app.innerHTML=renderPending(); renderImpBanner(); return; }
   if(ST.mainTab==='prs')   { app.innerHTML=renderPrs(); }
   else if(ST.mainTab==='chart') { app.innerHTML=renderChart(); }
+  else if(ST.view==='archived_block'){
+    if(archivedBlockView.showingDay) app.innerHTML=renderArchivedDay();
+    else app.innerHTML=renderArchivedBlock();
+  }
   else if(ST.view==='home')    { app.innerHTML=renderHome(); }
   else if(ST.view==='week')    { app.innerHTML=renderWeek(); }
   else if(ST.view==='day')     { app.innerHTML=renderDay(); }
@@ -2629,6 +2824,7 @@ window.__fsAppInit = async function(){
   await loadPlan();
   await loadRpeInfo();
   await loadTracked();
+  await loadBlocks();
   if(session && session.uid!=='__pending__'){ await loadPrs(); loadActiveWeek(); }
   if(session && session.uid!=='__pending__') await loadProgress();
   render();
@@ -2683,4 +2879,3 @@ window.__fsCloudReady = true;
 </script>
 </body>
 </html>
-<!-- update v5 -->
