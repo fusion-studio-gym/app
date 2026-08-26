@@ -289,6 +289,26 @@ body{max-width:480px;margin:0 auto;}
 .ex-picker-item:active{background:var(--surface2);}
 .ex-picker-item.selected{color:var(--orange);}
 
+/* PR HISTORY CHART */
+.pr-detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:250;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn .2s ease;}
+.pr-detail-sheet{background:var(--surface);border:1px solid var(--border2);border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;padding:8px 0 40px;}
+.pr-detail-handle{width:40px;height:4px;background:var(--border2);border-radius:2px;margin:14px auto 18px;}
+.pr-detail-title{font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:1.5px;padding:0 20px;margin-bottom:4px;}
+.pr-detail-sub{font-size:12px;color:var(--text3);padding:0 20px;margin-bottom:20px;}
+.pr-range-tabs{display:flex;gap:8px;padding:0 20px;margin-bottom:16px;overflow-x:auto;}
+.pr-range-tab{flex-shrink:0;padding:5px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--surface2);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;color:var(--text2);}
+.pr-range-tab.active{background:var(--orange);border-color:var(--orange);color:white;}
+.pr-chart-box{margin:0 20px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 12px 10px;}
+.pr-chart-label{font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;}
+.pr-history-list{padding:0 20px;}
+.pr-history-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
+.pr-history-row:last-child{border-bottom:none;}
+.pr-history-week{font-size:11px;color:var(--text3);width:56px;flex-shrink:0;font-weight:600;}
+.pr-history-bar-wrap{flex:1;height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;}
+.pr-history-bar{height:100%;border-radius:3px;}
+.pr-history-weight{font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;color:var(--text);width:60px;text-align:right;flex-shrink:0;}
+.pr-history-badge{font-size:9px;font-weight:800;color:var(--gold);flex-shrink:0;}
+
 /* RPE INFO */
 .rpe-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--orange-dim);border:1px solid rgba(240,90,40,0.4);color:var(--orange);font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;transition:background .15s;-webkit-touch-callout:none;user-select:none;}
 .rpe-btn:active{background:var(--orange);color:white;}
@@ -332,7 +352,7 @@ const K = {
   USERS:    'fs_users_v1',
   PLAN:     'fs_plan_v1',
   PROG:     (uid) => `fs_prog_${uid}_v1`,
-  PRS:      (uid) => `fs_prs_${uid}_v1`,   // personal: {exName: {rm1,rm2,rm3,rm4}} each = {weight,week,newPr}
+  PRS:      (uid) => `fs_prs_${uid}_v2`,   // personal: {exName: {rm1,rm2,rm3,rm4}} each = {weight,week,newPr, history:[{weight,week}]}
   TRACKED:  'fs_tracked_v1',               // shared: [{name, matchTerms:[]}]
   SESSION:  'fs_session_v1',
   ADMINPW:  'fs_adminpw_v1',
@@ -611,29 +631,52 @@ function recalcPrsFromProgress(){
   const newPrs = {};
   const keyMap = buildProgressKeyMap();
 
-  // Scan ALL progress keys — this works even if the plan changed
+  // Collect ALL weights per exercise+range across all weeks
+  // Structure: {exName: {rk: {weekNum: maxWeightThatWeek}}}
+  const weekBests = {};
+
   Object.entries(progress).forEach(([k, d])=>{
     if(!d||!d.weight) return;
     const w = parseFloat(d.weight);
     if(!w||isNaN(w)||w<=0) return;
-
-    // Find this key in the current plan map
     const meta = keyMap[k];
-    if(!meta) return; // key exists in progress but not in current plan — skip
-
+    if(!meta) return;
     const matched = matchTracked(meta.exName, trList);
     if(!matched) return;
-
     const reps = parseReps(meta.repsStr);
     const rk = getPrRangeKey(reps);
     if(!rk) return;
-
     const tn = matched.name;
-    if(!newPrs[tn]) newPrs[tn]={};
-    if(!newPrs[tn][rk]||w>newPrs[tn][rk].weight){
-      const wasNew = prs[tn]&&prs[tn][rk]&&prs[tn][rk].newPr&&prs[tn][rk].weight===w;
-      newPrs[tn][rk]={ weight:w, week:meta.weekNum, newPr:!!wasNew };
-    }
+    if(!weekBests[tn]) weekBests[tn]={};
+    if(!weekBests[tn][rk]) weekBests[tn][rk]={};
+    const wn = meta.weekNum;
+    if(!weekBests[tn][rk][wn]||w>weekBests[tn][rk][wn]) weekBests[tn][rk][wn]=w;
+  });
+
+  // Build PR structure with history from weekly bests
+  Object.entries(weekBests).forEach(([tn, ranges])=>{
+    newPrs[tn]={};
+    Object.entries(ranges).forEach(([rk, weekMap])=>{
+      // Sort weeks and build cumulative PRs (only keep weeks that set a new PR)
+      const sortedWeeks = Object.keys(weekMap).map(Number).sort((a,b)=>a-b);
+      const history = [];
+      let runningMax = 0;
+      sortedWeeks.forEach(wn=>{
+        const w = weekMap[wn];
+        if(w > runningMax){
+          runningMax = w;
+          history.push({weight:w, week:wn});
+        }
+      });
+      const latest = history[history.length-1];
+      const wasNew = prs[tn]&&prs[tn][rk]&&prs[tn][rk].newPr&&latest&&prs[tn][rk].weight===latest.weight;
+      newPrs[tn][rk]={
+        weight: latest?latest.weight:0,
+        week: latest?latest.week:0,
+        newPr: !!wasNew,
+        history // [{weight, week}] — only PR-setting entries
+      };
+    });
   });
 
   prs = newPrs;
@@ -679,6 +722,16 @@ async function saveProgress(){
 }
 
 function getSetData(k){ return progress[k]||{weight:'',notes:'',done:false}; }
+
+// Normalizes comma to dot so "7,5" → "7.5" works on all iOS/Android keyboards
+function handleWeightInput(el, k){
+  let val = el.value.replace(',', '.');
+  // Only allow digits and a single dot
+  val = val.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+  // Update input display if we changed it (e.g. replaced comma)
+  if(el.value !== val) { const pos=el.selectionStart; el.value=val; try{el.setSelectionRange(pos,pos);}catch(e){} }
+  setSetData(k, 'weight', val);
+}
 function setSetData(k,f,v){
   if(!progress[k])progress[k]={weight:'',notes:'',done:false};
   progress[k][f]=v;
@@ -772,9 +825,51 @@ function blockAnyDone(block,prog){
   return false;
 }
 function calcWeekPct(wd,prog){
-  let pct=0;
-  [0,1].forEach(di=>{ const d=wd.days[di]; if(d&&d.blocks.some(b=>blockAnyDone(b,prog))) pct+=50; });
-  return pct;
+  // Any 2 days completed = 100%, regardless of which days they are
+  // Each day with at least one completed series counts as a "done day"
+  const doneDays = wd.days.filter(d => d && d.blocks.some(b => blockAnyDone(b,prog)));
+  if(doneDays.length >= 2) return 100;
+  if(doneDays.length === 1) return 50;
+  return 0;
+}
+
+// ============================================================
+// STREAK & ACTIVE WEEK
+// ============================================================
+
+// Calculate streak: consecutive completed weeks from the start
+function calcStreak(){
+  if(!plan||!progress) return 0;
+  let streak=0;
+  for(let i=0;i<plan.length;i++){
+    const pct=calcWeekPct(plan[i]);
+    if(pct===100) streak++;
+    else break; // first incomplete week breaks the streak
+  }
+  return streak;
+}
+
+// Detect the suggested active week: first incomplete week
+// Returns the index (0-based) of the suggested week
+function detectActiveWeek(){
+  if(!plan||!progress) return 0;
+  for(let i=0;i<plan.length;i++){
+    const pct=calcWeekPct(plan[i]);
+    if(pct<100) return i;
+  }
+  return plan.length-1; // all complete, stay on last
+}
+
+// Set active week — called on init and when user manually selects
+function setActiveWeek(idx){
+  ST.activeWeek=idx;
+  lsSet('fs_active_week_'+session?.uid, idx);
+}
+
+// Load saved active week preference, falling back to auto-detect
+function loadActiveWeek(){
+  const saved=lsGet('fs_active_week_'+session?.uid);
+  ST.activeWeek = (saved!==null&&saved!==undefined) ? saved : detectActiveWeek();
 }
 
 // ============================================================
@@ -802,7 +897,7 @@ function escH(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').re
 // ============================================================
 // APP STATE
 // ============================================================
-let ST={ view:'home', week:null, dayIdx:null, blockIdx:null, mainTab:'plan', chartEx:null, chartWeek:0 };
+let ST={ view:'home', week:null, dayIdx:null, blockIdx:null, mainTab:'plan', chartEx:null, chartWeek:0, activeWeek:null };
 function nav(view,extra={}){ ST={...ST,view,...extra}; render(); window.scrollTo(0,0); }
 
 // user menu state
@@ -1004,25 +1099,59 @@ async function recheckApproval(){
 // HOME
 // ============================================================
 function renderHome(){
+  const streak=calcStreak();
+  const activeIdx=ST.activeWeek!==null?ST.activeWeek:detectActiveWeek();
+
+  // Streak badge
+  const streakHTML=streak>0?`<div style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(240,90,40,0.1));border:1px solid rgba(245,158,11,0.35);border-radius:30px;padding:6px 16px;margin-bottom:16px">
+    <span style="font-size:20px">🔥</span>
+    <div>
+      <div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;color:var(--gold);line-height:1">${streak} ${streak===1?'SEMANA':'SEMANAS'}</div>
+      <div style="font-size:10px;color:var(--text3);letter-spacing:.5px">RACHA ACTIVA</div>
+    </div>
+  </div>`:'';
+
+  // Active week banner
+  const activeWd=plan[activeIdx];
+  const activePct=calcWeekPct(activeWd);
+  const activeBanner=`<div onclick="nav('week',{week:${activeIdx}})" style="background:linear-gradient(135deg,var(--orange-dim),rgba(240,90,40,0.05));border:1px solid rgba(240,90,40,0.4);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px">
+    <div>
+      <div style="font-size:10px;color:var(--orange);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px">📍 SEMANA ACTIVA</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;color:var(--text)">SEMANA ${activeWd.week}</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:2px">${activePct===100?'✓ Completada':'En progreso · '+activePct+'%'}</div>
+    </div>
+    <div style="text-align:right;flex-shrink:0">
+      <div style="font-family:'Oswald',sans-serif;font-size:32px;font-weight:700;color:${activePct===100?'var(--green)':'var(--orange)'};line-height:1">${activePct}%</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:3px">COMPLETADO</div>
+    </div>
+  </div>`;
+
   const cards=plan.map((wd,i)=>{
     const pct=calcWeekPct(wd);
     const complete=pct===100;
-    return `<div class="week-card" onclick="nav('week',{week:${i}})">
+    const isActive=i===activeIdx;
+    return `<div class="week-card ${isActive?'active-week':''}" onclick="setActiveWeek(${i});nav('week',{week:${i}})" style="${isActive?'border-color:var(--orange);box-shadow:0 0 0 1px rgba(240,90,40,0.3)':''}">
       <div class="week-card-header">
-        <div class="week-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f05a28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg></div>
-        <div><div class="week-label">SEMANA ${wd.week}</div><div class="week-sub">${complete?'✓ COMPLETADA':wd.days.length+' DÍAS'}</div></div>
+        <div class="week-icon">${isActive?'<span style="font-size:16px">📍</span>':'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f05a28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>'}</div>
+        <div>
+          <div class="week-label">SEMANA ${wd.week} ${isActive?'<span style="font-size:9px;color:var(--orange);font-weight:700;letter-spacing:.5px">● ACTIVA</span>':''}</div>
+          <div class="week-sub">${complete?'✓ COMPLETADA':wd.days.length+' DÍAS'}</div>
+        </div>
       </div>
       <div class="progress-bar-wrap"><div class="progress-bar-fill ${complete?'complete':''}" style="width:${pct}%"></div></div>
       <div class="week-pct">${pct}% completado</div>
     </div>`;
   }).join('');
+
   return `${navBarHTML()}
     <div class="page-tabbed">
-      <div class="home-hero">
+      <div class="home-hero" style="padding-bottom:16px">
         <div class="home-greeting">HOLA, ${escH(session.name.split(' ')[0].toUpperCase())} 👋</div>
         <h1>PLAN DE<br><span>FUERZA</span></h1>
-        <p>Seleccioná tu semana actual</p>
       </div>
+      <div style="text-align:center">${streakHTML}</div>
+      ${activeBanner}
+      <div class="admin-section-title" style="margin-bottom:12px">TODAS LAS SEMANAS</div>
       <div class="weeks-grid">${cards}</div>
     </div>
     ${tabBarHTML()}`;
@@ -1182,7 +1311,7 @@ function renderSingleSet(exId,si,s){
       </div>
     </div>
     <div class="set-inputs">
-      <input class="inp-kg" type="number" inputmode="decimal" placeholder="Kg" value="${escH(d.weight)}" oninput="setSetData('${k}','weight',this.value)">
+      <input class="inp-kg" type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="Kg" value="${escH(d.weight)}" oninput="handleWeightInput(this,'${k}')">
       <input class="inp-notes" type="text" placeholder="Sensaciones, RPE real..." value="${escH(d.notes)}" oninput="setSetData('${k}','notes',this.value)">
       <button class="btn-check ${d.done?'checked':''}" onclick="toggleDone('${k}')">${IC.check(d.done)}</button>
     </div>
@@ -1202,7 +1331,7 @@ function renderSSPart(exId,part,si){
       </div>
     </div>
     <div class="set-inputs">
-      <input class="inp-kg" type="number" inputmode="decimal" placeholder="Kg" value="${escH(d.weight)}" oninput="setSetData('${k}','weight',this.value)">
+      <input class="inp-kg" type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="Kg" value="${escH(d.weight)}" oninput="handleWeightInput(this,'${k}')">
       <input class="inp-notes" type="text" placeholder="Sensaciones..." value="${escH(d.notes)}" oninput="setSetData('${k}','notes',this.value)">
       <button class="btn-check ${d.done?'checked':''}" onclick="toggleDone('${k}')">${IC.check(d.done)}</button>
     </div>
@@ -1282,28 +1411,31 @@ async function checkAdminPw(){
 
 // ADMIN TABS
 function renderAdminBody(){
-  const tabs=['👥 Usuarios','📋 Ejercicios','📅 Semanas','📖 RPE','🎯 PRs','🔑 Contraseña','🔍 Diagnóstico'];
+  const tabs=['📊 Dashboard','👥 Usuarios','📋 Ejercicios','📅 Semanas','📖 RPE','🎯 PRs','🔑 Contraseña','🔍 Diagnóstico'];
   const nav=tabs.map((t,i)=>`<div class="admin-tab ${adminState.tab===i?'active':''}" onclick="setAdminTab(${i})">${t}</div>`).join('');
   let body='';
-  if(adminState.tab===0) body=renderTabUsers();
-  else if(adminState.tab===1) body=renderTabExercises();
-  else if(adminState.tab===2) body=renderTabWeeks();
-  else if(adminState.tab===3) body=renderTabRpe();
-  else if(adminState.tab===4) body=renderTabTracked();
-  else if(adminState.tab===5) body=renderTabPw();
+  if(adminState.tab===0) body=renderTabDashboard();
+  else if(adminState.tab===1) body=renderTabUsers();
+  else if(adminState.tab===2) body=renderTabExercises();
+  else if(adminState.tab===3) body=renderTabWeeks();
+  else if(adminState.tab===4) body=renderTabRpe();
+  else if(adminState.tab===5) body=renderTabTracked();
+  else if(adminState.tab===6) body=renderTabPw();
   else body=renderTabDiag();
   return `<div class="admin-nav">${nav}</div>${body}`;
 }
 
 async function setAdminTab(i){
-  if(i!==0) adminState.viewUserIdx=null;
+  if(i!==1) adminState.viewUserIdx=null; // only clear when leaving users tab
   adminState.tab=i;
-  if(i===0){
+  if(i===0||i===1){
     await loadUsers();
-    renderModal(); // show immediately
-    await loadUserActivityStatus(); // load activity badges
-    renderModal(); // re-render with badges
-  } else { renderModal(); return; }
+    renderModal();
+    await loadUserActivityStatus();
+    renderModal();
+  } else {
+    renderModal();
+  }
 }
 
 // Load activity status for all active users (has anyone ever recorded anything?)
@@ -1784,6 +1916,94 @@ function addTrackedTerm(i){ tracked[i].matchTerms.push(''); renderModal(); }
 function removeTrackedTerm(i,ti){ tracked[i].matchTerms.splice(ti,1); renderModal(); }
 async function doSaveTracked(){ await saveTracked(); showToast('✅ Ejercicios guardados'); }
 
+// ---- TAB: DASHBOARD ----
+function renderTabDashboard(){
+  const all=Object.values(users);
+  const active=all.filter(u=>u.status===STATUS.ACTIVE);
+  const blocked=all.filter(u=>u.status===STATUS.BLOCKED);
+  const pending=all.filter(u=>u.status===STATUS.PENDING);
+
+  // Activity analysis using userActivityMap
+  const recording=active.filter(u=>userActivityMap[u.id]===true);
+  const silent=active.filter(u=>userActivityMap[u.id]===false);
+  const unknown=active.filter(u=>userActivityMap[u.id]===undefined);
+
+  // Week completion analysis — who completed current week (any 2 days)
+  // We check against the most recent week that has any data
+  const statCards=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;text-align:center">
+      <div style="font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Alumnos activos</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:32px;font-weight:700;color:var(--text)">${active.length}</div>
+    </div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;text-align:center">
+      <div style="font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Solicitudes</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:32px;font-weight:700;color:${pending.length?'var(--yellow)':'var(--text)'}">${pending.length}</div>
+    </div>
+    <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:var(--radius-sm);padding:14px;text-align:center">
+      <div style="font-size:10px;color:var(--green);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">📝 Anotando</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:32px;font-weight:700;color:var(--green)">${recording.length}</div>
+    </div>
+    <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:var(--radius-sm);padding:14px;text-align:center">
+      <div style="font-size:10px;color:var(--red);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">😴 Sin registros</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:32px;font-weight:700;color:var(--red)">${silent.length}</div>
+    </div>
+  </div>`;
+
+  // Progress bar
+  const pct=active.length?Math.round(recording.length/active.length*100):0;
+  const progressBar=`<div style="margin-bottom:20px">
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+      <span style="font-size:11px;color:var(--text2);font-weight:600">Adherencia general</span>
+      <span style="font-size:11px;color:var(--orange);font-weight:700">${pct}%</span>
+    </div>
+    <div style="height:8px;background:var(--surface3);border-radius:4px;overflow:hidden">
+      <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--orange),var(--green));border-radius:4px;transition:width .5s ease"></div>
+    </div>
+  </div>`;
+
+  // Silent users list
+  const silentList=silent.length?`
+    <div class="admin-section-title" style="margin-bottom:10px">😴 SIN REGISTROS (${silent.length})</div>
+    ${silent.map(u=>{
+      const ini=u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+      return `<div class="user-row" style="margin-bottom:8px">
+        <div class="user-row-avatar" style="background:rgba(239,68,68,0.1);color:var(--red)">${ini}</div>
+        <div class="user-row-info">
+          <div class="user-row-name">${escH(u.name)}</div>
+          <div class="user-row-email">${escH(u.email)}</div>
+        </div>
+        <button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="setAdminTab(1);adminState.userSubTab='active';adminState.userSearch='${escH(u.name)}';renderModal()" title="Ver alumno">${IC.eye}</button>
+      </div>`;
+    }).join('')}`:'';
+
+  // Recording users list
+  const recordingList=recording.length?`
+    <div class="admin-section-title" style="margin-bottom:10px;margin-top:${silent.length?'16px':'0'}">📝 ANOTANDO (${recording.length})</div>
+    ${recording.map(u=>{
+      const ini=u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+      return `<div class="user-row" style="margin-bottom:8px">
+        <div class="user-row-avatar" style="background:rgba(34,197,94,0.1);color:var(--green)">${ini}</div>
+        <div class="user-row-info">
+          <div class="user-row-name">${escH(u.name)}</div>
+          <div class="user-row-email">${escH(u.email)}</div>
+        </div>
+        <button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserProgress('${u.id}')" title="Ver progreso">${IC.eye}</button>
+      </div>`;
+    }).join('')}`:'';
+
+  return `<div>
+    ${statCards}
+    ${progressBar}
+    ${pending.length?`<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:13px;color:var(--yellow);font-weight:600">⏳ ${pending.length} solicitud${pending.length>1?'es':''} pendiente${pending.length>1?'s':''}</span>
+      <button class="adm-btn adm-btn-ghost" style="padding:5px 12px;font-size:12px" onclick="setAdminTab(1);adminState.userSubTab='pending';renderModal()">Ver →</button>
+    </div>`:''}
+    ${silentList}
+    ${recordingList}
+    ${!silent.length&&!recording.length?`<div style="text-align:center;padding:32px 0;color:var(--text3);font-size:13px">Cargando datos de actividad...</div>`:''}
+  </div>`;
+}
+
 // ---- TAB: DIAGNÓSTICO ----
 function renderTabDiag(){
   const keyMap = buildProgressKeyMap();
@@ -2030,7 +2250,7 @@ function renderPrs(){
     });
     const icons={'Banco Plano':'🏋️','Back Squat':'🦵','Peso Muerto':'⚡'};
     const icon=icons[t.name]||'💪';
-    return `<div style="flex:1;background:${hasNew?'linear-gradient(135deg,rgba(245,158,11,0.12),rgba(240,90,40,0.08))':'var(--surface2)'};border:1px solid ${hasNew?'rgba(245,158,11,0.4)':'var(--border)'};border-radius:var(--radius-sm);padding:12px 10px;text-align:center;position:relative;overflow:hidden;min-width:0;">
+    return `<div onclick="openPrDetail('${t.name}')" style="flex:1;background:${hasNew?'linear-gradient(135deg,rgba(245,158,11,0.12),rgba(240,90,40,0.08))':'var(--surface2)'};border:1px solid ${hasNew?'rgba(245,158,11,0.4)':'var(--border)'};border-radius:var(--radius-sm);padding:12px 10px;text-align:center;position:relative;overflow:hidden;min-width:0;cursor:pointer;">
       ${hasNew?`<div style="position:absolute;top:0;right:0;background:var(--gold);color:#000;font-size:7px;font-weight:800;padding:2px 6px;border-radius:0 0 0 5px;letter-spacing:.5px">NUEVO</div>`:''}
       <div style="font-size:22px;margin-bottom:6px">${icon}</div>
       <div style="font-size:9px;color:var(--text3);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px;line-height:1.2">${escH(t.name)}</div>
@@ -2063,10 +2283,11 @@ function renderPrs(){
         ${entry.newPr?`<span class="pr-range-new">🏆 NUEVO</span>`:''}
       </div>`;
     }).join('');
-    return `<div class="pr-card ${hasNew?'has-new':''}">
+    return `<div class="pr-card ${hasNew?'has-new':''}" onclick="openPrDetail('${escH(t.name)}')" style="cursor:pointer">
       ${hasNew?`<div class="pr-new-badge">NUEVO PR</div>`:''}
       <div class="pr-card-name">${escH(t.name)}</div>
       <div class="pr-ranges">${rangeRows}</div>
+      <div style="text-align:center;margin-top:8px;font-size:10px;color:var(--text3);letter-spacing:.5px">VER HISTORIAL →</div>
     </div>`;
   }).join('');
 
@@ -2076,11 +2297,110 @@ function renderPrs(){
       <div class="admin-section-title" style="margin-bottom:12px">TODOS MIS RÉCORDS</div>
       ${trList.length?`<div class="pr-grid">${cards}</div>`:`<div class="pr-empty">Aún no hay registros.<br>Completá series en el plan para ver tus PRs.</div>`}
     </div>
-    ${tabBarHTML()}`;
+    ${tabBarHTML()}
+    ${renderPrDetailSheet()}`;
 }
 
 // ── CHART SCREEN ──
 let exPickerOpen=false;
+let prDetailState={open:false, exName:null, rangeKey:'rm4'};
+
+const RANGE_COLORS={'rm1':'#f05a28','rm2':'#e91e63','rm3':'#9c27b0','rm4':'#3b82f6'};
+
+function openPrDetail(exName){
+  prDetailState={open:true, exName, rangeKey:'rm4'};
+  render();
+}
+function closePrDetail(){
+  prDetailState.open=false;
+  render();
+}
+function setPrDetailRange(rk){
+  prDetailState.rangeKey=rk;
+  render();
+}
+
+function renderPrDetailSheet(){
+  if(!prDetailState.open||!prDetailState.exName) return '';
+  const exName=prDetailState.exName;
+  const ep=prs[exName]||{};
+  const selectedRk=prDetailState.rangeKey;
+
+  // Range tabs — only show ranges that have data
+  const rangeTabs=PR_RANGES.map(r=>{
+    const hasData=ep[r.key]&&ep[r.key].history&&ep[r.key].history.length>0;
+    if(!hasData) return '';
+    const color=RANGE_COLORS[r.key]||'var(--orange)';
+    const isActive=selectedRk===r.key;
+    return `<div class="pr-range-tab ${isActive?'active':''}" style="${isActive?'background:'+color+';border-color:'+color:''}" onclick="setPrDetailRange('${r.key}')">${r.label}</div>`;
+  }).join('');
+
+  // History for selected range
+  const rangeData=ep[selectedRk];
+  const history=(rangeData&&rangeData.history)||[];
+  const color=RANGE_COLORS[selectedRk]||'var(--orange)';
+  const maxW=history.length?Math.max(...history.map(h=>h.weight)):0;
+
+  // SVG line chart
+  let svgHTML='';
+  if(history.length>=2){
+    const PAD_L=34,PAD_R=10,PAD_T=14,PAD_B=20,W=280,H=90;
+    const cW=W-PAD_L-PAD_R, cH=H-PAD_T-PAD_B;
+    const minW=Math.min(...history.map(h=>h.weight))*0.97;
+    const maxWC=maxW*1.02;
+    const xStep=cW/(history.length-1||1);
+    const yScale=v=>PAD_T+cH-(((v-minW)/(maxWC-minW||1))*cH);
+    const pts=history.map((h,i)=>({x:PAD_L+i*xStep,y:yScale(h.weight),h}));
+    const poly=pts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    const area=`M${pts[0].x.toFixed(1)},${(PAD_T+cH).toFixed(1)} `+pts.map(p=>`L${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')+` L${pts[pts.length-1].x.toFixed(1)},${(PAD_T+cH).toFixed(1)} Z`;
+    const dots=pts.map((p,i)=>{
+      const isLast=i===pts.length-1;
+      return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${isLast?5:3}" fill="${color}" ${isLast?'stroke="#18181b" stroke-width="2"':''}/>`;
+    }).join('');
+    const xLabels=pts.map(p=>`<text x="${p.x.toFixed(1)}" y="${(PAD_T+cH+13).toFixed(1)}" fill="#68686f" font-size="8" text-anchor="middle" font-family="Inter">S${p.h.week}</text>`).join('');
+    const tooltip=pts.length?`<rect x="${(pts[pts.length-1].x-22).toFixed(1)}" y="${(pts[pts.length-1].y-18).toFixed(1)}" width="44" height="14" rx="3" fill="${color}"/>
+      <text x="${pts[pts.length-1].x.toFixed(1)}" y="${(pts[pts.length-1].y-7).toFixed(1)}" fill="white" font-size="9" font-weight="700" font-family="Oswald" text-anchor="middle">${maxW} kg</text>`:'';
+    svgHTML=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="prg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${color}" stop-opacity="0.2"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient>
+      </defs>
+      <line x1="${PAD_L}" y1="${PAD_T}" x2="${PAD_L}" y2="${PAD_T+cH}" stroke="#2a2a2f" stroke-width="1"/>
+      <line x1="${PAD_L}" y1="${PAD_T+cH}" x2="${W-PAD_R}" y2="${PAD_T+cH}" stroke="#2a2a2f" stroke-width="1"/>
+      <path d="${area}" fill="url(#prg)"/>
+      <polyline points="${poly}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      ${dots}${xLabels}${tooltip}
+    </svg>`;
+  } else if(history.length===1){
+    svgHTML=`<div style="text-align:center;padding:16px 0;color:var(--text3);font-size:12px">Solo 1 registro — necesitás al menos 2 para ver el gráfico</div>`;
+  } else {
+    svgHTML=`<div style="text-align:center;padding:16px 0;color:var(--text3);font-size:12px">Sin registros para este rango</div>`;
+  }
+
+  // History list
+  const historyRows=history.slice().reverse().map((h,i)=>{
+    const pct=maxW?Math.round(h.weight/maxW*100):0;
+    const isFirst=i===history.length-1;
+    return `<div class="pr-history-row">
+      <span class="pr-history-week">SEM ${h.week}</span>
+      <div class="pr-history-bar-wrap"><div class="pr-history-bar" style="width:${pct}%;background:${color}"></div></div>
+      <span class="pr-history-weight">${h.weight} kg</span>
+      <span class="pr-history-badge">${isFirst?'🏁':i===0?'🏆':''}</span>
+    </div>`;
+  }).join('');
+
+  return `<div class="pr-detail-overlay" onclick="closePrDetail()">
+    <div class="pr-detail-sheet" onclick="event.stopPropagation()">
+      <div class="pr-detail-handle"></div>
+      <div class="pr-detail-title">${escH(exName.toUpperCase())}</div>
+      <div class="pr-detail-sub">Historial de récords por rango</div>
+      <div class="pr-range-tabs">${rangeTabs||'<span style="color:var(--text3);font-size:12px;padding:4px 0">Sin datos aún</span>'}</div>
+      ${history.length?`<div class="pr-chart-box"><div class="pr-chart-label">EVOLUCIÓN — ${PR_RANGES.find(r=>r.key===selectedRk)?.label||''}</div>${svgHTML}</div>
+      <div class="admin-section-title" style="padding:0 20px;margin-bottom:10px">HISTORIAL</div>
+      <div class="pr-history-list">${historyRows}</div>`
+      :`<div style="text-align:center;padding:32px 20px;color:var(--text3);font-size:13px">Sin registros para este ejercicio todavía.</div>`}
+    </div>
+  </div>`;
+}
 
 function renderChart(){
   const trList=tracked||DEFAULT_TRACKED;
@@ -2309,7 +2629,7 @@ window.__fsAppInit = async function(){
   await loadPlan();
   await loadRpeInfo();
   await loadTracked();
-  if(session && session.uid!=='__pending__') await loadPrs();
+  if(session && session.uid!=='__pending__'){ await loadPrs(); loadActiveWeek(); }
   if(session && session.uid!=='__pending__') await loadProgress();
   render();
 };
