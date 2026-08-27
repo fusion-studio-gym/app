@@ -2246,6 +2246,9 @@ async function restoreArchivedBlock(bid){
   if(!blockPlan){ showToast('No se pudo cargar el bloque'); return; }
   plan = blockPlan;
   await savePlan();
+  // Remove from archived list — it's now the active plan, not an archive
+  archivedBlocks = archivedBlocks.filter(b=>b.id!==bid);
+  await saveBlocks();
   showToast('✅ "'+block.name+'" restaurado como plan activo');
   ST.view='home';
   archivedBlockView={blockId:null,blockPlan:null,weekIdx:null,block:null};
