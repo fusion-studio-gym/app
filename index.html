@@ -675,13 +675,10 @@ function buildProgressKeyMap(){
 function recalcPrsFromProgress(){
   if(!plan||!progress) return;
   const trList = tracked||DEFAULT_TRACKED;
-  const newPrs = {};
   const keyMap = buildProgressKeyMap();
 
-  // Collect ALL weights per exercise+range across all weeks
-  // Structure: {exName: {rk: {weekNum: maxWeightThatWeek}}}
+  // Collect weekly bests from CURRENT block's progress
   const weekBests = {};
-
   Object.entries(progress).forEach(([k, d])=>{
     if(!d||!d.weight) return;
     const w = parseFloat(d.weight);
@@ -700,33 +697,50 @@ function recalcPrsFromProgress(){
     if(!weekBests[tn][rk][wn]||w>weekBests[tn][rk][wn]) weekBests[tn][rk][wn]=w;
   });
 
-  // Build PR structure with history from weekly bests
+  // Merge with EXISTING history — don't replace it
+  // Start from current prs (which may contain history from previous blocks)
+  const mergedPrs = JSON.parse(JSON.stringify(prs)); // deep copy to avoid mutation
+
+  // For each tracked exercise, add new PR-setting entries from current block
   Object.entries(weekBests).forEach(([tn, ranges])=>{
-    newPrs[tn]={};
+    if(!mergedPrs[tn]) mergedPrs[tn]={};
     Object.entries(ranges).forEach(([rk, weekMap])=>{
-      // Sort weeks and build cumulative PRs (only keep weeks that set a new PR)
+      const existing = mergedPrs[tn][rk]||{weight:0, week:0, newPr:false, history:[]};
+      const existingHistory = existing.history||[];
+
+      // Find the current running max from existing history
+      let runningMax = existing.weight||0;
+
+      // Build new entries from current block only
       const sortedWeeks = Object.keys(weekMap).map(Number).sort((a,b)=>a-b);
-      const history = [];
-      let runningMax = 0;
+      const newEntries = [];
       sortedWeeks.forEach(wn=>{
         const w = weekMap[wn];
         if(w > runningMax){
           runningMax = w;
-          history.push({weight:w, week:wn, block:currentBlockName});
+          // Only add if not already in history (same weight+week+block)
+          const alreadyIn = existingHistory.some(h=>h.weight===w&&h.week===wn&&h.block===currentBlockName);
+          if(!alreadyIn) newEntries.push({weight:w, week:wn, block:currentBlockName});
         }
       });
-      const latest = history[history.length-1];
-      const wasNew = prs[tn]&&prs[tn][rk]&&prs[tn][rk].newPr&&latest&&prs[tn][rk].weight===latest.weight;
-      newPrs[tn][rk]={
+
+      // Merge: existing history + new entries, sort by weight ascending
+      const mergedHistory = [...existingHistory, ...newEntries]
+        .sort((a,b)=>a.weight-b.weight);
+
+      const latest = mergedHistory.length ? mergedHistory[mergedHistory.length-1] : null;
+      const isNewPr = newEntries.length > 0 && latest && newEntries.some(e=>e.weight===latest.weight);
+
+      mergedPrs[tn][rk]={
         weight: latest?latest.weight:0,
         week: latest?latest.week:0,
-        newPr: !!wasNew,
-        history // [{weight, week}] — only PR-setting entries
+        newPr: isNewPr,
+        history: mergedHistory
       };
     });
   });
 
-  prs = newPrs;
+  prs = mergedPrs;
   savePrs();
 }
 
@@ -2252,14 +2266,19 @@ async function saveBlockNameFromAdmin(){
 }
 
 async function promptArchiveBlock(){
-  const name = prompt('Nombre para este bloque (ej: Bloque 1 — Jul 2026)');
+  const name = prompt('Nombre para este bloque (ej: Bloque 4 - 2026)');
   if(!name||!name.trim()) return;
-  if(!confirm('¿Cerrar y archivar "'+name.trim()+'"? El plan actual quedará guardado y se creará uno nuevo en blanco.')) return;
+  if(!confirm('¿Cerrar y archivar "'+name.trim()+'"?')) return;
   await archiveCurrentBlock(name.trim());
-  // Reset plan to empty for new block
   plan = [];
   await savePlan();
-  showToast('✅ Bloque "'+name.trim()+'" archivado correctamente');
+  // Ask for new block name so PRs get labelled correctly from day 1
+  const newName = prompt('¿Cómo se llama el nuevo bloque?', 'Bloque 5 - 2026');
+  if(newName&&newName.trim()){
+    currentBlockName = newName.trim();
+    await saveBlockName();
+  }
+  showToast('✅ Bloque "'+name.trim()+'" archivado');
   renderModal();
   render();
 }
