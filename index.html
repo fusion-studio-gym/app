@@ -589,16 +589,23 @@ async function loadBlocks(){
 async function saveBlocks(){ await sharedSet(K.BLOCKS,archivedBlocks); lsSet(K.BLOCKS,archivedBlocks); }
 
 async function archiveCurrentBlock(name){
-  // Save current plan as archived block
   const bid = 'b_'+Date.now();
   const block = { id:bid, name, archivedAt:Date.now(), weekCount:plan.length };
-  // Update block name to match archive name for future PRs
-  // (will be overwritten when admin sets new block name)
-  archivedBlocks.unshift(block); // newest first
+  archivedBlocks.unshift(block);
   await saveBlocks();
-  // Save current plan snapshot under block id
+  // Save plan snapshot
   await sharedSet('fs_plan_'+bid, plan);
-  // Plan itself stays as-is until admin creates new one
+  // Snapshot progress for ALL active users at time of archiving
+  const activeUsers = Object.values(users).filter(u=>u.status===STATUS.ACTIVE);
+  await Promise.all(activeUsers.map(async u=>{
+    try{
+      const prog = await personalGet(K.PROG(u.id))||{};
+      if(Object.keys(prog).length > 0){
+        // Save as block-specific progress snapshot
+        await window.__fsCloudSet(K.PROG_BLOCK(u.id,bid), JSON.stringify(prog));
+      }
+    }catch(e){ console.error('Error snapshotting progress for', u.id, e); }
+  }));
   return bid;
 }
 
@@ -610,10 +617,14 @@ async function loadBlockPlan(bid){
 
 async function loadBlockProgress(uid, bid){
   if(bid==='current') return await personalGet(K.PROG(uid))||{};
+  // Try block-specific snapshot first
   const remote = await personalGet(K.PROG_BLOCK(uid,bid));
-  if(remote) return remote;
-  // Fallback: try old key format
-  return await personalGet(K.PROG(uid)+`_${bid}`)||{};
+  if(remote && Object.keys(remote).length > 0) return remote;
+  // Fallback: read current progress (works if block was just archived and
+  // the new block hasn't started overwriting data yet)
+  const current = await personalGet(K.PROG(uid));
+  if(current && Object.keys(current).length > 0) return current;
+  return {};
 }
 
 async function loadRpeInfo(){
@@ -2221,6 +2232,7 @@ function renderTabDashboard(){
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">
         <button class="adm-btn adm-btn-blue" style="padding:5px 10px;font-size:11px" onclick="restoreArchivedBlock('${b.id}')">🔄 Restaurar</button>
+        <button class="adm-btn adm-btn-ghost" style="padding:5px 8px;font-size:11px" title="Reparar registros" onclick="repairBlockProgress('${b.id}')">🔧</button>
         <button class="adm-btn adm-btn-red" style="padding:5px 8px" onclick="deleteArchivedBlock('${b.id}')">${IC.trash}</button>
       </div>
     </div>`).join('');
@@ -2299,6 +2311,24 @@ async function restoreArchivedBlock(bid){
   archivedBlockView={blockId:null,blockPlan:null,weekIdx:null,block:null};
   render();
   window.scrollTo(0,0);
+}
+
+// Retroactively snapshot current progress for an already-archived block
+// Use this for blocks archived before the snapshot feature existed
+async function repairBlockProgress(bid){
+  const activeUsers = Object.values(users).filter(u=>u.status===STATUS.ACTIVE);
+  let count = 0;
+  await Promise.all(activeUsers.map(async u=>{
+    try{
+      const prog = await personalGet(K.PROG(u.id))||{};
+      if(Object.keys(prog).length > 0){
+        await window.__fsCloudSet(K.PROG_BLOCK(u.id,bid), JSON.stringify(prog));
+        count++;
+      }
+    }catch(e){}
+  }));
+  showToast('✅ Registros guardados para '+count+' alumnos');
+  renderModal();
 }
 
 async function deleteArchivedBlock(bid){
