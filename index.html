@@ -605,8 +605,6 @@ async function loadBlockProgress(uid, bid){
   return await personalGet(K.PROG(uid)+`_${bid}`)||{};
 }
 
-async function loadBlocks(){ const remote=await sharedGet(K.BLOCKS); if(remote){archivedBlocks=remote;lsSet(K.BLOCKS,remote);}else{archivedBlocks=lsGet(K.BLOCKS)||[];} }
-
 async function loadRpeInfo(){
   const remote=await sharedGet(K.RPE_INFO);
   if(remote){ rpeInfo=remote; lsSet(K.RPE_INFO,remote); }
