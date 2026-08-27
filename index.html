@@ -1769,10 +1769,18 @@ function renderArchivedBlock(){
 
   return `${navBarHTML(true,"ST.view='home';archivedBlockView={blockId:null,blockPlan:null,weekIdx:null,block:null};render()")}
     <div class="page-tabbed">
-      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:20px">
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:16px">
         <div style="font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px">Bloque archivado</div>
-        <div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700">${escH(block.name)}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px">Archivado el ${new Date(block.archivedAt).toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'})}</div>
+        <div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;margin-bottom:2px">${escH(block.name)}</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:14px">Archivado el ${new Date(block.archivedAt).toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'})} · ${blockPlan.length} semanas</div>
+        <div style="display:flex;gap:10px">
+          <button class="adm-btn adm-btn-orange" style="flex:1;justify-content:center;padding:10px" onclick="restoreArchivedBlock('${block.id}')">
+            🔄 Restaurar como activo
+          </button>
+          <button class="adm-btn adm-btn-red" style="padding:10px 14px" onclick="deleteArchivedBlock('${block.id}')">
+            ${IC.trash}
+          </button>
+        </div>
       </div>
       <div class="admin-section-title" style="margin-bottom:12px">SEMANAS</div>
       ${weeks}
@@ -2213,6 +2221,37 @@ async function promptArchiveBlock(){
   showToast('✅ Bloque "'+name.trim()+'" archivado correctamente');
   renderModal();
   render();
+}
+
+async function restoreArchivedBlock(bid){
+  const block = archivedBlocks.find(b=>b.id===bid);
+  if(!block) return;
+  if(!confirm('¿Restaurar "'+block.name+'" como plan activo? El plan actual se va a reemplazar.\n\nTip: si querés conservar el plan actual, archivalo primero desde el Dashboard.')) return;
+  const blockPlan = await loadBlockPlan(bid);
+  if(!blockPlan){ showToast('No se pudo cargar el bloque'); return; }
+  plan = blockPlan;
+  await savePlan();
+  showToast('✅ "'+block.name+'" restaurado como plan activo');
+  ST.view='home';
+  archivedBlockView={blockId:null,blockPlan:null,weekIdx:null,block:null};
+  render();
+  window.scrollTo(0,0);
+}
+
+async function deleteArchivedBlock(bid){
+  const block = archivedBlocks.find(b=>b.id===bid);
+  if(!block) return;
+  if(!confirm('¿Eliminar permanentemente "'+block.name+'"?\n\nEsta acción no se puede deshacer. Los registros de los alumnos vinculados a este bloque también se perderán.')) return;
+  // Remove from list
+  archivedBlocks = archivedBlocks.filter(b=>b.id!==bid);
+  await saveBlocks();
+  // Also delete the plan snapshot from Firebase
+  try{ await sharedSet('fs_plan_'+bid, null); }catch(e){}
+  showToast('🗑️ Bloque eliminado');
+  ST.view='home';
+  archivedBlockView={blockId:null,blockPlan:null,weekIdx:null,block:null};
+  render();
+  window.scrollTo(0,0);
 }
 
 // ---- TAB: DIAGNÓSTICO ----
