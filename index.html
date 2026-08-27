@@ -688,7 +688,8 @@ function recalcPrsFromProgress(){
   const trList = tracked||DEFAULT_TRACKED;
   const keyMap = buildProgressKeyMap();
 
-  // Collect weekly bests from CURRENT block's progress
+  // Step 1: Collect weekly bests from CURRENT block's ACTUAL progress
+  // This is always rebuilt from scratch so edits/deletions are reflected correctly
   const weekBests = {};
   Object.entries(progress).forEach(([k, d])=>{
     if(!d||!d.weight) return;
@@ -708,39 +709,52 @@ function recalcPrsFromProgress(){
     if(!weekBests[tn][rk][wn]||w>weekBests[tn][rk][wn]) weekBests[tn][rk][wn]=w;
   });
 
-  // Merge with EXISTING history — don't replace it
-  // Start from current prs (which may contain history from previous blocks)
-  const mergedPrs = JSON.parse(JSON.stringify(prs)); // deep copy to avoid mutation
+  // Step 2: Build merged PRs
+  // - Keep history entries from PREVIOUS blocks (block !== currentBlockName)
+  // - REPLACE history entries from current block with fresh calculation
+  const mergedPrs = JSON.parse(JSON.stringify(prs));
 
-  // For each tracked exercise, add new PR-setting entries from current block
-  Object.entries(weekBests).forEach(([tn, ranges])=>{
+  // Get all tracked exercise names
+  const allTrackedNames = (trList).map(t=>t.name);
+
+  allTrackedNames.forEach(tn=>{
     if(!mergedPrs[tn]) mergedPrs[tn]={};
-    Object.entries(ranges).forEach(([rk, weekMap])=>{
+    PR_RANGES.forEach(({key:rk})=>{
       const existing = mergedPrs[tn][rk]||{weight:0, week:0, newPr:false, history:[]};
       const existingHistory = existing.history||[];
 
-      // Find the current running max from existing history
-      let runningMax = existing.weight||0;
+      // Keep only entries from OTHER blocks (not current block)
+      // This ensures edits in the current block are always reflected
+      const previousBlockHistory = existingHistory.filter(h=>
+        h.block && h.block !== currentBlockName
+      );
 
-      // Build new entries from current block only
-      const sortedWeeks = Object.keys(weekMap).map(Number).sort((a,b)=>a-b);
-      const newEntries = [];
+      // Build current block history fresh from weekBests
+      const currentBlockHistory = [];
+      const currentWeekBests = (weekBests[tn]&&weekBests[tn][rk])||{};
+      const sortedWeeks = Object.keys(currentWeekBests).map(Number).sort((a,b)=>a-b);
+
+      // Find max weight from previous blocks to compare against
+      const prevMax = previousBlockHistory.length
+        ? Math.max(...previousBlockHistory.map(h=>h.weight))
+        : 0;
+
+      let runningMax = prevMax;
       sortedWeeks.forEach(wn=>{
-        const w = weekMap[wn];
+        const w = currentWeekBests[wn];
         if(w > runningMax){
           runningMax = w;
-          // Only add if not already in history (same weight+week+block)
-          const alreadyIn = existingHistory.some(h=>h.weight===w&&h.week===wn&&h.block===currentBlockName);
-          if(!alreadyIn) newEntries.push({weight:w, week:wn, block:currentBlockName});
+          currentBlockHistory.push({weight:w, week:wn, block:currentBlockName});
         }
       });
 
-      // Merge: existing history + new entries, sort by weight ascending
-      const mergedHistory = [...existingHistory, ...newEntries]
+      // Merge: previous blocks history + current block history, sort by weight
+      const mergedHistory = [...previousBlockHistory, ...currentBlockHistory]
         .sort((a,b)=>a.weight-b.weight);
 
       const latest = mergedHistory.length ? mergedHistory[mergedHistory.length-1] : null;
-      const isNewPr = newEntries.length > 0 && latest && newEntries.some(e=>e.weight===latest.weight);
+      const isNewPr = currentBlockHistory.length > 0 &&
+        latest && currentBlockHistory.some(e=>e.weight===latest.weight);
 
       mergedPrs[tn][rk]={
         weight: latest?latest.weight:0,
