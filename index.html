@@ -289,6 +289,58 @@ body{max-width:480px;margin:0 auto;}
 .ex-picker-item:active{background:var(--surface2);}
 .ex-picker-item.selected{color:var(--orange);}
 
+/* BLOCK SUMMARY */
+.summary-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:300;display:flex;align-items:flex-end;justify-content:center;}
+.summary-sheet{background:var(--surface);border:1px solid var(--border2);border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;padding:0 0 40px;}
+.summary-handle{width:40px;height:4px;background:var(--border2);border-radius:2px;margin:14px auto 0;}
+.summary-hero{background:linear-gradient(135deg,rgba(240,90,40,0.2),rgba(240,90,40,0.04));padding:20px;margin-top:16px;border-bottom:1px solid var(--border);}
+.summary-block-tag{font-size:10px;color:var(--orange);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;}
+.summary-block-title{font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;letter-spacing:1.5px;margin-bottom:14px;}
+.summary-stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.summary-stat{background:rgba(0,0,0,0.25);border-radius:var(--radius-sm);padding:10px 8px;text-align:center;}
+.summary-stat-val{font-family:'Oswald',sans-serif;font-size:26px;font-weight:700;line-height:1;}
+.summary-stat-label{font-size:8px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-top:3px;}
+.week-dots{display:flex;gap:4px;flex-wrap:wrap;margin:10px 0 6px;}
+.wdot{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;}
+.wdot-done{background:var(--green);color:white;}
+.wdot-partial{background:var(--gold);color:#000;}
+.wdot-skip{background:var(--surface3);color:var(--text3);}
+.summary-pr-row{display:flex;align-items:center;justify-content:space-between;padding:11px 20px;border-bottom:1px solid var(--border);}
+.summary-pr-row:last-child{border-bottom:none;}
+.ranking-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);}
+.ranking-row:last-child{border-bottom:none;}
+.rank-pos{font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;width:24px;flex-shrink:0;text-align:center;}
+.rank-avatar{width:32px;height:32px;border-radius:50%;background:var(--orange-dim);border:1px solid rgba(240,90,40,0.3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--orange);flex-shrink:0;}
+.ex-pill{flex-shrink:0;padding:5px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--surface2);font-size:12px;font-weight:600;cursor:pointer;color:var(--text2);}
+.ex-pill.active{background:var(--orange);border-color:var(--orange);color:white;}
+.summary-close-btn{width:calc(100% - 40px);margin:16px 20px 0;padding:14px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text2);font-family:'Oswald',sans-serif;font-size:15px;font-weight:600;letter-spacing:1px;cursor:pointer;}
+/* EXPRESS MODE */
+.express-toggle-bar{display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--surface2);border-bottom:1px solid var(--border);}
+.express-toggle-label{font-size:11px;color:var(--text2);font-weight:500;flex:1;}
+.express-toggle{width:38px;height:22px;border-radius:11px;position:relative;cursor:pointer;flex-shrink:0;}
+.express-toggle.on{background:var(--orange);}
+.express-toggle.off{background:var(--surface3);border:1px solid var(--border2);}
+.express-toggle-dot{width:18px;height:18px;border-radius:50%;background:white;position:absolute;top:2px;}
+.express-toggle.on .express-toggle-dot{left:18px;}
+.express-toggle.off .express-toggle-dot{left:2px;}
+.express-progress-bar{height:3px;background:var(--surface3);}
+.express-progress-fill{height:100%;background:var(--orange);}
+.express-ex-block{padding:12px 16px;border-bottom:1px solid var(--border);}
+.express-ex-block:last-child{border-bottom:none;}
+.express-ex-title{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;}
+.express-sets-wrap{display:flex;gap:6px;flex-wrap:wrap;}
+.express-set-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:60px;}
+.express-set-card.done{background:var(--orange-dim2);border-color:rgba(240,90,40,0.4);}
+.express-set-num{font-size:9px;font-weight:700;color:var(--text3);letter-spacing:1px;}
+.express-set-target{font-size:9px;color:var(--orange);font-weight:600;}
+.express-kg-inp{width:52px;background:var(--surface3);border:1px solid var(--border2);color:var(--text);font-size:15px;font-weight:700;text-align:center;height:34px;border-radius:6px;outline:none;font-family:'Inter',sans-serif;}
+.express-check-btn{width:34px;height:24px;border:none;border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.express-check-btn.checked{background:var(--orange);}
+.express-check-btn.unchecked{background:var(--surface3);}
+.express-block-nav{display:flex;gap:8px;padding:10px 16px;border-top:1px solid var(--border);background:var(--surface2);position:sticky;bottom:48px;}
+.express-nav-btn{flex:1;padding:10px;border-radius:var(--radius-sm);border:none;font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;}
+.express-prev{background:var(--surface3);color:var(--text2);}
+.express-next{background:linear-gradient(135deg,var(--orange),var(--orange2));color:white;}
 /* PR TIMELINE */
 .pr-detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:250;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn .2s ease;}
 .pr-detail-sheet{background:var(--surface);border:1px solid var(--border2);border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;padding:8px 0 40px;}
@@ -397,11 +449,11 @@ function getPrRangeKey(reps){
 
 // Match exercise name against tracked terms
 // Rules:
-//   ✅ "Banco Plano C/Barra (Pausa 1\")"  → matches "banco plano" (C/ is abbreviation, not a new word)
-//   ✅ "Peso Muerto C/Pausa 2\""          → matches "peso muerto"
-//   ✅ "Back Squat (Pausa 2\" Abajo)"     → matches "back squat"
-//   ❌ "Peso Muerto Rumano"               → does NOT match "peso muerto" (Rumano is a new word)
-//   ❌ "Peso Muerto Sumo"                 → does NOT match "peso muerto"
+//   OK "Banco Plano C/Barra (Pausa 1)"  -> matches "banco plano"
+//   OK "Peso Muerto C/Pausa 2"          -> matches "peso muerto"
+//   OK "Back Squat (Pausa 2 Abajo)"     -> matches "back squat"
+//   NO "Peso Muerto Rumano"             -> does NOT match "peso muerto"
+//   NO "Peso Muerto Sumo"              -> does NOT match "peso muerto"
 function matchTracked(exName, trackedList){
   if(!exName) return null;
   const lower = exName.toLowerCase().trim();
@@ -987,6 +1039,9 @@ function escH(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').re
 // APP STATE
 // ============================================================
 let ST={ view:'home', week:null, dayIdx:null, blockIdx:null, mainTab:'plan', chartEx:null, chartWeek:0, activeWeek:null };
+let expressMode=false;
+function loadExpressMode(){ expressMode=lsGet('fs_express_'+(session?.uid))||false; }
+function saveExpressMode(){ lsSet('fs_express_'+(session?.uid),expressMode); }
 function nav(view,extra={}){ ST={...ST,view,...extra}; render(); window.scrollTo(0,0); }
 
 // user menu state
@@ -1342,6 +1397,7 @@ function renderDay(){
 }
 
 function renderWorkout(){
+  if(expressMode) return renderExpressDay();
   const wd=plan[ST.week]; const day=wd.days[ST.dayIdx]; const block=day.blocks[ST.blockIdx];
   // Build PR metadata map: setKey → {exName, reps, week}
   window.__prMeta={};
@@ -1364,6 +1420,7 @@ function renderWorkout(){
       <div class="workout-info"><div class="workout-week">SEM. ${wd.week} · ${day.name} · ${day.days}</div><div class="workout-block">${block.name}</div></div>
       <div style="width:36px"></div>
     </div>
+    <div class="express-toggle-bar"><span class="express-toggle-label">⚡ Modo Express</span><div class="express-toggle off" onclick="toggleExpressMode()"><div class="express-toggle-dot"></div></div></div>
     <div class="workout-content">${exsH}
       <button class="finish-btn" onclick="handleFinish()">${IC.trophy} FINALIZAR BLOQUE</button>
     </div>`;
@@ -1512,7 +1569,7 @@ async function checkAdminPw(){
 
 // ADMIN TABS
 function renderAdminBody(){
-  const tabs=['📊 Dashboard','👥 Usuarios','📋 Ejercicios','📅 Semanas','📖 RPE','🎯 PRs','🔑 Contraseña','🔍 Diagnóstico'];
+  const tabs=['📊 Dashboard','👥 Usuarios','📋 Ejercicios','📅 Semanas','📖 RPE','🎯 PRs','📈 Grupo','🔑 Contraseña','🔍 Diagnóstico'];
   const nav=tabs.map((t,i)=>`<div class="admin-tab ${adminState.tab===i?'active':''}" onclick="setAdminTab(${i})">${t}</div>`).join('');
   let body='';
   if(adminState.tab===0) body=renderTabDashboard();
@@ -1521,7 +1578,8 @@ function renderAdminBody(){
   else if(adminState.tab===3) body=renderTabWeeks();
   else if(adminState.tab===4) body=renderTabRpe();
   else if(adminState.tab===5) body=renderTabTracked();
-  else if(adminState.tab===6) body=renderTabPw();
+  else if(adminState.tab===6) body='<div id="comparative-loading" style="text-align:center;padding:32px;color:var(--text3)">Cargando datos...</div>';
+  else if(adminState.tab===7) body=renderTabPw();
   else body=renderTabDiag();
   return `<div class="admin-nav">${nav}</div>${body}`;
 }
@@ -1534,6 +1592,12 @@ async function setAdminTab(i){
     renderModal();
     await loadUserActivityStatus();
     renderModal();
+  } else if(i===6){
+    if(!Object.keys(users).length) await loadUsers();
+    renderModal();
+    const cBody=await renderTabComparative();
+    const wrap=document.getElementById('comparative-loading');
+    if(wrap) wrap.outerHTML=cBody;
   } else {
     renderModal();
   }
@@ -1824,6 +1888,11 @@ function renderArchivedBlock(){
         <div style="font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px">Bloque archivado</div>
         <div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;margin-bottom:2px">${escH(block.name)}</div>
         <div style="font-size:11px;color:var(--text3);margin-bottom:14px">Archivado el ${new Date(block.archivedAt).toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'})} · ${blockPlan.length} semanas</div>
+        <div style="margin-bottom:8px">
+          <button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;padding:10px" onclick="openBlockSummary('${block.id}','${block.name}',blockPlan)">
+            📊 Ver resumen del bloque
+          </button>
+        </div>
         ${isAdmin()?`<div style="display:flex;gap:10px">
           <button class="adm-btn adm-btn-orange" style="flex:1;justify-content:center;padding:10px" onclick="restoreArchivedBlock('${block.id}')">
             🔄 Restaurar como activo
@@ -2305,6 +2374,9 @@ async function promptArchiveBlock(){
     await saveBlockName();
   }
   showToast('✅ Bloque "'+name.trim()+'" archivado');
+  const justBid=archivedBlocks[0]?.id;
+  const justPlan=await loadBlockPlan(justBid);
+  if(justBid&&justPlan){ blockSummaryState={open:true,blockId:justBid,blockName:name.trim(),blockPlan:justPlan,blockProgress:progress}; render(); }
   renderModal();
   render();
 }
@@ -2533,6 +2605,89 @@ function removeRpeItem(rpe,ii){
 }
 async function doSaveRpe(){ await saveRpeInfo(); showToast('✅ Info de RPE guardada'); }
 
+let comparativeState={exIdx:0};
+
+async function renderTabComparative(){
+  const baseExs=DEFAULT_TRACKED;
+  const exName=baseExs[comparativeState.exIdx].name;
+  const activeUsers=Object.values(users).filter(u=>u.status===STATUS.ACTIVE);
+  const userPrData=await Promise.all(activeUsers.map(async u=>{
+    try{
+      const userPrs=await personalGet(K.PRS(u.id))||{};
+      const ep=userPrs[exName];
+      if(!ep) return null;
+      let bestW=0,bestRange=null;
+      PR_RANGES.forEach(r=>{ if(ep[r.key]&&ep[r.key].weight>bestW){bestW=ep[r.key].weight;bestRange=r;} });
+      return bestW>0?{uid:u.id,name:u.name,weight:bestW,range:bestRange}:null;
+    }catch(e){return null;}
+  }));
+  const withData=userPrData.filter(Boolean).sort((a,b)=>b.weight-a.weight);
+  const weights=withData.map(d=>d.weight);
+  const avg=weights.length?Math.round(weights.reduce((a,b)=>a+b,0)/weights.length):0;
+  const max=weights.length?Math.max(...weights):0;
+  const buckets=[
+    {label:'<60',min:0,max:59},{label:'60-80',min:60,max:80},
+    {label:'80-100',min:80,max:100},{label:'100-120',min:100,max:120},
+    {label:'120-140',min:120,max:140},{label:'140-160',min:140,max:160},
+    {label:'160-180',min:160,max:180},{label:'>180',min:180,max:9999}
+  ];
+  const bc=buckets.map(b=>({...b,count:weights.filter(w=>w>b.min&&w<=b.max).length}));
+  const maxC=Math.max(...bc.map(b=>b.count),1);
+  const exPills=baseExs.map((ex,i)=>`<div class="ex-pill ${i===comparativeState.exIdx?'active':''}" onclick="comparativeState.exIdx=${i};setAdminTab(6)">${escH(ex.name)}</div>`).join('');
+  const bars=bc.map(b=>{
+    const h=Math.max(Math.round((b.count/maxC)*72),b.count>0?6:0);
+    const col=b.min>=140?'var(--green)':b.min>=80?'var(--orange)':'var(--blue)';
+    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+      <div style="font-size:9px;color:var(--text3);font-weight:600">${b.count||''}</div>
+      <div style="height:72px;display:flex;align-items:flex-end;width:100%">
+        <div style="width:100%;height:${h}px;background:${b.count>0?col:'var(--surface3)'};border-radius:3px 3px 0 0"></div>
+      </div>
+      <div style="font-size:8px;color:var(--text3);text-align:center;line-height:1.2">${b.label}</div>
+    </div>`;
+  }).join('');
+  const rankRows=withData.slice(0,10).map((d,i)=>{
+    const ini=d.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+    const medals=['🥇','🥈','🥉'];
+    return `<div class="ranking-row">
+      <div class="rank-pos" style="color:${i<3?'var(--gold)':'var(--text3)'}">${medals[i]||i+1}</div>
+      <div class="rank-avatar">${ini}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(d.name)}</div>
+        <div style="font-size:10px;color:var(--text3)">${d.range?d.range.label:''}</div>
+      </div>
+      <div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;color:var(--text)">${d.weight}<span style="font-size:11px;color:var(--text3)">kg</span></div>
+    </div>`;
+  }).join('');
+  return `<div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px">${exPills}</div>
+    <div class="admin-section-title">DISTRIBUCIÓN — ${escH(exName.toUpperCase())}</div>
+    <div class="ex-edit-card" style="margin-bottom:12px">
+      <div style="display:flex;gap:4px;align-items:flex-end">${bars}</div>
+      <div style="display:flex;gap:10px;font-size:10px;margin-top:8px">
+        <span style="color:var(--blue)">● En desarrollo</span>
+        <span style="color:var(--orange)">● Rango principal</span>
+        <span style="color:var(--green)">● Top</span>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+      <div class="ex-edit-card" style="text-align:center;padding:10px;margin-bottom:0">
+        <div style="font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;color:var(--orange)">${avg}kg</div>
+        <div style="font-size:9px;color:var(--text3)">PROMEDIO</div>
+      </div>
+      <div class="ex-edit-card" style="text-align:center;padding:10px;margin-bottom:0">
+        <div style="font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;color:var(--green)">${max}kg</div>
+        <div style="font-size:9px;color:var(--text3)">MÁXIMO</div>
+      </div>
+      <div class="ex-edit-card" style="text-align:center;padding:10px;margin-bottom:0">
+        <div style="font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;color:var(--text)">${withData.length}</div>
+        <div style="font-size:9px;color:var(--text3)">CON DATOS</div>
+      </div>
+    </div>
+    ${withData.length?`<div class="admin-section-title">RANKING — ${escH(exName.toUpperCase())}</div>
+    <div class="ex-edit-card" style="padding:0;overflow:hidden">${rankRows}</div>`
+    :'<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">Sin datos aún.</div>'}
+  </div>`;
+}
 function renderTabPw(){
   return `<div class="pw-wrap">
     <h3>Cambiar contraseña admin</h3>
@@ -2661,8 +2816,106 @@ function renderPrs(){
 // ── CHART SCREEN ──
 let exPickerOpen=false;
 let prDetailState={open:false, exName:null, rangeKey:'rm4'};
+let blockSummaryState={open:false,blockId:null,blockName:'',blockPlan:null,blockProgress:null};
+
+function calcBlockSummary(bPlan,bProgress){
+  if(!bPlan||!bProgress) return {completedWeeks:0,totalWeeks:0,adherence:0,weekStatus:[],prs:[]};
+  const totalWeeks=bPlan.length;
+  const weekStatus=bPlan.map(wd=>{ const pct=calcWeekPct(wd,bProgress); if(pct===100)return 'done'; if(pct>0)return 'partial'; return 'skip'; });
+  const completedWeeks=weekStatus.filter(s=>s==='done').length;
+  const adherence=Math.round((completedWeeks/totalWeeks)*100);
+  const blockName=blockSummaryState.blockName;
+  const prData=DEFAULT_TRACKED.map(t=>{ const ep=prs[t.name]; if(!ep)return null; let bestEntry=null,bestRange=null; PR_RANGES.forEach(r=>{ const h=ep[r.key]&&ep[r.key].history?ep[r.key].history.filter(e=>e.block===blockName):[]; if(h.length){ const max=h.reduce((a,b)=>a.weight>b.weight?a:b); if(!bestEntry||max.weight>bestEntry.weight){bestEntry=max;bestRange=r;} } }); return bestEntry?{name:t.name,weight:bestEntry.weight,week:bestEntry.week,range:bestRange}:null; }).filter(Boolean);
+  return {completedWeeks,totalWeeks,adherence,weekStatus,prs:prData};
+}
+
+async function openBlockSummary(bid,blockName,bPlan){
+  const uid=session?.uid; if(!uid||uid==='__pending__')return;
+  const bProgress=await loadBlockProgress(uid,bid);
+  blockSummaryState={open:true,blockId:bid,blockName,blockPlan:bPlan,blockProgress:bProgress};
+  render();
+}
+
+function closeBlockSummary(){ blockSummaryState.open=false; render(); }
+
+function renderBlockSummarySheet(){
+  if(!blockSummaryState.open)return '';
+  const {blockName,blockPlan,blockProgress}=blockSummaryState;
+  const {completedWeeks,totalWeeks,adherence,weekStatus,prs:prData}=calcBlockSummary(blockPlan,blockProgress);
+  const dotColor=s=>s==='done'?'wdot-done':s==='partial'?'wdot-partial':'wdot-skip';
+  const dots=weekStatus.map((s,i)=>`<div class="wdot ${dotColor(s)}">S${i+1}</div>`).join('');
+  const prRows=DEFAULT_TRACKED.map(t=>{ const found=prData.find(p=>p.name===t.name); if(!found)return `<div class="summary-pr-row"><div style="font-size:13px;font-weight:600;color:var(--text)">${escH(t.name)}</div><div style="font-size:12px;color:var(--text3)">Sin registro</div></div>`; return `<div class="summary-pr-row"><div><div style="font-size:13px;font-weight:600;color:var(--text)">${escH(t.name)}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">${found.range.label} · Semana ${found.week}</div></div><div style="text-align:right"><div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:var(--orange)">${found.weight} <span style="font-size:13px;color:var(--text3)">kg</span></div><div style="font-size:9px;color:var(--gold);font-weight:700">🏆 PR EN ESTE BLOQUE</div></div></div>`; }).join('');
+  const ac=adherence>=80?'var(--green)':adherence>=50?'var(--orange)':'var(--red)';
+  return `<div class="summary-overlay" onclick="closeBlockSummary()"><div class="summary-sheet" onclick="event.stopPropagation()"><div class="summary-handle"></div><div class="summary-hero"><div class="summary-block-tag">📦 RESUMEN DEL BLOQUE</div><div class="summary-block-title">${escH(blockName)}</div><div class="summary-stats-grid"><div class="summary-stat"><div class="summary-stat-val">${completedWeeks}<span style="font-size:14px;color:var(--text3)">/${totalWeeks}</span></div><div class="summary-stat-label">SEMANAS COMPLETAS</div></div><div class="summary-stat"><div class="summary-stat-val" style="color:${ac}">${adherence}%</div><div class="summary-stat-label">ADHERENCIA</div></div><div class="summary-stat"><div class="summary-stat-val" style="color:var(--gold)">${prData.length}</div><div class="summary-stat-label">PRs LOGRADOS</div></div></div></div><div style="padding:16px 20px 0"><div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">SEMANA A SEMANA</div><div class="week-dots">${dots}</div><div style="display:flex;gap:12px;font-size:10px;color:var(--text3);margin-bottom:16px"><span>🟢 Completa</span><span>🟡 Parcial</span><span>⬜ Sin registro</span></div><div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase">RÉCORDS DEL BLOQUE</div></div><div style="margin-top:8px">${prRows}</div><button class="summary-close-btn" onclick="closeBlockSummary()">CERRAR</button></div></div>`;
+}
 
 const RANGE_COLORS={'rm1':'#f05a28','rm2':'#e91e63','rm3':'#9c27b0','rm4':'#3b82f6'};
+
+function toggleExpressMode(){ expressMode=!expressMode; saveExpressMode(); render(); }
+
+function renderExpressDay(){
+  const wd=plan[ST.week]; const day=wd.days[ST.dayIdx]; const block=day.blocks[ST.blockIdx];
+  let totalSets=0,doneSets=0;
+  day.blocks.forEach(bl=>{ bl.exercises.forEach(ex=>{
+    if(ex.type==='single'){ ex.sets.forEach((_,si)=>{ totalSets++; if(getSetData(`${ex.id}_s${si}`).done) doneSets++; }); }
+    else { for(let si=0;si<ex.count;si++) ex.parts.forEach(p=>{ totalSets++; if(getSetData(`${ex.id}_${p.pid}_s${si}`).done) doneSets++; }); }
+  }); });
+  const pct=totalSets?Math.round(doneSets/totalSets*100):0;
+  const exsHTML=block.exercises.map(ex=>{
+    let setCards='';
+    if(ex.type==='single'){
+      setCards=ex.sets.map((s,si)=>{
+        const k=`${ex.id}_s${si}`; const d=getSetData(k);
+        return `<div class="express-set-card ${d.done?'done':''}" id="xsr_${k}">
+          <div class="express-set-num">S${si+1}</div>
+          <div class="express-set-target">${s.r} ${s.rpe!=='-'?s.rpe:''}</div>
+          <input class="express-kg-inp" type="text" inputmode="decimal" placeholder="kg" value="${escH(d.weight)}" oninput="handleWeightInput(this,'${k}')">
+          <button class="express-check-btn ${d.done?'checked':'unchecked'}" onclick="expressToggleDone('${k}')">${d.done?'✓':'○'}</button>
+        </div>`;
+      }).join('');
+    } else {
+      for(let si=0;si<ex.count;si++){
+        ex.parts.forEach(p=>{
+          const k=`${ex.id}_${p.pid}_s${si}`; const d=getSetData(k);
+          setCards+=`<div class="express-set-card ${d.done?'done':''}" id="xsr_${k}" style="min-width:56px">
+            <div class="express-set-num">S${si+1}${p.pid.toUpperCase()}</div>
+            <div class="express-set-target">${p.r}</div>
+            <input class="express-kg-inp" type="text" inputmode="decimal" placeholder="kg" value="${escH(d.weight)}" oninput="handleWeightInput(this,'${k}')">
+            <button class="express-check-btn ${d.done?'checked':'unchecked'}" onclick="expressToggleDone('${k}')">${d.done?'✓':'○'}</button>
+          </div>`;
+        });
+      }
+    }
+    const exLabel=ex.type==='single'?ex.name:ex.parts.map(p=>p.name).join(' + ');
+    return `<div class="express-ex-block">
+      <div class="express-ex-title">${ex.order} ${escH(exLabel)}</div>
+      <div class="express-sets-wrap">${setCards}</div>
+    </div>`;
+  }).join('');
+  const hasPrev=ST.blockIdx>0; const hasNext=ST.blockIdx<day.blocks.length-1;
+  return `<div class="workout-header">
+    <button class="nav-back" onclick="nav('day',{week:${ST.week},dayIdx:${ST.dayIdx}})">${IC.back}</button>
+    <div class="workout-info"><div class="workout-week">SEM. ${wd.week} · ${day.name}</div><div class="workout-block">${block.name} ⚡</div></div>
+    <div style="width:36px"></div>
+  </div>
+  <div class="express-toggle-bar">
+    <span class="express-toggle-label">⚡ Modo Express</span>
+    <div class="express-toggle on" onclick="toggleExpressMode()"><div class="express-toggle-dot"></div></div>
+  </div>
+  <div class="express-progress-bar"><div class="express-progress-fill" style="width:${pct}%"></div></div>
+  <div style="padding-bottom:${hasPrev||hasNext?120:80}px">${exsHTML}</div>
+  ${hasPrev||hasNext?`<div class="express-block-nav">
+    ${hasPrev?`<button class="express-nav-btn express-prev" onclick="nav('workout',{week:${ST.week},dayIdx:${ST.dayIdx},blockIdx:${ST.blockIdx-1}})">‹ ${day.blocks[ST.blockIdx-1].name}</button>`:'<div style="flex:1"></div>'}
+    ${hasNext?`<button class="express-nav-btn express-next" onclick="nav('workout',{week:${ST.week},dayIdx:${ST.dayIdx},blockIdx:${ST.blockIdx+1}})">${day.blocks[ST.blockIdx+1].name} ›</button>`:`<button class="express-nav-btn express-next" onclick="handleFinish()">${IC.trophy} FINALIZAR</button>`}
+  </div>`:`<div style="padding:0 16px 16px"><button class="finish-btn" onclick="handleFinish()">${IC.trophy} FINALIZAR BLOQUE</button></div>`}
+  ${tabBarHTML()}`;
+}
+
+function expressToggleDone(k){
+  toggleDone(k);
+  const card=document.getElementById('xsr_'+k);
+  if(card){ const d=getSetData(k); card.classList.toggle('done',d.done); const btn=card.querySelector('.express-check-btn'); if(btn){btn.className='express-check-btn '+(d.done?'checked':'unchecked');btn.textContent=d.done?'✓':'○';} }
+}
 
 function openPrDetail(exName){
   prDetailState={open:true, exName, rangeKey:'rm4'};
@@ -2956,6 +3209,14 @@ function render(){
   else if(ST.view==='week')    { app.innerHTML=renderWeek(); }
   else if(ST.view==='day')     { app.innerHTML=renderDay(); }
   else if(ST.view==='workout') { app.innerHTML=renderWorkout(); }
+  // Inject summary sheet overlay if open (works on any view)
+  if(blockSummaryState.open){
+    let sr=document.getElementById('block-summary-root');
+    if(!sr){ sr=document.createElement('div'); sr.id='block-summary-root'; document.body.appendChild(sr); }
+    sr.innerHTML=renderBlockSummarySheet();
+  } else {
+    const sr=document.getElementById('block-summary-root'); if(sr)sr.remove();
+  }
   renderImpBanner();
 }
 
@@ -2973,7 +3234,7 @@ window.__fsAppInit = async function(){
   await loadTracked();
   await loadBlocks();
   await loadBlockName();
-  if(session && session.uid!=='__pending__'){ await loadPrs(); loadActiveWeek(); }
+  if(session && session.uid!=='__pending__'){ await loadPrs(); loadActiveWeek(); loadExpressMode(); }
   if(session && session.uid!=='__pending__') await loadProgress();
   render();
 };
