@@ -15,6 +15,11 @@
 <link rel="apple-touch-icon" sizes="120x120" href="logo.jpg">
 <meta name="apple-mobile-web-app-title" content="Fusion Studio">
 <meta name="theme-color" content="#0a0a0b">
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fusion Studio">
 <meta name="application-name" content="Fusion Studio">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -411,6 +416,7 @@ const K = {
   ADMINPW:  'fs_adminpw_v1',
   RPE_INFO: 'fs_rpe_info_v1',
   BLOCK_NAME: 'fs_block_name_v1',  // shared: current block name string
+  WEEK_MSGS: 'fs_week_messages_v1',  // shared: {weekIndex: message string}
 };
 const DEFAULT_ADMIN_PW = 'fusion2025';
 const STATUS = { PENDING:'pending', ACTIVE:'active', BLOCKED:'blocked' };
@@ -578,6 +584,14 @@ let rpeInfo = null;
 let archivedBlocks = []; // [{id, name, archivedAt, plan}]
 let currentBlockId = 'current'; // ID of the block being viewed in history
 let currentBlockName = 'Bloque 4 - 2026'; // Name of the currently active block
+let weekMessages = {}; // {weekIndex: string} — coach message per week
+
+async function loadWeekMessages(){
+  const remote = await sharedGet(K.WEEK_MSGS);
+  if(remote){ weekMessages=remote; lsSet(K.WEEK_MSGS,remote); }
+  else { weekMessages=lsGet(K.WEEK_MSGS)||{}; }
+}
+async function saveWeekMessages(){ await sharedSet(K.WEEK_MSGS,weekMessages); lsSet(K.WEEK_MSGS,weekMessages); }
 let prs = {};      // {exName: {rm1:{weight,week,newPr}, rm2:..., rm3:..., rm4:...}}
 let tracked = null; // [{name, matchTerms:[]}]
 
@@ -1247,18 +1261,36 @@ function renderHome(){
   const activeIdx=ST.activeWeek!==null?ST.activeWeek:detectActiveWeek();
 
   // Streak badge
-  const streakHTML=streak>0?`<div style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(240,90,40,0.1));border:1px solid rgba(245,158,11,0.35);border-radius:30px;padding:6px 16px;margin-bottom:16px">
-    <span style="font-size:20px">🔥</span>
-    <div>
-      <div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;color:var(--gold);line-height:1">${streak} ${streak===1?'SEMANA':'SEMANAS'}</div>
-      <div style="font-size:10px;color:var(--text3);letter-spacing:.5px">RACHA ACTIVA</div>
+  // Build week progress bars (one per week in block)
+  const weekBars = plan.map((_,i)=>{
+    const done = calcWeekPct(plan[i]) === 100;
+    return `<div style="width:${Math.floor(100/plan.length)-1}%;max-width:26px;height:6px;border-radius:3px;background:${done?'var(--green)':'var(--surface3)'}"></div>`;
+  }).join('');
+
+  const streakHTML=streak>0?`<div style="background:linear-gradient(135deg,rgba(245,158,11,0.18),rgba(240,90,40,0.08));border:1px solid rgba(245,158,11,0.4);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:14px">
+    <div style="font-size:32px;line-height:1;flex-shrink:0">🔥</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:10px;color:var(--gold);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">RACHA ACTIVA</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:var(--text);line-height:1">${streak} <span style="font-size:14px;color:var(--text2);font-weight:400">${streak===1?'semana':'semanas'} seguidas</span></div>
+      <div style="display:flex;gap:3px;margin-top:8px;flex-wrap:wrap">${weekBars}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:4px">${streak} de ${plan.length} semanas del bloque</div>
     </div>
   </div>`:'';
 
   // Active week banner
   const activeWd=plan[activeIdx];
   const activePct=calcWeekPct(activeWd);
-  const activeBanner=`<div onclick="nav('week',{week:${activeIdx}})" style="background:linear-gradient(135deg,var(--orange-dim),rgba(240,90,40,0.05));border:1px solid rgba(240,90,40,0.4);border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px">
+  // Coach message for active week
+  const activeMsg = weekMessages[activeIdx] ? weekMessages[activeIdx].trim() : '';
+  const msgHTML = activeMsg ? `<div style="background:var(--orange-dim);border:1px solid rgba(240,90,40,0.25);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px;display:flex;align-items:flex-start;gap:10px">
+    <div style="flex-shrink:0;width:28px;height:28px;border-radius:50%;background:var(--orange);display:flex;align-items:center;justify-content:center;font-size:12px">💬</div>
+    <div>
+      <div style="font-size:9px;color:var(--orange);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Mensaje del profe · Semana ${activeWd.week}</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.6">${escH(activeMsg)}</div>
+    </div>
+  </div>` : '';
+
+  const activeBanner=`<div onclick="nav('week',{week:${activeIdx}})" style="background:linear-gradient(135deg,var(--orange-dim),rgba(240,90,40,0.05));border:1px solid rgba(240,90,40,0.4);border-radius:var(--radius);padding:14px 16px;margin-bottom:${activeMsg?'8px':'16px'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px">
     <div>
       <div style="font-size:10px;color:var(--orange);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px">📍 SEMANA ACTIVA</div>
       <div style="font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;color:var(--text)">SEMANA ${activeWd.week}</div>
@@ -1268,7 +1300,7 @@ function renderHome(){
       <div style="font-family:'Oswald',sans-serif;font-size:32px;font-weight:700;color:${activePct===100?'var(--green)':'var(--orange)'};line-height:1">${activePct}%</div>
       <div style="font-size:10px;color:var(--text3);margin-top:3px">COMPLETADO</div>
     </div>
-  </div>`;
+  </div>${msgHTML}`;
 
   const cards=plan.map((wd,i)=>{
     const pct=calcWeekPct(wd);
@@ -2129,6 +2161,7 @@ function renderTabWeeks(){
         <input class="adm-inp" style="flex:1.5;margin:0" value="${escH(d.days)}" placeholder="Días" oninput="updateDayDays(${i},${di},this.value)">
         ${wd.days.length>1?`<button class="adm-btn adm-btn-red" onclick="removeDay(${i},${di})">${IC.trash}</button>`:''}
       </div>`).join('');
+    const msg = weekMessages[i]||'';
     return `<div class="ex-edit-card">
       <div class="ex-edit-card-header">
         <span class="ex-edit-title">SEMANA ${wd.week}</span>
@@ -2139,6 +2172,11 @@ function renderTabWeeks(){
       </div>
       ${dayRows}
       <button class="adm-btn adm-btn-blue" onclick="addDay(${i})" style="width:100%;justify-content:center;margin-top:4px">${IC.plus} Agregar día</button>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">💬 Mensaje del profe</div>
+        <textarea class="adm-inp" style="margin:0;width:100%;min-height:70px;resize:vertical;font-size:12px;line-height:1.5;padding:8px 10px" placeholder="Mensaje opcional para los alumnos esta semana..." oninput="saveWeekMsg(${i},this.value)">${escH(msg)}</textarea>
+        <div style="font-size:10px;color:var(--text3);margin-top:3px">Se guarda automáticamente. Aparece en la pantalla principal cuando esta es la semana activa.</div>
+      </div>
     </div>`;
   }).join('');
   return `<div>${rows}
@@ -2557,6 +2595,13 @@ async function resetPlanToDefault(){
   showToast('✅ Plan regenerado. Los IDs ahora coinciden con el progreso guardado.');
   renderModal();
 }
+function saveWeekMsg(idx, val){
+  weekMessages[idx] = val;
+  // Debounce save to Firebase
+  clearTimeout(window._weekMsgTimer);
+  window._weekMsgTimer = setTimeout(()=>saveWeekMessages(), 800);
+}
+
 // ---- TAB: RPE ----
 function renderTabRpe(){
   const rpeKeys=['@6','@7','@7.5','@8','@8.5/@9','@1','@2'];
@@ -3234,6 +3279,7 @@ window.__fsAppInit = async function(){
   await loadTracked();
   await loadBlocks();
   await loadBlockName();
+  await loadWeekMessages();
   if(session && session.uid!=='__pending__'){ await loadPrs(); loadActiveWeek(); loadExpressMode(); }
   if(session && session.uid!=='__pending__') await loadProgress();
   render();
@@ -3285,6 +3331,13 @@ window.__fsCloudSet = async function(key, valueStr){
 };
 
 window.__fsCloudReady = true;
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
 </script>
 </body>
 </html>
