@@ -430,6 +430,9 @@ const K = {
   HC_RACES: 'hc_races_v1',  // shared: [{id,name,series,location,date}]
   HC_GOAL: (uid) => `hc_goal_${uid}_v1`,  // personal: {raceId} — carrera objetivo del alumno
   HC_CALLS: 'hc_calls_v1',  // shared: [{id,date,time,profesor,uid,studentName}] — horarios de videollamada
+  HC_PLAN: (uid) => `hc_plan_${uid}_v1`,  // personal: [{id,days:[{id,name,exercises:[{id,name,series,reps,rpe}]}]}]
+  HC_BLOCK_NAME: (uid) => `hc_block_name_${uid}_v1`,  // personal: nombre del bloque actual del alumno
+  HC_BLOCKS: (uid) => `hc_blocks_${uid}_v1`,  // personal: [{id,name,archivedAt,plan}] — bloques archivados del alumno
 };
 const DEFAULT_ADMIN_PW = 'fusion2025';
 const DEFAULT_ADMIN_PW_HYBRID = 'hybrid2025';
@@ -1115,7 +1118,7 @@ function toggleUserMenu(){ if(suppressNextClick){suppressNextClick=false;return;
 function closeUserMenu(){ if(userMenuOpen){userMenuOpen=false;render();} }
 
 // admin state
-let adminState={ open:false, pwOk:false, pwErr:'', tab:0, editWeekIdx:0, editDayIdx:0, editBlockIdx:0, viewUserIdx:null, viewFichaUid:null, viewUserWeek:0, userSubTab:'active', userSearch:'', savedScroll:0, userActivityFilter:'all', impersonating:null };
+let adminState={ open:false, pwOk:false, pwErr:'', tab:0, editWeekIdx:0, editDayIdx:0, editBlockIdx:0, viewUserIdx:null, viewFichaUid:null, viewPlanUid:null, planWeekIdx:0, planDayIdx:0, viewUserWeek:0, userSubTab:'active', userSearch:'', savedScroll:0, userActivityFilter:'all', impersonating:null };
 
 // logo hold
 let logoTimer=null;
@@ -1200,10 +1203,13 @@ function navBarHTML(showBack=false,backFn=''){
 }
 
 function userMenuHTML(){
+  const club=getClub();
+  const fichaItem = club==='hybrid' ? `<div class="user-menu-item" onclick="closeUserMenu();hcOpenFicha()">📋 Mi ficha</div>` : '';
   return `<div class="user-menu-overlay" onclick="closeUserMenu()"></div>
   <div class="user-menu">
     <div class="user-menu-name">${escH(session.name)}</div>
     <div class="user-menu-sep"></div>
+    ${fichaItem}
     <div class="user-menu-item danger" onclick="doLogout()">${IC.logout} Cerrar sesión</div>
   </div>`;
 }
@@ -1442,13 +1448,38 @@ async function hcCancelCall(slotId){
   }catch(e){ alert('No se pudo cancelar: '+e.message); }
 }
 
+// ---- Plan del alumno (día/semana/mes) ----
+let hcOwnPlan=null, hcOwnBlockName='', hcOwnPlanUid=null;
+let hcPlanView={ mode:'semana', week:0, day:0 };
+
+async function hcOpenPlan(){
+  if(hcOwnPlanUid!==session.uid){
+    hcOwnPlan = await personalGet(K.HC_PLAN(session.uid)) || [];
+    hcOwnBlockName = await personalGet(K.HC_BLOCK_NAME(session.uid)) || '';
+    hcOwnPlanUid = session.uid;
+    hcPlanView={ mode:'semana', week:0, day:0 };
+  }
+  hcState.tab='plan';
+  render();
+}
+function hcSetPlanViewMode(m){ hcPlanView.mode=m; render(); }
+function hcSetPlanViewWeek(i){ hcPlanView.week=i; hcPlanView.day=0; render(); }
+function hcSetPlanViewDay(i){ hcPlanView.day=i; render(); }
+async function hcSetExNote(wi,di,ei,val){
+  try{
+    hcOwnPlan[wi].days[di].exercises[ei].notes=val;
+    const ok=await personalSet(K.HC_PLAN(session.uid), hcOwnPlan);
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+  }catch(e){ alert('No se pudo guardar la anotación: '+e.message); }
+}
+
 function hcTabBarHTML(){
   return `<div class="tab-bar">
     <div class="tab-bar-item ${hcState.tab==='home'?'active':''}" onclick="hcOpenHome()">
       <div class="tab-bar-icon">🏠</div>Inicio
     </div>
-    <div class="tab-bar-item ${hcState.tab==='ficha'?'active':''}" onclick="hcOpenFicha()">
-      <div class="tab-bar-icon">📋</div>Mi ficha
+    <div class="tab-bar-item ${hcState.tab==='plan'?'active':''}" onclick="hcOpenPlan()">
+      <div class="tab-bar-icon">📅</div>Plan
     </div>
     <div class="tab-bar-item ${hcState.tab==='carreras'?'active':''}" onclick="hcOpenCarreras()">
       <div class="tab-bar-icon">🏁</div>Carreras
@@ -1538,6 +1569,52 @@ function renderHcLlamadasBody(){
   return `${ownHTML}<div class="admin-section-title" style="margin-bottom:10px">HORARIOS DISPONIBLES</div>${listHTML}`;
 }
 
+function hcHasAnyContent(plan){ return (plan||[]).some(w=>w.days.some(d=>d.exercises.length>0)); }
+
+function hcExDisplayHTML(wi,di,ei,ex){
+  return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px">
+    <div style="font-size:13px;font-weight:600">${escH(ex.name)}</div>
+    <div style="font-size:11px;color:var(--text2);margin-top:2px">${escH(String(ex.series))} x ${escH(ex.reps)} ${ex.rpe?escH(ex.rpe):''}</div>
+    <textarea class="auth-inp" style="height:44px;padding:8px 12px;resize:vertical;margin-top:8px;margin-bottom:0;font-size:12px" placeholder="Tu anotación..." onchange="hcSetExNote(${wi},${di},${ei},this.value)">${escH(ex.notes||'')}</textarea>
+  </div>`;
+}
+function hcDayCardHTML(wi,di,day){
+  const exList = day.exercises.length ? day.exercises.map((ex,ei)=>hcExDisplayHTML(wi,di,ei,ex)).join('') : `<div style="font-size:11px;color:var(--text3);padding:4px 0 12px">Sin ejercicios cargados</div>`;
+  return `<div style="margin-bottom:16px">
+    <div class="admin-section-title" style="margin-bottom:8px">${escH(day.name)}</div>
+    ${exList}
+  </div>`;
+}
+
+function renderHcPlanBody(){
+  const plan=hcOwnPlan||[];
+  if(!hcHasAnyContent(plan)&&!hcOwnBlockName){
+    return `<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="font-size:32px;margin-bottom:10px">📅</div>Tu profe todavía no cargó tu planificación</div>`;
+  }
+  const wi=Math.min(hcPlanView.week, Math.max(0,plan.length-1));
+  const week=plan[wi];
+
+  const modeToggle=`<div style="display:flex;gap:6px;margin-bottom:14px">
+    ${['dia','semana','mes'].map(m=>`<div class="admin-tab ${hcPlanView.mode===m?'active':''}" style="flex:1;text-align:center" onclick="hcSetPlanViewMode('${m}')">${m==='dia'?'Día':m==='semana'?'Semana':'Mes'}</div>`).join('')}
+  </div>`;
+  const weekTabs = plan.length>1 ? `<div class="prog-week-tabs" style="margin-bottom:12px">${plan.map((w,i)=>`<div class="prog-week-tab ${wi===i?'active':''}" onclick="hcSetPlanViewWeek(${i})">S${i+1}</div>`).join('')}</div>` : '';
+
+  let content='';
+  if(hcPlanView.mode==='mes'){
+    content = plan.map((w,wIdx)=>`<div class="admin-section-title" style="margin:16px 0 8px;color:var(--orange)">SEMANA ${wIdx+1}</div>
+      ${w.days.map((d,dIdx)=>hcDayCardHTML(wIdx,dIdx,d)).join('')}`).join('');
+  } else if(hcPlanView.mode==='semana'){
+    content = weekTabs + (week ? week.days.map((d,dIdx)=>hcDayCardHTML(wi,dIdx,d)).join('') : '');
+  } else {
+    const di = week ? Math.min(hcPlanView.day, Math.max(0,week.days.length-1)) : 0;
+    const dayTabs = week&&week.days.length>1 ? `<div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto">${week.days.map((d,i)=>`<div class="admin-tab ${di===i?'active':''}" style="font-size:11px;padding:4px 10px;flex-shrink:0" onclick="hcSetPlanViewDay(${i})">${escH(d.name)}</div>`).join('')}</div>` : '';
+    content = weekTabs + dayTabs + (week ? hcDayCardHTML(wi,di,week.days[di]) : '');
+  }
+
+  return `${hcOwnBlockName?`<div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">BLOQUE ACTUAL</div><div style="font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;margin-bottom:16px">${escH(hcOwnBlockName)}</div>`:''}
+  ${modeToggle}${content}`;
+}
+
 function renderHybridHome(){
   const hasGoal = hcGoal&&hcGoal.raceIds&&hcGoal.raceIds.length>0;
   const hasCall = (hcCalls||[]).some(c=>c.uid===session.uid && !hcCallIsPast(c));
@@ -1545,7 +1622,7 @@ function renderHybridHome(){
   const welcomeHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px 20px;text-align:center;margin-top:${hasTop?'0':'8px'}">
       <div style="font-size:36px;margin-bottom:10px">🚧</div>
       <div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;margin-bottom:8px">¡Bienvenido, ${escH(session.name.split(' ')[0])}!</div>
-      <p style="font-size:13px;color:var(--text2);line-height:1.5">${hasTop?'Muy pronto vas a poder ver acá tu programa semanal.':'Completá tu ficha de alumno, marcá tu carrera objetivo y reservá tu videollamada desde las pestañas de abajo. Muy pronto vas a poder ver acá tu programa semanal.'}</p>
+      <p style="font-size:13px;color:var(--text2);line-height:1.5">Completá tu ficha de alumno, marcá tu carrera objetivo y reservá tu videollamada desde las pestañas de abajo. Tu planificación semanal la vas a encontrar en la pestaña "Plan".</p>
     </div>`;
   const body = hcState.tab==='ficha'
     ? renderFichaForm(hcProfile||{}, session.uid, {onSave:'hcSaveOwnFicha', ownerLabel:session.name})
@@ -1553,6 +1630,8 @@ function renderHybridHome(){
     ? renderHcCarrerasBody()
     : hcState.tab==='llamadas'
     ? renderHcLlamadasBody()
+    : hcState.tab==='plan'
+    ? renderHcPlanBody()
     : hcGoalHeroHTML()+hcOwnCallHTML()+welcomeHTML;
   return `${navBarHTML(false,'')}
   <div class="page" style="padding:20px 16px 90px">${body}</div>
@@ -2035,7 +2114,7 @@ function renderAdminBody(){
 }
 
 async function setAdminTab(i){
-  if(i!==1){ adminState.viewUserIdx=null; adminState.viewFichaUid=null; }
+  if(i!==1){ adminState.viewUserIdx=null; adminState.viewFichaUid=null; adminState.viewPlanUid=null; }
   adminState.tab=i;
   if(i===0||i===1){
     await loadUsers();
@@ -2077,6 +2156,7 @@ async function loadUserActivityStatus(){
 function renderTabUsers(){
   if(adminState.viewUserIdx) return renderUserProgress();
   if(adminState.viewFichaUid) return renderAdminFicha();
+  if(adminState.viewPlanUid) return renderAdminPlan();
 
   const all=Object.values(users).filter(u=>(u.club||'fuerza')===getClub());
   const pending=all.filter(u=>u.status===STATUS.PENDING);
@@ -2152,7 +2232,8 @@ function renderUserRow(u){
       ${isPending?`<button class="adm-btn adm-btn-green" style="padding:6px 12px;font-weight:700" onclick="approveUser('${u.id}')">✓ Aprobar</button>`:''}
       ${!isPending&&!isBlocked?`<button class="adm-btn adm-btn-red" style="padding:6px 8px" onclick="blockUser('${u.id}')" title="Bloquear">✕</button>`:''}
       ${isBlocked?`<button class="adm-btn adm-btn-blue" style="padding:6px 8px" onclick="unblockUser('${u.id}')" title="Reactivar">↩</button>`:''}
-      ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserFicha('${u.id}')" title="Ver ficha">📋</button>`:''}`;
+      ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserFicha('${u.id}')" title="Ver ficha">📋</button>`:''}
+      ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserPlan('${u.id}')" title="Planificación">📅</button>`:''}`;
   const actionsFuerza=`
       ${isPending?`<button class="adm-btn adm-btn-green" style="padding:6px 12px;font-weight:700" onclick="approveUser('${u.id}')">✓ Aprobar</button>`:''}
       ${!isPending&&!isBlocked?`<button class="adm-btn adm-btn-red" style="padding:6px 8px" onclick="blockUser('${u.id}')" title="Bloquear">✕</button>`:''}
@@ -2348,8 +2429,172 @@ function renderAdminFicha(){
   </div>`;
 }
 
+// ---- Admin: Planificación personalizada (Hybrid Club) ----
+function hcNewDay(n){ return { id:'d_'+Date.now()+'_'+n, name:'Día '+n, exercises:[] }; }
+function hcNewWeek(){ return { id:'w_'+Date.now()+'_'+Math.random().toString(36).slice(2,5), days:[hcNewDay(1)] }; }
+function hcNewExercise(){ return { id:'ex_'+Date.now()+'_'+Math.random().toString(36).slice(2,5), name:'Nuevo ejercicio', series:3, reps:'10', rpe:'', notes:'' }; }
+
+let hcPlanEditing=null;     // [{id,days:[...]}] — plan del alumno que se está editando
+let hcPlanBlockName='';
+let hcPlanArchived=null;    // [{id,name,archivedAt,plan}]
+
+async function viewUserPlan(uid){
+  const modal=document.querySelector('#modal-root .modal');
+  adminState.savedScroll=modal?modal.scrollTop:0;
+  adminState.viewPlanUid=uid;
+  adminState.planWeekIdx=0; adminState.planDayIdx=0;
+  hcPlanEditing = await personalGet(K.HC_PLAN(uid)) || [hcNewWeek()];
+  hcPlanBlockName = await personalGet(K.HC_BLOCK_NAME(uid)) || '';
+  hcPlanArchived = await personalGet(K.HC_BLOCKS(uid)) || [];
+  renderModal();
+}
+function goBackFromPlan(){
+  adminState.viewPlanUid=null;
+  hcPlanEditing=null; hcPlanArchived=null;
+  renderModal();
+  requestAnimationFrame(()=>{
+    const modal=document.querySelector('#modal-root .modal');
+    if(modal) modal.scrollTop=adminState.savedScroll;
+  });
+}
+async function hcSavePlan(){
+  try{
+    const ok1=await personalSet(K.HC_PLAN(adminState.viewPlanUid), hcPlanEditing);
+    const ok2=await personalSet(K.HC_BLOCK_NAME(adminState.viewPlanUid), hcPlanBlockName);
+    showToast('✅ Planificación guardada');
+    renderModal();
+  }catch(e){ alert('Error al guardar la planificación: '+e.message); }
+}
+function hcSetPlanWeek(i){ adminState.planWeekIdx=i; adminState.planDayIdx=0; renderModal(); }
+function hcSetPlanDay(i){ adminState.planDayIdx=i; renderModal(); }
+function hcAddWeek(){ hcPlanEditing.push(hcNewWeek()); adminState.planWeekIdx=hcPlanEditing.length-1; adminState.planDayIdx=0; renderModal(); }
+function hcDuplicateWeek(i){
+  const copy=JSON.parse(JSON.stringify(hcPlanEditing[i]));
+  copy.id='w_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);
+  copy.days.forEach(d=>{ d.id='d_'+Date.now()+'_'+Math.random().toString(36).slice(2,5); d.exercises.forEach(ex=>ex.id='ex_'+Date.now()+'_'+Math.random().toString(36).slice(2,5)); });
+  hcPlanEditing.splice(i+1,0,copy);
+  showToast('Semana duplicada');
+  renderModal();
+}
+function hcRemoveWeek(i){
+  if(hcPlanEditing.length<=1){ showToast('Tiene que quedar al menos una semana'); return; }
+  hcPlanEditing.splice(i,1);
+  adminState.planWeekIdx=Math.max(0,i-1); adminState.planDayIdx=0;
+  renderModal();
+}
+function hcAddDay(wi){ const w=hcPlanEditing[wi]; w.days.push(hcNewDay(w.days.length+1)); adminState.planDayIdx=w.days.length-1; renderModal(); }
+function hcRemoveDay(wi,di){
+  const w=hcPlanEditing[wi];
+  if(w.days.length<=1){ showToast('Tiene que quedar al menos un día'); return; }
+  w.days.splice(di,1);
+  adminState.planDayIdx=Math.max(0,di-1);
+  renderModal();
+}
+function hcUpdateDayName(wi,di,val){ hcPlanEditing[wi].days[di].name=val; }
+function hcAddExercise(wi,di){ hcPlanEditing[wi].days[di].exercises.push(hcNewExercise()); renderModal(); }
+function hcRemoveExercise(wi,di,ei){ hcPlanEditing[wi].days[di].exercises.splice(ei,1); renderModal(); }
+function hcUpdateEx(wi,di,ei,field,val){ hcPlanEditing[wi].days[di].exercises[ei][field]=val; }
+
+function renderHcExCard(wi,di,ei,ex){
+  return `<div class="ex-edit-card">
+    <div class="ex-edit-card-header">
+      <span class="ex-edit-title">EJERCICIO ${ei+1}</span>
+      <button class="adm-btn adm-btn-red" onclick="hcRemoveExercise(${wi},${di},${ei})">${IC.trash}</button>
+    </div>
+    <input class="adm-inp" style="margin-bottom:8px" value="${escH(ex.name)}" placeholder="Nombre del ejercicio" oninput="hcUpdateEx(${wi},${di},${ei},'name',this.value)">
+    <div style="display:flex;gap:8px">
+      <input class="adm-inp" style="margin-bottom:8px" type="number" min="1" value="${escH(String(ex.series))}" placeholder="Series" oninput="hcUpdateEx(${wi},${di},${ei},'series',this.value)">
+      <input class="adm-inp" style="margin-bottom:8px" value="${escH(ex.reps)}" placeholder="Reps (ej: 8-10)" oninput="hcUpdateEx(${wi},${di},${ei},'reps',this.value)">
+      <input class="adm-inp" style="margin-bottom:8px" value="${escH(ex.rpe)}" placeholder="RPE (ej: @7)" oninput="hcUpdateEx(${wi},${di},${ei},'rpe',this.value)">
+    </div>
+    <textarea class="auth-inp" style="height:52px;padding:8px 12px;resize:vertical;margin-bottom:0" placeholder="Notas (visibles para el alumno)" oninput="hcUpdateEx(${wi},${di},${ei},'notes',this.value)">${escH(ex.notes||'')}</textarea>
+  </div>`;
+}
+
+async function hcArchiveBlock(){
+  if(!confirm('Esto archiva la planificación actual de '+(getUserById(adminState.viewPlanUid)||{}).name+' y empieza una nueva vacía. ¿Confirmás?')) return;
+  try{
+    hcPlanArchived=hcPlanArchived||[];
+    hcPlanArchived.push({ id:'blk_'+Date.now(), name:hcPlanBlockName||'Bloque sin nombre', archivedAt:Date.now(), plan:JSON.parse(JSON.stringify(hcPlanEditing)) });
+    await personalSet(K.HC_BLOCKS(adminState.viewPlanUid), hcPlanArchived);
+    hcPlanEditing=[hcNewWeek()];
+    hcPlanBlockName='';
+    adminState.planWeekIdx=0; adminState.planDayIdx=0;
+    await personalSet(K.HC_PLAN(adminState.viewPlanUid), hcPlanEditing);
+    await personalSet(K.HC_BLOCK_NAME(adminState.viewPlanUid), hcPlanBlockName);
+    showToast('📦 Bloque archivado, arrancaste uno nuevo');
+    renderModal();
+  }catch(e){ alert('Error al archivar el bloque: '+e.message); }
+}
+async function hcRestoreBlock(blkId){
+  const blk=(hcPlanArchived||[]).find(b=>b.id===blkId);
+  if(!blk) return;
+  if(!confirm('Esto reemplaza la planificación actual por "'+blk.name+'". ¿Confirmás?')) return;
+  hcPlanEditing=JSON.parse(JSON.stringify(blk.plan));
+  hcPlanBlockName=blk.name+' (restaurado)';
+  adminState.planWeekIdx=0; adminState.planDayIdx=0;
+  await personalSet(K.HC_PLAN(adminState.viewPlanUid), hcPlanEditing);
+  await personalSet(K.HC_BLOCK_NAME(adminState.viewPlanUid), hcPlanBlockName);
+  showToast('✅ Bloque restaurado');
+  renderModal();
+}
+
+function renderAdminPlan(){
+  const u=getUserById(adminState.viewPlanUid);
+  if(!u||!hcPlanEditing) return '';
+  const ini=u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+  const wi=Math.min(adminState.planWeekIdx,hcPlanEditing.length-1);
+  const week=hcPlanEditing[wi];
+  const di=Math.min(adminState.planDayIdx,week.days.length-1);
+  const day=week.days[di];
+
+  const weekTabs=hcPlanEditing.map((w,i)=>`<div class="prog-week-tab ${wi===i?'active':''}" onclick="hcSetPlanWeek(${i})">S${i+1}</div>`).join('');
+  const dayTabs=week.days.map((d,i)=>`<div class="admin-tab ${di===i?'active':''}" style="font-size:11px;padding:4px 10px;flex-shrink:0" onclick="hcSetPlanDay(${i})">${escH(d.name)}</div>`).join('');
+  const exercisesHTML=day.exercises.map((ex,ei)=>renderHcExCard(wi,di,ei,ex)).join('');
+
+  const archivedHTML=(hcPlanArchived&&hcPlanArchived.length) ? `<div class="admin-section-title" style="margin:20px 0 10px">BLOQUES ARCHIVADOS</div>
+    ${hcPlanArchived.slice().reverse().map(b=>`<div class="user-row" style="margin-bottom:8px">
+      <div class="user-row-info">
+        <div class="user-row-name">${escH(b.name)}</div>
+        <div class="user-row-email">${new Date(b.archivedAt).toLocaleDateString('es-AR')} · ${b.plan.length} semana(s)</div>
+      </div>
+      <button class="adm-btn adm-btn-ghost" style="padding:6px 10px" onclick="hcRestoreBlock('${b.id}')">Restaurar</button>
+    </div>`).join('')}` : '';
+
+  return `<div>
+    <button class="adm-btn adm-btn-ghost" style="margin-bottom:14px;gap:8px" onclick="goBackFromPlan()">${IC.back} Volver a usuarios</button>
+    <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:16px">
+      <div class="user-row-avatar" style="width:46px;height:46px;font-size:17px;flex-shrink:0">${ini}</div>
+      <div><div style="font-family:'Oswald',sans-serif;font-size:16px;font-weight:700">${escH(u.name)}</div></div>
+    </div>
+
+    <div class="admin-section-title" style="margin-bottom:8px">NOMBRE DEL BLOQUE</div>
+    <input class="adm-inp" value="${escH(hcPlanBlockName)}" placeholder="Ej: Bloque 1 - Base aeróbica" oninput="hcPlanBlockName=this.value" style="margin-bottom:16px">
+
+    <div class="admin-section-title" style="margin-bottom:8px">SEMANAS</div>
+    <div class="prog-week-tabs" style="margin-bottom:10px;display:flex;flex-wrap:wrap;gap:6px">${weekTabs}<button class="adm-btn adm-btn-ghost" style="padding:4px 10px" onclick="hcAddWeek()">${IC.plus}</button></div>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button class="adm-btn adm-btn-ghost" onclick="hcDuplicateWeek(${wi})">⧉ Duplicar semana</button>
+      ${hcPlanEditing.length>1?`<button class="adm-btn adm-btn-red" onclick="hcRemoveWeek(${wi})">Eliminar semana</button>`:''}
+    </div>
+
+    <div class="admin-section-title" style="margin-bottom:8px">DÍAS — SEMANA ${wi+1}</div>
+    <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto">${dayTabs}<button class="adm-btn adm-btn-ghost" style="flex-shrink:0;padding:4px 10px" onclick="hcAddDay(${wi})">${IC.plus} Día</button></div>
+    <input class="adm-inp" value="${escH(day.name)}" oninput="hcUpdateDayName(${wi},${di},this.value)" style="margin-bottom:12px">
+
+    ${exercisesHTML}
+    <button class="adm-btn adm-btn-blue" onclick="hcAddExercise(${wi},${di})" style="width:100%;justify-content:center;margin-bottom:10px">${IC.plus} Ejercicio</button>
+    ${week.days.length>1?`<button class="adm-btn adm-btn-ghost" onclick="hcRemoveDay(${wi},${di})" style="width:100%;justify-content:center;margin-bottom:16px">Eliminar día</button>`:''}
+
+    <button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;padding:12px" onclick="hcSavePlan()">💾 Guardar planificación</button>
+    <button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;padding:12px;margin-top:10px" onclick="hcArchiveBlock()">📦 Archivar bloque y empezar uno nuevo</button>
+    ${archivedHTML}
+  </div>`;
+}
+
 // ── ARCHIVED BLOCK VIEW ──
 let archivedBlockView = { blockId:null, blockPlan:null, weekIdx:null };
+
 
 async function openArchivedBlock(bid){
   const block = archivedBlocks.find(b=>b.id===bid);
