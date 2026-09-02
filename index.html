@@ -429,6 +429,7 @@ const K = {
   HC_PROFILE: (uid) => `hc_profile_${uid}_v1`,  // personal: ficha completa del alumno (Hybrid Club)
   HC_RACES: 'hc_races_v1',  // shared: [{id,name,series,location,date}]
   HC_GOAL: (uid) => `hc_goal_${uid}_v1`,  // personal: {raceId} — carrera objetivo del alumno
+  HC_CALLS: 'hc_calls_v1',  // shared: [{id,date,time,profesor,uid,studentName}] — horarios de videollamada
 };
 const DEFAULT_ADMIN_PW = 'fusion2025';
 const DEFAULT_ADMIN_PW_HYBRID = 'hybrid2025';
@@ -742,6 +743,19 @@ function hcDaysUntil(dateStr){
 function hcFmtDate(dateStr){
   const d=new Date(dateStr+'T00:00:00');
   return d.toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'});
+}
+
+let hcCalls = null; // [{id,date,time,profesor,uid,studentName}]
+async function loadHcCalls(){
+  const remote = await sharedGet(K.HC_CALLS);
+  if(remote){ hcCalls=remote; lsSet(K.HC_CALLS,remote); }
+  else { hcCalls=lsGet(K.HC_CALLS); }
+  if(!hcCalls) hcCalls=[];
+}
+async function saveHcCalls(){ const ok=await sharedSet(K.HC_CALLS,hcCalls); lsSet(K.HC_CALLS,hcCalls); return ok; }
+function hcCallIsPast(c){
+  const dt=new Date(c.date+'T'+(c.time||'00:00')+':00');
+  return dt < new Date();
 }
 
 
@@ -1376,6 +1390,7 @@ async function hcOpenHome(){
 }
 async function hcEnsureGoalData(){
   if(!hcRaces) await loadHcRaces();
+  if(!hcCalls) await loadHcCalls();
   if(hcGoalUid!==session.uid){
     hcGoal = hcNormalizeGoal(await personalGet(K.HC_GOAL(session.uid)));
     hcGoalUid = session.uid;
@@ -1385,6 +1400,11 @@ async function hcEnsureGoalData(){
 async function hcOpenCarreras(){
   await hcEnsureGoalData();
   hcState.tab='carreras';
+  render();
+}
+async function hcOpenLlamadas(){
+  await hcEnsureGoalData();
+  hcState.tab='llamadas';
   render();
 }
 async function hcSetGoal(raceId){
@@ -1397,6 +1417,31 @@ async function hcSetGoal(raceId){
   }catch(e){ alert('No se pudo guardar el objetivo: '+e.message); }
 }
 
+async function hcBookCall(slotId){
+  try{
+    const already=hcCalls.find(c=>c.uid===session.uid && !hcCallIsPast(c));
+    if(already){ showToast('Ya tenés una videollamada reservada — cancelala primero'); return; }
+    const slot=hcCalls.find(c=>c.id===slotId);
+    if(!slot||slot.uid){ showToast('Ese horario ya no está disponible'); render(); return; }
+    slot.uid=session.uid; slot.studentName=session.name;
+    const ok=await saveHcCalls();
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+    showToast('✅ Videollamada reservada');
+    render();
+  }catch(e){ alert('No se pudo reservar: '+e.message); }
+}
+async function hcCancelCall(slotId){
+  try{
+    const slot=hcCalls.find(c=>c.id===slotId);
+    if(!slot||slot.uid!==session.uid) return;
+    slot.uid=null; slot.studentName=null;
+    const ok=await saveHcCalls();
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+    showToast('Reserva cancelada');
+    render();
+  }catch(e){ alert('No se pudo cancelar: '+e.message); }
+}
+
 function hcTabBarHTML(){
   return `<div class="tab-bar">
     <div class="tab-bar-item ${hcState.tab==='home'?'active':''}" onclick="hcOpenHome()">
@@ -1407,6 +1452,9 @@ function hcTabBarHTML(){
     </div>
     <div class="tab-bar-item ${hcState.tab==='carreras'?'active':''}" onclick="hcOpenCarreras()">
       <div class="tab-bar-icon">🏁</div>Carreras
+    </div>
+    <div class="tab-bar-item ${hcState.tab==='llamadas'?'active':''}" onclick="hcOpenLlamadas()">
+      <div class="tab-bar-icon">📞</div>Llamadas
     </div>
   </div>`;
 }
@@ -1461,18 +1509,51 @@ function renderHcCarrerasBody(){
   return `<div class="admin-section-title" style="margin-bottom:10px">CALENDARIO DE CARRERAS</div>${listHTML}`;
 }
 
+function hcOwnCallHTML(){
+  const own=(hcCalls||[]).find(c=>c.uid===session.uid && !hcCallIsPast(c));
+  if(!own) return '';
+  return `<div style="background:linear-gradient(135deg,rgba(59,130,246,0.18),rgba(59,130,246,0.06));border:1px solid rgba(59,130,246,0.4);border-radius:var(--radius);padding:16px;margin-bottom:16px">
+    <div style="font-size:10px;color:var(--blue);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">📞 Tu videollamada</div>
+    <div style="font-family:'Oswald',sans-serif;font-size:17px;font-weight:700">${hcFmtDate(own.date)} · ${escH(own.time)}</div>
+    <div style="font-size:12px;color:var(--text2);margin-top:2px">Con ${escH(own.profesor||'el profe')}</div>
+  </div>`;
+}
+
+function renderHcLlamadasBody(){
+  const own=(hcCalls||[]).find(c=>c.uid===session.uid && !hcCallIsPast(c));
+  const ownHTML = own ? `<div style="background:var(--surface2);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px">
+    <div style="font-size:9px;color:var(--blue);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">TU RESERVA</div>
+    <div style="font-family:'Oswald',sans-serif;font-size:15px;font-weight:700">${hcFmtDate(own.date)} · ${escH(own.time)}</div>
+    <div style="font-size:12px;color:var(--text2);margin-top:2px">Con ${escH(own.profesor||'el profe')}</div>
+    <button class="adm-btn adm-btn-red" style="width:100%;justify-content:center;margin-top:10px;padding:8px" onclick="hcCancelCall('${own.id}')">Cancelar reserva</button>
+  </div>` : '';
+
+  const available=(hcCalls||[]).filter(c=>!c.uid && !hcCallIsPast(c)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  const listHTML = available.length ? available.map(c=>`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px">
+      <div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700">${hcFmtDate(c.date)} · ${escH(c.time)}</div>
+      <div style="font-size:11px;color:var(--text2);margin-top:2px">Con ${escH(c.profesor||'el profe')}</div>
+      <button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;margin-top:10px;padding:8px" onclick="hcBookCall('${c.id}')" ${own?'disabled':''}>Reservar</button>
+    </div>`).join('') : `<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="font-size:32px;margin-bottom:10px">📞</div>No hay horarios disponibles por ahora</div>`;
+
+  return `${ownHTML}<div class="admin-section-title" style="margin-bottom:10px">HORARIOS DISPONIBLES</div>${listHTML}`;
+}
+
 function renderHybridHome(){
   const hasGoal = hcGoal&&hcGoal.raceIds&&hcGoal.raceIds.length>0;
-  const welcomeHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px 20px;text-align:center;margin-top:${hasGoal?'0':'8px'}">
+  const hasCall = (hcCalls||[]).some(c=>c.uid===session.uid && !hcCallIsPast(c));
+  const hasTop = hasGoal||hasCall;
+  const welcomeHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px 20px;text-align:center;margin-top:${hasTop?'0':'8px'}">
       <div style="font-size:36px;margin-bottom:10px">🚧</div>
       <div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;margin-bottom:8px">¡Bienvenido, ${escH(session.name.split(' ')[0])}!</div>
-      <p style="font-size:13px;color:var(--text2);line-height:1.5">${hasGoal?'Muy pronto vas a poder ver acá tu programa semanal y reservar videollamadas.':'Completá tu ficha de alumno y marcá tu carrera objetivo desde las pestañas de abajo. Muy pronto vas a poder ver acá tu programa semanal y reservar videollamadas.'}</p>
+      <p style="font-size:13px;color:var(--text2);line-height:1.5">${hasTop?'Muy pronto vas a poder ver acá tu programa semanal.':'Completá tu ficha de alumno, marcá tu carrera objetivo y reservá tu videollamada desde las pestañas de abajo. Muy pronto vas a poder ver acá tu programa semanal.'}</p>
     </div>`;
   const body = hcState.tab==='ficha'
     ? renderFichaForm(hcProfile||{}, session.uid, {onSave:'hcSaveOwnFicha', ownerLabel:session.name})
     : hcState.tab==='carreras'
     ? renderHcCarrerasBody()
-    : hcGoalHeroHTML()+welcomeHTML;
+    : hcState.tab==='llamadas'
+    ? renderHcLlamadasBody()
+    : hcGoalHeroHTML()+hcOwnCallHTML()+welcomeHTML;
   return `${navBarHTML(false,'')}
   <div class="page" style="padding:20px 16px 90px">${body}</div>
   ${hcTabBarHTML()}`;
@@ -1926,16 +2007,17 @@ async function checkAdminPw(){
 function renderAdminBody(){
   if(getClub()==='hybrid'){
     // Fusión Hybrid Club: solo lo que ya existe hoy — el resto se suma a medida que construimos sus features propias.
-    const tabs=['📊 Dashboard','👥 Usuarios','🏁 Carreras','🔑 Contraseña'];
-    const map=[0,1,2,7]; // reuse renderTabDashboard/renderTabUsers/renderTabHcRaces/renderTabPw tab indices below
+    const tabs=['📊 Dashboard','👥 Usuarios','🏁 Carreras','📞 Llamadas','🔑 Contraseña'];
+    const map=[0,1,2,3,7]; // reuse renderTabDashboard/renderTabUsers/renderTabHcRaces/renderTabHcCalls/renderTabPw tab indices below
     const nav=tabs.map((t,i)=>`<div class="admin-tab ${adminState.tab===map[i]?'active':''}" onclick="setAdminTab(${map[i]})">${t}</div>`).join('');
     let body='';
     if(adminState.tab===1) body=renderTabUsers();
     else if(adminState.tab===2) body=renderTabHcRaces();
+    else if(adminState.tab===3) body=renderTabHcCalls();
     else if(adminState.tab===7) body=renderTabPw();
-    else { adminState.tab=0; body=renderTabDashboard()+renderHcDashboardRaces(); }
+    else { adminState.tab=0; body=renderTabDashboard()+renderHcDashboardRaces()+renderHcDashboardCalls(); }
     return `<div class="admin-nav">${nav}</div>${body}
-      ${adminState.tab===2?'':'<div style="margin-top:18px;padding:14px;border:1px dashed var(--border2);border-radius:var(--radius-sm);font-size:12px;color:var(--text3);text-align:center">🚧 Planificación y videollamadas se van a sumar acá a medida que los construimos.</div>'}`;
+      ${(adminState.tab===2||adminState.tab===3)?'':'<div style="margin-top:18px;padding:14px;border:1px dashed var(--border2);border-radius:var(--radius-sm);font-size:12px;color:var(--text3);text-align:center">🚧 La planificación semanal se va a sumar acá a medida que la construimos.</div>'}`;
   }
   const tabs=['📊 Dashboard','👥 Usuarios','📋 Ejercicios','📅 Semanas','📖 RPE','🎯 PRs','📈 Grupo','🔑 Contraseña','🔍 Diagnóstico'];
   const nav=tabs.map((t,i)=>`<div class="admin-tab ${adminState.tab===i?'active':''}" onclick="setAdminTab(${i})">${t}</div>`).join('');
@@ -1957,12 +2039,18 @@ async function setAdminTab(i){
   adminState.tab=i;
   if(i===0||i===1){
     await loadUsers();
-    if(getClub()==='hybrid'&&!hcRaces) await loadHcRaces();
+    if(getClub()==='hybrid'){
+      if(!hcRaces) await loadHcRaces();
+      if(!hcCalls) await loadHcCalls();
+    }
     renderModal();
     await loadUserActivityStatus();
     renderModal();
   } else if(i===2 && getClub()==='hybrid'){
     if(!hcRaces) await loadHcRaces();
+    renderModal();
+  } else if(i===3 && getClub()==='hybrid'){
+    if(!hcCalls) await loadHcCalls();
     renderModal();
   } else if(i===6){
     if(!Object.keys(users).length) await loadUsers();
@@ -2614,6 +2702,17 @@ function renderHcDashboardRaces(){
       <span style="font-size:11px;font-weight:700;color:var(--orange2);flex-shrink:0">${hcDaysUntil(r.date)} días</span>
     </div>`).join('')}`;
 }
+function renderHcDashboardCalls(){
+  const upcoming=(hcCalls||[]).filter(c=>c.uid && !hcCallIsPast(c)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).slice(0,3);
+  if(!upcoming.length) return '';
+  return `<div class="admin-section-title" style="margin:20px 0 10px">📞 PRÓXIMAS VIDEOLLAMADAS</div>
+    ${upcoming.map(c=>`<div class="user-row" style="margin-bottom:8px">
+      <div class="user-row-info">
+        <div class="user-row-name">${escH(c.studentName||'')}</div>
+        <div class="user-row-email">${hcFmtDate(c.date)} · ${escH(c.time)} con ${escH(c.profesor||'')}</div>
+      </div>
+    </div>`).join('')}`;
+}
 function renderTabHcRaces(){
   const races=(hcRaces||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
   const rows=races.map(r=>{
@@ -2691,6 +2790,81 @@ async function hcAdmSaveRaces(){
     const ok=await saveHcRaces();
     if(!ok) throw new Error('no se pudo sincronizar con el servidor');
     showToast('✅ Calendario de carreras guardado');
+    renderModal();
+  }catch(e){ alert('Error al guardar: '+e.message); renderModal(); }
+}
+
+// ---- ADMIN TAB: LLAMADAS (Hybrid Club) ----
+function renderTabHcCalls(){
+  const calls=(hcCalls||[]).slice().sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+  const rows=calls.map(c=>{
+    const past=hcCallIsPast(c);
+    return `<div class="ex-edit-card">
+      <div class="ex-edit-card-header">
+        <span class="ex-edit-title">${past?'Ya pasó':(c.uid?'Reservado':'Libre')}</span>
+        <button class="adm-btn adm-btn-red" onclick="hcAdmDeleteCall('${c.id}')">${IC.trash}</button>
+      </div>
+      <input class="adm-inp" type="date" style="margin-bottom:8px" value="${escH(c.date||'')}" oninput="hcAdmUpdateCall('${c.id}','date',this.value)">
+      <input class="adm-inp" type="time" style="margin-bottom:8px" value="${escH(c.time||'')}" oninput="hcAdmUpdateCall('${c.id}','time',this.value)">
+      <input class="adm-inp" style="margin-bottom:8px" value="${escH(c.profesor||'')}" placeholder="Profesor" oninput="hcAdmUpdateCall('${c.id}','profesor',this.value)">
+      ${c.uid?`<div style="font-size:11px;color:var(--blue);margin-top:2px">Reservado por ${escH(c.studentName||'un alumno')} <span style="color:var(--text3);cursor:pointer;text-decoration:underline;margin-left:6px" onclick="hcAdmClearBooking('${c.id}')">liberar</span></div>`:''}
+    </div>`;
+  }).join('');
+
+  return `<div>
+    ${rows||`<p style="font-size:12px;color:var(--text3);margin-bottom:16px">Todavía no cargaste ningún horario.</p>`}
+    <div style="background:var(--surface2);border:1px dashed var(--border2);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px">
+      <div class="admin-section-title" style="margin-bottom:10px">AGREGAR HORARIO</div>
+      <input class="adm-inp" id="new-call-date" type="date" style="margin-bottom:8px">
+      <input class="adm-inp" id="new-call-time" type="time" style="margin-bottom:8px">
+      <input class="adm-inp" id="new-call-profesor" placeholder="Profesor" style="margin-bottom:8px">
+      <button class="adm-btn adm-btn-orange" onclick="hcAdmAddCall()" style="width:100%;justify-content:center">${IC.plus} Agregar</button>
+    </div>
+    <button class="adm-btn adm-btn-ghost" onclick="hcAdmSaveCalls()" style="width:100%;justify-content:center;padding:12px">💾 Guardar cambios</button>
+  </div>`;
+}
+
+async function hcAdmAddCall(){
+  try{
+    const date=document.getElementById('new-call-date').value;
+    const time=document.getElementById('new-call-time').value;
+    const profesor=document.getElementById('new-call-profesor').value.trim();
+    if(!date||!time){ showToast('Completá fecha y hora'); return; }
+    if(!hcCalls) hcCalls=[];
+    hcCalls.push({ id:'c_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), date, time, profesor, uid:null, studentName:null });
+    const ok=await saveHcCalls();
+    if(!ok) throw new Error('el horario se guardó localmente pero no se pudo sincronizar con el servidor');
+    showToast('✅ Horario agregado ('+hcCalls.length+' en total)');
+    renderModal();
+  }catch(e){ alert('Error al agregar el horario: '+e.message); renderModal(); }
+}
+function hcAdmUpdateCall(id,field,val){
+  const c=hcCalls.find(x=>x.id===id);
+  if(c) c[field]=val;
+}
+function hcAdmDeleteCall(id){
+  hcCalls=hcCalls.filter(x=>x.id!==id);
+  saveHcCalls();
+  renderModal();
+}
+function hcAdmClearBooking(id){
+  const c=hcCalls.find(x=>x.id===id);
+  if(c){ c.uid=null; c.studentName=null; saveHcCalls(); renderModal(); }
+}
+async function hcAdmSaveCalls(){
+  try{
+    const dateEl=document.getElementById('new-call-date');
+    if(dateEl && dateEl.value){
+      const date=dateEl.value;
+      const time=document.getElementById('new-call-time').value;
+      if(!time){ showToast('Ponele hora al horario nuevo antes de guardar'); return; }
+      const profesor=document.getElementById('new-call-profesor').value.trim();
+      if(!hcCalls) hcCalls=[];
+      hcCalls.push({ id:'c_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), date, time, profesor, uid:null, studentName:null });
+    }
+    const ok=await saveHcCalls();
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+    showToast('✅ Horarios guardados');
     renderModal();
   }catch(e){ alert('Error al guardar: '+e.message); renderModal(); }
 }
