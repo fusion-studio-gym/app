@@ -569,7 +569,8 @@ async function sharedGet(key){
 }
 async function sharedSet(key,val){
   let tries=0; while(!window.__fsCloudReady && tries<50){ await new Promise(r=>setTimeout(r,100)); tries++; }
-  if(window.__fsCloudReady) await window.__fsCloudSet(key,JSON.stringify(val));
+  if(window.__fsCloudReady) return await window.__fsCloudSet(key,JSON.stringify(val));
+  return false;
 }
 
 async function personalGet(key){
@@ -732,7 +733,7 @@ async function loadHcRaces(){
   else { hcRaces=lsGet(K.HC_RACES); }
   if(!hcRaces) hcRaces=[];
 }
-async function saveHcRaces(){ await sharedSet(K.HC_RACES,hcRaces); lsSet(K.HC_RACES,hcRaces); }
+async function saveHcRaces(){ const ok=await sharedSet(K.HC_RACES,hcRaces); lsSet(K.HC_RACES,hcRaces); return ok; }
 function hcDaysUntil(dateStr){
   const today=new Date(); today.setHours(0,0,0,0);
   const d=new Date(dateStr+'T00:00:00');
@@ -1304,6 +1305,7 @@ async function doLogin(){
   }
   saveSession(res.user);
   await loadProgress();
+  if(session.club==='hybrid') await hcEnsureGoalData();
   render();
 }
 
@@ -1340,7 +1342,7 @@ function renderPending(){
 async function recheckApproval(){
   await loadUsers();
   const u=getUserByEmail(authState.email||session.email, session.club||getClub());
-  if(u&&u.status===STATUS.ACTIVE){ saveSession(u); await loadProgress(); render(); showToast('✅ ¡Cuenta aprobada!'); }
+  if(u&&u.status===STATUS.ACTIVE){ saveSession(u); await loadProgress(); if(session.club==='hybrid') await hcEnsureGoalData(); render(); showToast('✅ ¡Cuenta aprobada!'); }
   else showToast('Todavía pendiente de aprobación.');
 }
 
@@ -1350,8 +1352,14 @@ async function recheckApproval(){
 let hcState = { tab:'home' };
 let hcProfile = null;
 let hcProfileUid = null;
-let hcGoal = null; // {raceId} — carrera objetivo del alumno logueado
+let hcGoal = null; // {raceIds:[]} — carreras objetivo del alumno logueado
 let hcGoalUid = null;
+function hcNormalizeGoal(g){
+  if(!g) return {raceIds:[]};
+  if(Array.isArray(g.raceIds)) return g;
+  if(g.raceId) return {raceIds:[g.raceId]}; // formato viejo (un solo objetivo)
+  return {raceIds:[]};
+}
 
 async function hcOpenFicha(){
   if(hcProfileUid!==session.uid){
@@ -1361,22 +1369,32 @@ async function hcOpenFicha(){
   hcState.tab='ficha';
   render();
 }
-function hcOpenHome(){ hcState.tab='home'; render(); }
-
-async function hcOpenCarreras(){
+async function hcOpenHome(){
+  await hcEnsureGoalData();
+  hcState.tab='home';
+  render();
+}
+async function hcEnsureGoalData(){
   if(!hcRaces) await loadHcRaces();
   if(hcGoalUid!==session.uid){
-    hcGoal = await personalGet(K.HC_GOAL(session.uid)) || {raceId:null};
+    hcGoal = hcNormalizeGoal(await personalGet(K.HC_GOAL(session.uid)));
     hcGoalUid = session.uid;
   }
+}
+
+async function hcOpenCarreras(){
+  await hcEnsureGoalData();
   hcState.tab='carreras';
   render();
 }
 async function hcSetGoal(raceId){
-  hcGoal.raceId = (hcGoal.raceId===raceId) ? null : raceId;
-  await personalSet(K.HC_GOAL(session.uid), hcGoal);
-  showToast(hcGoal.raceId ? '🎯 Objetivo marcado' : 'Objetivo quitado');
-  render();
+  try{
+    const i=hcGoal.raceIds.indexOf(raceId);
+    if(i>=0) hcGoal.raceIds.splice(i,1); else hcGoal.raceIds.push(raceId);
+    await personalSet(K.HC_GOAL(session.uid), hcGoal);
+    showToast(i>=0 ? 'Objetivo quitado' : '🎯 Objetivo marcado');
+    render();
+  }catch(e){ alert('No se pudo guardar el objetivo: '+e.message); }
 }
 
 function hcTabBarHTML(){
@@ -1393,24 +1411,38 @@ function hcTabBarHTML(){
   </div>`;
 }
 
+function hcGoalHeroHTML(){
+  const races=(hcRaces||[]);
+  const ids=(hcGoal&&hcGoal.raceIds)||[];
+  const goalRaces=ids.map(id=>races.find(r=>r.id===id)).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date));
+  if(!goalRaces.length) return '';
+  const [nearest,...rest]=goalRaces;
+  const d=hcDaysUntil(nearest.date);
+  const dLabel = d>1 ? `Faltan ${d} días` : d===1 ? 'Falta 1 día' : d===0 ? '¡Es hoy!' : 'Ya pasó';
+  const heroHTML=`<div style="background:linear-gradient(135deg,rgba(240,90,40,0.18),rgba(240,90,40,0.06));border:1px solid rgba(240,90,40,0.4);border-radius:var(--radius);padding:16px;margin-bottom:${rest.length?'10px':'16px'}">
+    <div style="font-size:10px;color:var(--orange2);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">🎯 Tu próximo objetivo</div>
+    <div style="font-family:'Oswald',sans-serif;font-size:17px;font-weight:700">${escH(nearest.name)}</div>
+    <div style="font-size:12px;color:var(--text2);margin-top:2px">${escH(nearest.location||'')} · ${hcFmtDate(nearest.date)}</div>
+    <div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:var(--orange);margin-top:8px">${dLabel}</div>
+  </div>`;
+  const restHTML = rest.length ? `<div style="margin-bottom:16px">
+    ${rest.map(r=>`<div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:6px">
+      <div>
+        <div style="font-size:12px;font-weight:600">${escH(r.name)}</div>
+        <div style="font-size:10px;color:var(--text3)">${hcFmtDate(r.date)}</div>
+      </div>
+      <span style="font-size:11px;color:var(--orange2);font-weight:700">${hcDaysUntil(r.date)} días</span>
+    </div>`).join('')}
+  </div>` : '';
+  return heroHTML+restHTML;
+}
+
 function renderHcCarrerasBody(){
   const races=(hcRaces||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
-  const goalRace=hcGoal&&hcGoal.raceId ? races.find(r=>r.id===hcGoal.raceId) : null;
-
-  const heroHTML = goalRace ? (()=>{
-    const d=hcDaysUntil(goalRace.date);
-    const dLabel = d>1 ? `Faltan ${d} días` : d===1 ? 'Falta 1 día' : d===0 ? '¡Es hoy!' : 'Ya pasó';
-    return `<div style="background:linear-gradient(135deg,rgba(240,90,40,0.18),rgba(240,90,40,0.06));border:1px solid rgba(240,90,40,0.4);border-radius:var(--radius);padding:16px;margin-bottom:16px">
-      <div style="font-size:10px;color:var(--orange2);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">🎯 Tu objetivo</div>
-      <div style="font-family:'Oswald',sans-serif;font-size:17px;font-weight:700">${escH(goalRace.name)}</div>
-      <div style="font-size:12px;color:var(--text2);margin-top:2px">${escH(goalRace.location||'')} · ${hcFmtDate(goalRace.date)}</div>
-      <div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:var(--orange);margin-top:8px">${dLabel}</div>
-    </div>`;
-  })() : '';
 
   const listHTML = races.length ? races.map(r=>{
     const d=hcDaysUntil(r.date);
-    const isGoal=hcGoal&&hcGoal.raceId===r.id;
+    const isGoal=hcGoal&&hcGoal.raceIds&&hcGoal.raceIds.includes(r.id);
     return `<div style="background:var(--surface2);border:1px solid ${isGoal?'var(--orange)':'var(--border)'};border-radius:var(--radius-sm);padding:14px;margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
         <div>
@@ -1422,23 +1454,25 @@ function renderHcCarrerasBody(){
           <div style="font-size:11px;color:${d<0?'var(--text3)':'var(--orange2)'};font-weight:700">${d<0?'Pasó':d+' días'}</div>
         </div>
       </div>
-      <button class="adm-btn ${isGoal?'adm-btn-orange':'adm-btn-ghost'}" style="width:100%;justify-content:center;margin-top:10px;padding:8px" onclick="hcSetGoal('${r.id}')">${isGoal?'✓ Es tu objetivo':'Marcar como objetivo'}</button>
+      <button class="adm-btn ${isGoal?'adm-btn-orange':'adm-btn-ghost'}" style="width:100%;justify-content:center;margin-top:10px;padding:8px" onclick="hcSetGoal('${r.id}')">${isGoal?'✓ Es uno de tus objetivos':'Marcar como objetivo'}</button>
     </div>`;
   }).join('') : `<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="font-size:32px;margin-bottom:10px">🏁</div>Todavía no hay carreras cargadas</div>`;
 
-  return `${heroHTML}<div class="admin-section-title" style="margin-bottom:10px">CALENDARIO DE CARRERAS</div>${listHTML}`;
+  return `<div class="admin-section-title" style="margin-bottom:10px">CALENDARIO DE CARRERAS</div>${listHTML}`;
 }
 
 function renderHybridHome(){
+  const hasGoal = hcGoal&&hcGoal.raceIds&&hcGoal.raceIds.length>0;
+  const welcomeHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px 20px;text-align:center;margin-top:${hasGoal?'0':'8px'}">
+      <div style="font-size:36px;margin-bottom:10px">🚧</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;margin-bottom:8px">¡Bienvenido, ${escH(session.name.split(' ')[0])}!</div>
+      <p style="font-size:13px;color:var(--text2);line-height:1.5">${hasGoal?'Muy pronto vas a poder ver acá tu programa semanal y reservar videollamadas.':'Completá tu ficha de alumno y marcá tu carrera objetivo desde las pestañas de abajo. Muy pronto vas a poder ver acá tu programa semanal y reservar videollamadas.'}</p>
+    </div>`;
   const body = hcState.tab==='ficha'
     ? renderFichaForm(hcProfile||{}, session.uid, {onSave:'hcSaveOwnFicha', ownerLabel:session.name})
     : hcState.tab==='carreras'
     ? renderHcCarrerasBody()
-    : `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px 20px;text-align:center;margin-top:8px">
-        <div style="font-size:36px;margin-bottom:10px">🚧</div>
-        <div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;margin-bottom:8px">¡Bienvenido, ${escH(session.name.split(' ')[0])}!</div>
-        <p style="font-size:13px;color:var(--text2);line-height:1.5">Completá tu ficha de alumno y marcá tu carrera objetivo desde las pestañas de abajo. Muy pronto vas a poder ver acá tu programa semanal y reservar videollamadas.</p>
-      </div>`;
+    : hcGoalHeroHTML()+welcomeHTML;
   return `${navBarHTML(false,'')}
   <div class="page" style="padding:20px 16px 90px">${body}</div>
   ${hcTabBarHTML()}`;
@@ -2616,16 +2650,19 @@ function renderTabHcRaces(){
 }
 
 async function hcAdmAddRace(){
-  const name=document.getElementById('new-race-name').value.trim();
-  const series=document.getElementById('new-race-series').value;
-  const location=document.getElementById('new-race-location').value.trim();
-  const date=document.getElementById('new-race-date').value;
-  if(!name||!date){ showToast('Completá al menos nombre y fecha'); return; }
-  if(!hcRaces) hcRaces=[];
-  hcRaces.push({ id:'r_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), name, series, location, date });
-  await saveHcRaces();
-  showToast('✅ Carrera agregada');
-  renderModal();
+  try{
+    const name=document.getElementById('new-race-name').value.trim();
+    const series=document.getElementById('new-race-series').value;
+    const location=document.getElementById('new-race-location').value.trim();
+    const date=document.getElementById('new-race-date').value;
+    if(!name||!date){ showToast('Completá al menos nombre y fecha'); return; }
+    if(!hcRaces) hcRaces=[];
+    hcRaces.push({ id:'r_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), name, series, location, date });
+    const ok=await saveHcRaces();
+    if(!ok) throw new Error('la carrera se guardó localmente pero no se pudo sincronizar con el servidor');
+    showToast('✅ Carrera agregada ('+hcRaces.length+' en total)');
+    renderModal();
+  }catch(e){ alert('Error al agregar la carrera: '+e.message); renderModal(); }
 }
 function hcAdmUpdateRace(id,field,val){
   const r=hcRaces.find(x=>x.id===id);
@@ -2637,9 +2674,25 @@ function hcAdmDeleteRace(id){
   renderModal();
 }
 async function hcAdmSaveRaces(){
-  await saveHcRaces();
-  showToast('✅ Calendario de carreras guardado');
-  renderModal();
+  try{
+    const nameEl=document.getElementById('new-race-name');
+    if(nameEl && nameEl.value.trim()){
+      const name=nameEl.value.trim();
+      const date=document.getElementById('new-race-date').value;
+      if(!date){
+        showToast('Ponele fecha a la carrera nueva antes de guardar');
+        return;
+      }
+      const series=document.getElementById('new-race-series').value;
+      const location=document.getElementById('new-race-location').value.trim();
+      if(!hcRaces) hcRaces=[];
+      hcRaces.push({ id:'r_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), name, series, location, date });
+    }
+    const ok=await saveHcRaces();
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+    showToast('✅ Calendario de carreras guardado');
+    renderModal();
+  }catch(e){ alert('Error al guardar: '+e.message); renderModal(); }
 }
 
 function renderTabTracked(){
@@ -3709,6 +3762,7 @@ window.__fsAppInit = async function(){
   await loadWeekMessages();
   if(session && session.uid!=='__pending__'){ await loadPrs(); loadActiveWeek(); loadExpressMode(); }
   if(session && session.uid!=='__pending__') await loadProgress();
+  if(session && session.club==='hybrid' && session.uid!=='__pending__') await hcEnsureGoalData();
   render();
 };
 
