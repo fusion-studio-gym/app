@@ -409,6 +409,10 @@ const LOGO_URL = (()=>{
   const base = window.location.href.replace(/\/[^\/]*$/, '/');
   return base + 'logo.jpg';
 })();
+const LOGO_HYBRID_URL = (()=>{
+  const base = window.location.href.replace(/\/[^\/]*$/, '/');
+  return base + 'logo-hybrid.png';
+})();
 
 // ============================================================
 // CONSTANTS & KEYS
@@ -433,6 +437,9 @@ const K = {
   HC_PLAN: (uid) => `hc_plan_${uid}_v1`,  // personal: [{id,days:[{id,name,exercises:[{id,name,series,reps,rpe}]}]}]
   HC_BLOCK_NAME: (uid) => `hc_block_name_${uid}_v1`,  // personal: nombre del bloque actual del alumno
   HC_BLOCKS: (uid) => `hc_blocks_${uid}_v1`,  // personal: [{id,name,archivedAt,plan}] — bloques archivados del alumno
+  HC_CHAT: (uid) => `hc_chat_${uid}_v1`,  // personal: [{id,from:'coach'|'student',text,ts,read}] — chat con el alumno
+  HC_ANNOUNCEMENT: 'hc_announcement_v1',  // shared: {id,text,ts} | null — mensaje para todos los alumnos
+  HC_ANN_DISMISSED: (uid) => `hc_ann_dismissed_${uid}_v1`,  // personal: id del último aviso que el alumno cerró
 };
 const DEFAULT_ADMIN_PW = 'fusion2025';
 const DEFAULT_ADMIN_PW_HYBRID = 'hybrid2025';
@@ -761,6 +768,14 @@ function hcCallIsPast(c){
   const dt=new Date(c.date+'T'+(c.time||'00:00')+':00');
   return dt < new Date();
 }
+
+let hcAnnouncement=null; // {id,text,ts} | null
+async function loadHcAnnouncement(){
+  const remote = await sharedGet(K.HC_ANNOUNCEMENT);
+  if(remote){ hcAnnouncement=remote; lsSet(K.HC_ANNOUNCEMENT,remote); }
+  else { hcAnnouncement=lsGet(K.HC_ANNOUNCEMENT)||null; }
+}
+async function saveHcAnnouncement(){ const ok=await sharedSet(K.HC_ANNOUNCEMENT,hcAnnouncement); lsSet(K.HC_ANNOUNCEMENT,hcAnnouncement); return ok; }
 
 
 async function loadPrs(){
@@ -1119,7 +1134,7 @@ function toggleUserMenu(){ if(suppressNextClick){suppressNextClick=false;return;
 function closeUserMenu(){ if(userMenuOpen){userMenuOpen=false;render();} }
 
 // admin state
-let adminState={ open:false, pwOk:false, pwErr:'', tab:0, editWeekIdx:0, editDayIdx:0, editBlockIdx:0, viewUserIdx:null, viewFichaUid:null, viewPlanUid:null, planWeekIdx:0, planDayIdx:0, viewUserWeek:0, userSubTab:'active', userSearch:'', savedScroll:0, userActivityFilter:'all', impersonating:null };
+let adminState={ open:false, pwOk:false, pwErr:'', tab:0, editWeekIdx:0, editDayIdx:0, editBlockIdx:0, viewUserIdx:null, viewFichaUid:null, viewPlanUid:null, viewChatUid:null, planWeekIdx:0, planDayIdx:0, planCopyPickerOpen:false, viewUserWeek:0, userSubTab:'active', userSearch:'', savedScroll:0, userActivityFilter:'all', impersonating:null };
 
 // logo hold
 let logoTimer=null;
@@ -1178,9 +1193,9 @@ function navBarHTML(showBack=false,backFn=''){
   const impBanner='';
   const club=getClub();
   const navLogo = club==='hybrid'
-    ? `<div class="nav-logo club-pick-textlogo" style="width:36px;height:36px;font-size:16px;margin:0" oncontextmenu="return false" ondragstart="return false"
+    ? `<div class="nav-logo" style="width:36px;height:36px;margin:0;background-image:url('${LOGO_HYBRID_URL}')" oncontextmenu="return false" ondragstart="return false"
         onmousedown="handleLogoMouseDown()" onmouseup="handleLogoMouseUp()" onmouseleave="cancelLogoHold()"
-        ontouchstart="handleLogoTouchStart(event)" ontouchend="handleLogoTouchEnd(event)" ontouchcancel="cancelLogoHold()" ontouchmove="cancelLogoHold()">F</div>`
+        ontouchstart="handleLogoTouchStart(event)" ontouchend="handleLogoTouchEnd(event)" ontouchcancel="cancelLogoHold()" ontouchmove="cancelLogoHold()"></div>`
     : `<div class="nav-logo" oncontextmenu="return false" ondragstart="return false"
         style="background-image:url('${LOGO_URL}')"
         onmousedown="handleLogoMouseDown()" onmouseup="handleLogoMouseUp()" onmouseleave="cancelLogoHold()"
@@ -1246,7 +1261,7 @@ function renderClubSelect(){
       <div class="club-pick-sub">Plan de fuerza</div>
     </div>
     <div class="club-pick" onclick="selectClub('hybrid')">
-      <div class="club-pick-textlogo">F</div>
+      <div class="auth-logo" style="width:64px;height:64px;margin:0 0 12px;background-image:url('${LOGO_HYBRID_URL}')" oncontextmenu="return false" ondragstart="return false"></div>
       <div class="club-pick-title">FUSIÓN<span>HYBRID CLUB</span></div>
       <div class="club-pick-sub">Entrenamiento híbrido (HYROX)</div>
     </div>
@@ -1261,9 +1276,11 @@ let authState={ mode:'login', name:'', email:'', pw:'', pw2:'', err:'', loading:
 function renderAuth(){
   const club=getClub();
   const logoImg = club==='hybrid'
-    ? `<div class="auth-logo club-pick-textlogo" oncontextmenu="return false" ondragstart="return false"
+    ? `<div class="auth-logo" oncontextmenu="return false" ondragstart="return false"
+        style="background-image:url('${LOGO_HYBRID_URL}')"
         onmousedown="handleLogoMouseDown()" onmouseup="handleLogoMouseUp()" onmouseleave="cancelLogoHold()"
-        ontouchstart="handleLogoTouchStart(event)" ontouchend="handleLogoTouchEnd(event)" ontouchcancel="cancelLogoHold()" ontouchmove="cancelLogoHold()">F</div>`
+        ontouchstart="handleLogoTouchStart(event)" ontouchend="handleLogoTouchEnd(event)" ontouchcancel="cancelLogoHold()" ontouchmove="cancelLogoHold()">
+      </div>`
     : `<div class="auth-logo" oncontextmenu="return false" ondragstart="return false"
       style="background-image:url('${LOGO_URL}')"
       onmousedown="handleLogoMouseDown()" onmouseup="handleLogoMouseUp()" onmouseleave="cancelLogoHold()"
@@ -1398,10 +1415,26 @@ async function hcOpenHome(){
 async function hcEnsureGoalData(){
   if(!hcRaces) await loadHcRaces();
   if(!hcCalls) await loadHcCalls();
+  await loadHcAnnouncement();
   if(hcGoalUid!==session.uid){
     hcGoal = hcNormalizeGoal(await personalGet(K.HC_GOAL(session.uid)));
     hcGoalUid = session.uid;
   }
+  if(hcOwnChatUid!==session.uid){
+    hcOwnChat = await personalGet(K.HC_CHAT(session.uid)) || [];
+    hcOwnChatUid = session.uid;
+  }
+  if(hcAnnDismissedUid!==session.uid){
+    hcAnnDismissedId = await personalGet(K.HC_ANN_DISMISSED(session.uid)) || null;
+    hcAnnDismissedUid = session.uid;
+  }
+}
+let hcAnnDismissedId=null, hcAnnDismissedUid=null;
+async function hcDismissAnnouncement(){
+  if(!hcAnnouncement) return;
+  hcAnnDismissedId=hcAnnouncement.id;
+  render();
+  try{ await personalSet(K.HC_ANN_DISMISSED(session.uid), hcAnnDismissedId); }catch(e){}
 }
 
 async function hcOpenCarreras(){
@@ -1474,7 +1507,61 @@ async function hcSetExNote(wi,di,ei,val){
   }catch(e){ alert('No se pudo guardar la anotación: '+e.message); }
 }
 
+// ---- Chat alumno ↔ profe ----
+let hcOwnChat=null, hcOwnChatUid=null;
+
+async function hcOpenChat(){
+  hcOwnChat = await personalGet(K.HC_CHAT(session.uid)) || [];
+  let changed=false;
+  hcOwnChat.forEach(m=>{ if(m.from==='coach' && !m.read){ m.read=true; changed=true; } });
+  hcOwnChatUid = session.uid;
+  hcState.tab='chat';
+  render();
+  if(changed) personalSet(K.HC_CHAT(session.uid), hcOwnChat);
+  requestAnimationFrame(hcScrollChatBottom);
+}
+function hcScrollChatBottom(){
+  const el=document.getElementById('hc-chat-scroll');
+  if(el) el.scrollTop=el.scrollHeight;
+}
+async function hcSendChatMsg(){
+  const inp=document.getElementById('hc-chat-inp');
+  const text=inp.value.trim();
+  if(!text) return;
+  try{
+    hcOwnChat=hcOwnChat||[];
+    hcOwnChat.push({ id:'m_'+Date.now()+'_'+Math.random().toString(36).slice(2,5), from:'student', text, ts:Date.now(), read:false });
+    inp.value='';
+    render();
+    requestAnimationFrame(hcScrollChatBottom);
+    const ok=await personalSet(K.HC_CHAT(session.uid), hcOwnChat);
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+  }catch(e){ alert('No se pudo enviar el mensaje: '+e.message); }
+}
+function hcChatBubblesHTML(msgs, selfSide){
+  if(!msgs||!msgs.length) return `<div style="text-align:center;color:var(--text3);font-size:12px;padding:24px 0">Todavía no hay mensajes. Escribí el primero 👋</div>`;
+  return msgs.map(m=>{
+    const mine=m.from===selfSide;
+    return `<div style="display:flex;justify-content:${mine?'flex-end':'flex-start'};margin-bottom:8px">
+      <div style="max-width:78%;background:${mine?'var(--orange)':'var(--surface2)'};color:${mine?'#fff':'var(--text)'};border:1px solid ${mine?'var(--orange)':'var(--border)'};border-radius:14px;padding:8px 12px;font-size:13px;white-space:pre-line;line-height:1.4">
+        ${escH(m.text)}
+        <div style="font-size:9px;opacity:0.7;margin-top:3px;text-align:right">${new Date(m.ts).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function renderHcChatBody(){
+  return `<div style="display:flex;flex-direction:column;height:calc(100vh - 230px)">
+    <div id="hc-chat-scroll" style="flex:1;overflow-y:auto;padding-bottom:8px">${hcChatBubblesHTML(hcOwnChat,'student')}</div>
+    <div style="display:flex;gap:8px;padding-top:8px;border-top:1px solid var(--border)">
+      <input class="auth-inp" id="hc-chat-inp" style="margin:0;flex:1" placeholder="Escribile a tu profe..." onkeydown="if(event.key==='Enter')hcSendChatMsg()">
+      <button class="adm-btn adm-btn-orange" style="padding:0 16px" onclick="hcSendChatMsg()">➤</button>
+    </div>
+  </div>`;
+}
+
 function hcTabBarHTML(){
+  const unread=(hcOwnChat||[]).some(m=>m.from==='coach'&&!m.read);
   return `<div class="tab-bar">
     <div class="tab-bar-item ${hcState.tab==='home'?'active':''}" onclick="hcOpenHome()">
       <div class="tab-bar-icon">🏠</div>Inicio
@@ -1487,6 +1574,10 @@ function hcTabBarHTML(){
     </div>
     <div class="tab-bar-item ${hcState.tab==='llamadas'?'active':''}" onclick="hcOpenLlamadas()">
       <div class="tab-bar-icon">📞</div>Llamadas
+    </div>
+    <div class="tab-bar-item ${hcState.tab==='chat'?'active':''}" style="position:relative" onclick="hcOpenChat()">
+      <div class="tab-bar-icon">💬</div>Chat
+      ${unread?'<div style="position:absolute;top:4px;right:calc(50% - 22px);width:8px;height:8px;border-radius:50%;background:var(--red)"></div>':''}
     </div>
   </div>`;
 }
@@ -1622,7 +1713,15 @@ function renderHcPlanBody(){
 function renderHybridHome(){
   const hasGoal = hcGoal&&hcGoal.raceIds&&hcGoal.raceIds.length>0;
   const hasCall = (hcCalls||[]).some(c=>c.uid===session.uid && !hcCallIsPast(c));
-  const hasTop = hasGoal||hasCall;
+  const showAnn = hcAnnouncement && hcAnnouncement.id!==hcAnnDismissedId;
+  const hasTop = hasGoal||hasCall||showAnn;
+  const annHTML = showAnn ? `<div style="background:var(--surface2);border:1px solid var(--orange);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+        <div style="font-size:10px;color:var(--orange2);letter-spacing:1px;text-transform:uppercase">📢 Aviso</div>
+        <div style="font-size:11px;color:var(--text3);cursor:pointer;flex-shrink:0" onclick="hcDismissAnnouncement()">✕ Cerrar</div>
+      </div>
+      <div style="font-size:13px;white-space:pre-line;line-height:1.5;margin-top:4px">${escH(hcAnnouncement.text)}</div>
+    </div>` : '';
   const welcomeHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px 20px;text-align:center;margin-top:${hasTop?'0':'8px'}">
       <div style="font-size:36px;margin-bottom:10px">🚧</div>
       <div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;margin-bottom:8px">¡Bienvenido, ${escH(session.name.split(' ')[0])}!</div>
@@ -1636,9 +1735,11 @@ function renderHybridHome(){
     ? renderHcLlamadasBody()
     : hcState.tab==='plan'
     ? renderHcPlanBody()
-    : hcGoalHeroHTML()+hcOwnCallHTML()+welcomeHTML;
+    : hcState.tab==='chat'
+    ? renderHcChatBody()
+    : annHTML+hcGoalHeroHTML()+hcOwnCallHTML()+welcomeHTML;
   return `${navBarHTML(false,'')}
-  <div class="page" style="padding:20px 16px 90px">${body}</div>
+  <div class="page" style="padding:20px 16px ${hcState.tab==='chat'?'12px':'90px'}">${body}</div>
   ${hcTabBarHTML()}`;
 }
 
@@ -2090,17 +2191,18 @@ async function checkAdminPw(){
 function renderAdminBody(){
   if(getClub()==='hybrid'){
     // Fusión Hybrid Club: solo lo que ya existe hoy — el resto se suma a medida que construimos sus features propias.
-    const tabs=['📊 Dashboard','👥 Usuarios','🏁 Carreras','📞 Llamadas','🔑 Contraseña'];
-    const map=[0,1,2,3,7]; // reuse renderTabDashboard/renderTabUsers/renderTabHcRaces/renderTabHcCalls/renderTabPw tab indices below
+    const tabs=['📊 Dashboard','👥 Usuarios','🏁 Carreras','📞 Llamadas','📢 Aviso','🔑 Contraseña'];
+    const map=[0,1,2,3,4,7]; // reuse renderTabDashboard/renderTabUsers/renderTabHcRaces/renderTabHcCalls/renderTabHcAnnouncement/renderTabPw tab indices below
     const nav=tabs.map((t,i)=>`<div class="admin-tab ${adminState.tab===map[i]?'active':''}" onclick="setAdminTab(${map[i]})">${t}</div>`).join('');
     let body='';
     if(adminState.tab===1) body=renderTabUsers();
     else if(adminState.tab===2) body=renderTabHcRaces();
     else if(adminState.tab===3) body=renderTabHcCalls();
+    else if(adminState.tab===4) body=renderTabHcAnnouncement();
     else if(adminState.tab===7) body=renderTabPw();
-    else { adminState.tab=0; body=renderTabDashboard()+renderHcDashboardRaces()+renderHcDashboardCalls(); }
+    else { adminState.tab=0; body=renderTabDashboard()+renderHcDashboardRaces()+renderHcDashboardCalls()+renderHcDashboardChats(); }
     return `<div class="admin-nav">${nav}</div>${body}
-      ${(adminState.tab===2||adminState.tab===3)?'':'<div style="margin-top:18px;padding:14px;border:1px dashed var(--border2);border-radius:var(--radius-sm);font-size:12px;color:var(--text3);text-align:center">🚧 La planificación semanal se va a sumar acá a medida que la construimos.</div>'}`;
+      ${(adminState.tab===2||adminState.tab===3||adminState.tab===4)?'':'<div style="margin-top:18px;padding:14px;border:1px dashed var(--border2);border-radius:var(--radius-sm);font-size:12px;color:var(--text3);text-align:center">🚧 La planificación semanal se va a sumar acá a medida que la construimos.</div>'}`;
   }
   const tabs=['📊 Dashboard','👥 Usuarios','📋 Ejercicios','📅 Semanas','📖 RPE','🎯 PRs','📈 Grupo','🔑 Contraseña','🔍 Diagnóstico'];
   const nav=tabs.map((t,i)=>`<div class="admin-tab ${adminState.tab===i?'active':''}" onclick="setAdminTab(${i})">${t}</div>`).join('');
@@ -2118,13 +2220,14 @@ function renderAdminBody(){
 }
 
 async function setAdminTab(i){
-  if(i!==1){ adminState.viewUserIdx=null; adminState.viewFichaUid=null; adminState.viewPlanUid=null; }
+  if(i!==1){ adminState.viewUserIdx=null; adminState.viewFichaUid=null; adminState.viewPlanUid=null; adminState.viewChatUid=null; }
   adminState.tab=i;
   if(i===0||i===1){
     await loadUsers();
     if(getClub()==='hybrid'){
       if(!hcRaces) await loadHcRaces();
       if(!hcCalls) await loadHcCalls();
+      hcLoadPendingChats();
     }
     renderModal();
     await loadUserActivityStatus();
@@ -2134,6 +2237,9 @@ async function setAdminTab(i){
     renderModal();
   } else if(i===3 && getClub()==='hybrid'){
     if(!hcCalls) await loadHcCalls();
+    renderModal();
+  } else if(i===4 && getClub()==='hybrid'){
+    await loadHcAnnouncement();
     renderModal();
   } else if(i===6){
     if(!Object.keys(users).length) await loadUsers();
@@ -2161,6 +2267,7 @@ function renderTabUsers(){
   if(adminState.viewUserIdx) return renderUserProgress();
   if(adminState.viewFichaUid) return renderAdminFicha();
   if(adminState.viewPlanUid) return renderAdminPlan();
+  if(adminState.viewChatUid) return renderAdminChat();
 
   const all=Object.values(users).filter(u=>(u.club||'fuerza')===getClub());
   const pending=all.filter(u=>u.status===STATUS.PENDING);
@@ -2232,12 +2339,14 @@ function renderUserRow(u){
   const hasRec=userActivityMap[u.id];
   const recBadge=(!isPending&&hasRec===false)?`<span style="font-size:9px;font-weight:700;color:var(--red);background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:4px;padding:1px 6px;margin-top:3px;display:inline-block">SIN REGISTROS</span>`
     :(!isPending&&hasRec===true)?`<span style="font-size:9px;font-weight:700;color:var(--green);background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);border-radius:4px;padding:1px 6px;margin-top:3px;display:inline-block">📝 ANOTANDO</span>`:'';
+  const chatPending=hcPendingChatSet&&hcPendingChatSet.has(u.id);
   const actionsHybrid=`
       ${isPending?`<button class="adm-btn adm-btn-green" style="padding:6px 12px;font-weight:700" onclick="approveUser('${u.id}')">✓ Aprobar</button>`:''}
       ${!isPending&&!isBlocked?`<button class="adm-btn adm-btn-red" style="padding:6px 8px" onclick="blockUser('${u.id}')" title="Bloquear">✕</button>`:''}
       ${isBlocked?`<button class="adm-btn adm-btn-blue" style="padding:6px 8px" onclick="unblockUser('${u.id}')" title="Reactivar">↩</button>`:''}
       ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserFicha('${u.id}')" title="Ver ficha">📋</button>`:''}
-      ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserPlan('${u.id}')" title="Planificación">📅</button>`:''}`;
+      ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserPlan('${u.id}')" title="Planificación">📅</button>`:''}
+      ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px;position:relative" onclick="viewUserChat('${u.id}')" title="Chat">💬${chatPending?'<span style="position:absolute;top:2px;right:2px;width:7px;height:7px;border-radius:50%;background:var(--red)"></span>':''}</button>`:''}`;
   const actionsFuerza=`
       ${isPending?`<button class="adm-btn adm-btn-green" style="padding:6px 12px;font-weight:700" onclick="approveUser('${u.id}')">✓ Aprobar</button>`:''}
       ${!isPending&&!isBlocked?`<button class="adm-btn adm-btn-red" style="padding:6px 8px" onclick="blockUser('${u.id}')" title="Bloquear">✕</button>`:''}
@@ -2433,6 +2542,79 @@ function renderAdminFicha(){
   </div>`;
 }
 
+// ---- Admin: Chat con alumnos (Hybrid Club) ----
+let hcPendingChatSet=null; // Set of uid con mensajes del alumno sin leer por el coach
+let hcAdmChat=null;
+
+async function hcLoadPendingChats(){
+  const students=Object.values(users).filter(x=>(x.club||'fuerza')==='hybrid' && x.status===STATUS.ACTIVE);
+  const set=new Set();
+  for(const s of students){
+    const thread=await personalGet(K.HC_CHAT(s.id));
+    if(thread && thread.some(m=>m.from==='student' && !m.read)) set.add(s.id);
+  }
+  hcPendingChatSet=set;
+  if(adminState.open) renderModal();
+}
+
+async function viewUserChat(uid){
+  const modal=document.querySelector('#modal-root .modal');
+  adminState.savedScroll=modal?modal.scrollTop:0;
+  adminState.viewChatUid=uid;
+  hcAdmChat = await personalGet(K.HC_CHAT(uid)) || [];
+  let changed=false;
+  hcAdmChat.forEach(m=>{ if(m.from==='student' && !m.read){ m.read=true; changed=true; } });
+  if(hcPendingChatSet) hcPendingChatSet.delete(uid);
+  renderModal();
+  requestAnimationFrame(hcScrollChatBottom);
+  if(changed) await personalSet(K.HC_CHAT(uid), hcAdmChat);
+}
+function goBackFromChat(){
+  adminState.viewChatUid=null;
+  hcAdmChat=null;
+  renderModal();
+  requestAnimationFrame(()=>{
+    const modal=document.querySelector('#modal-root .modal');
+    if(modal) modal.scrollTop=adminState.savedScroll;
+  });
+}
+async function hcAdmSendChatMsg(){
+  const inp=document.getElementById('hc-chat-inp');
+  const text=inp.value.trim();
+  if(!text) return;
+  try{
+    hcAdmChat=hcAdmChat||[];
+    hcAdmChat.push({ id:'m_'+Date.now()+'_'+Math.random().toString(36).slice(2,5), from:'coach', text, ts:Date.now(), read:false });
+    inp.value='';
+    renderModal();
+    requestAnimationFrame(hcScrollChatBottom);
+    const ok=await personalSet(K.HC_CHAT(adminState.viewChatUid), hcAdmChat);
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+  }catch(e){ alert('No se pudo enviar el mensaje: '+e.message); }
+}
+function renderAdminChat(){
+  const u=getUserById(adminState.viewChatUid);
+  if(!u) return '';
+  return `<div>
+    <button class="adm-btn adm-btn-ghost" style="margin-bottom:14px;gap:8px" onclick="goBackFromChat()">${IC.back} Volver a usuarios</button>
+    <div style="font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;margin-bottom:12px">${escH(u.name)}</div>
+    <div id="hc-chat-scroll" style="max-height:50vh;overflow-y:auto;margin-bottom:10px">${hcChatBubblesHTML(hcAdmChat,'coach')}</div>
+    <div style="display:flex;gap:8px">
+      <input class="adm-inp" id="hc-chat-inp" style="margin:0;flex:1" placeholder="Escribile al alumno..." onkeydown="if(event.key==='Enter')hcAdmSendChatMsg()">
+      <button class="adm-btn adm-btn-orange" style="padding:0 16px" onclick="hcAdmSendChatMsg()">➤</button>
+    </div>
+  </div>`;
+}
+function renderHcDashboardChats(){
+  if(!hcPendingChatSet||!hcPendingChatSet.size) return '';
+  const names=[...hcPendingChatSet].map(id=>getUserById(id)).filter(Boolean);
+  return `<div class="admin-section-title" style="margin:20px 0 10px">💬 MENSAJES PENDIENTES DE RESPUESTA</div>
+    ${names.map(u=>`<div class="user-row" style="margin-bottom:8px;cursor:pointer" onclick="setAdminTab(1);viewUserChat('${u.id}')">
+      <div class="user-row-info"><div class="user-row-name">${escH(u.name)}</div></div>
+      <span style="width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0"></span>
+    </div>`).join('')}`;
+}
+
 // ---- Admin: Planificación personalizada (Hybrid Club) ----
 function hcNewDay(n){ return { id:'d_'+Date.now()+'_'+n, name:'Día '+n, exercises:[] }; }
 function hcNewWeek(){ return { id:'w_'+Date.now()+'_'+Math.random().toString(36).slice(2,5), days:[hcNewDay(1)] }; }
@@ -2461,7 +2643,7 @@ async function viewUserPlan(uid){
   const modal=document.querySelector('#modal-root .modal');
   adminState.savedScroll=modal?modal.scrollTop:0;
   adminState.viewPlanUid=uid;
-  adminState.planWeekIdx=0; adminState.planDayIdx=0;
+  adminState.planWeekIdx=0; adminState.planDayIdx=0; adminState.planCopyPickerOpen=false;
   hcPlanEditing = hcNormalizePlan(await personalGet(K.HC_PLAN(uid)) || [hcNewWeek()]);
   hcPlanBlockName = await personalGet(K.HC_BLOCK_NAME(uid)) || '';
   hcPlanArchived = await personalGet(K.HC_BLOCKS(uid)) || [];
@@ -2469,12 +2651,40 @@ async function viewUserPlan(uid){
 }
 function goBackFromPlan(){
   adminState.viewPlanUid=null;
-  hcPlanEditing=null; hcPlanArchived=null;
+  hcPlanEditing=null; hcPlanArchived=null; adminState.planCopyPickerOpen=false;
   renderModal();
   requestAnimationFrame(()=>{
     const modal=document.querySelector('#modal-root .modal');
     if(modal) modal.scrollTop=adminState.savedScroll;
   });
+}
+function hcTogglePlanCopyPicker(){ adminState.planCopyPickerOpen=!adminState.planCopyPickerOpen; renderModal(); }
+async function hcCopyPlanFrom(sourceUid){
+  const srcUser=getUserById(sourceUid);
+  const dstUser=getUserById(adminState.viewPlanUid);
+  if(!confirm('Esto reemplaza la planificación actual de '+(dstUser?dstUser.name:'este alumno')+' por una copia de la de '+(srcUser?srcUser.name:'ese alumno')+' (la actual se archiva automáticamente antes de reemplazarla). Las anotaciones propias del alumno de origen no se copian. ¿Confirmás?')) return;
+  try{
+    if(hcHasAnyContent(hcPlanEditing) || hcPlanBlockName){
+      hcPlanArchived=hcPlanArchived||[];
+      hcPlanArchived.push({ id:'blk_'+Date.now(), name:hcPlanBlockName||'Bloque sin nombre', archivedAt:Date.now(), plan:JSON.parse(JSON.stringify(hcPlanEditing)) });
+      await personalSet(K.HC_BLOCKS(adminState.viewPlanUid), hcPlanArchived);
+    }
+    const srcPlan = hcNormalizePlan(await personalGet(K.HC_PLAN(sourceUid)) || []);
+    const srcBlockName = await personalGet(K.HC_BLOCK_NAME(sourceUid)) || '';
+    const cloned = JSON.parse(JSON.stringify(srcPlan));
+    cloned.forEach(w=>{
+      w.id='w_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);
+      w.days.forEach(d=>{
+        d.id='d_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);
+        d.exercises.forEach(ex=>{ ex.id='ex_'+Date.now()+'_'+Math.random().toString(36).slice(2,5); ex.studentNotes=''; });
+      });
+    });
+    hcPlanEditing = cloned.length ? cloned : [hcNewWeek()];
+    hcPlanBlockName = srcBlockName ? srcBlockName+' (copia)' : '';
+    adminState.planWeekIdx=0; adminState.planDayIdx=0; adminState.planCopyPickerOpen=false;
+    showToast('✅ Plan copiado — el anterior quedó archivado. Revisá y tocá "Guardar planificación"');
+    renderModal();
+  }catch(e){ alert('Error al copiar el plan: '+e.message); }
 }
 async function hcSavePlan(){
   try{
@@ -2598,12 +2808,23 @@ function renderAdminPlan(){
       <button class="adm-btn adm-btn-ghost" style="padding:6px 10px" onclick="hcRestoreBlock('${b.id}')">Restaurar</button>
     </div>`).join('')}` : '';
 
+  const otherStudents=Object.values(users).filter(x=>(x.club||'fuerza')==='hybrid' && x.id!==u.id && x.status===STATUS.ACTIVE);
+  const copyPickerHTML = adminState.planCopyPickerOpen ? `<div style="background:var(--surface2);border:1px dashed var(--border2);border-radius:var(--radius-sm);padding:12px;margin-bottom:16px">
+    ${otherStudents.length ? otherStudents.map(s=>`<div class="user-row" style="margin-bottom:6px">
+        <div class="user-row-info"><div class="user-row-name">${escH(s.name)}</div></div>
+        <button class="adm-btn adm-btn-orange" style="padding:6px 10px" onclick="hcCopyPlanFrom('${s.id}')">Usar como base</button>
+      </div>`).join('') : `<p style="font-size:12px;color:var(--text3);margin:0">No hay otros alumnos activos en Hybrid Club todavía.</p>`}
+  </div>` : '';
+
   return `<div>
     <button class="adm-btn adm-btn-ghost" style="margin-bottom:14px;gap:8px" onclick="goBackFromPlan()">${IC.back} Volver a usuarios</button>
-    <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:12px">
       <div class="user-row-avatar" style="width:46px;height:46px;font-size:17px;flex-shrink:0">${ini}</div>
       <div><div style="font-family:'Oswald',sans-serif;font-size:16px;font-weight:700">${escH(u.name)}</div></div>
     </div>
+
+    <button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;margin-bottom:16px" onclick="hcTogglePlanCopyPicker()">📋 ${adminState.planCopyPickerOpen?'Cancelar':'Copiar plan de otro alumno como base'}</button>
+    ${copyPickerHTML}
 
     <div class="admin-section-title" style="margin-bottom:8px">NOMBRE DEL BLOQUE</div>
     <input class="adm-inp" value="${escH(hcPlanBlockName)}" placeholder="Ej: Bloque 1 - Base aeróbica" oninput="hcPlanBlockName=this.value" style="margin-bottom:16px">
@@ -3074,6 +3295,44 @@ async function hcAdmSaveRaces(){
     showToast('✅ Calendario de carreras guardado');
     renderModal();
   }catch(e){ alert('Error al guardar: '+e.message); renderModal(); }
+}
+
+// ---- ADMIN TAB: AVISO (Hybrid Club) ----
+function renderTabHcAnnouncement(){
+  const current=hcAnnouncement;
+  const currentHTML=current ? `<div style="background:var(--surface2);border:1px solid var(--orange);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px">
+      <div style="font-size:10px;color:var(--orange2);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">Aviso publicado — ${new Date(current.ts).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
+      <div style="font-size:13px;white-space:pre-line;line-height:1.5">${escH(current.text)}</div>
+      <button class="adm-btn adm-btn-red" style="margin-top:10px" onclick="hcClearAnnouncement()">Quitar aviso</button>
+    </div>` : `<p style="font-size:12px;color:var(--text3);margin-bottom:16px">No hay ningún aviso activo ahora mismo.</p>`;
+
+  return `<div>
+    ${currentHTML}
+    <div class="admin-section-title" style="margin-bottom:8px">${current?'REEMPLAZAR AVISO':'PUBLICAR AVISO'}</div>
+    <textarea class="auth-inp" id="new-ann-text" style="height:100px;padding:10px 14px;resize:vertical;margin-bottom:10px" placeholder="Ej: Este viernes no hay clase por feriado..."></textarea>
+    <button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;padding:12px" onclick="hcPublishAnnouncement()">📢 Publicar para todos los alumnos</button>
+  </div>`;
+}
+async function hcPublishAnnouncement(){
+  const text=document.getElementById('new-ann-text').value.trim();
+  if(!text){ showToast('Escribí el mensaje primero'); return; }
+  try{
+    hcAnnouncement={ id:'ann_'+Date.now(), text, ts:Date.now() };
+    const ok=await saveHcAnnouncement();
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+    showToast('✅ Aviso publicado');
+    renderModal();
+  }catch(e){ alert('Error al publicar el aviso: '+e.message); }
+}
+async function hcClearAnnouncement(){
+  if(!confirm('¿Quitar el aviso actual? Ya no va a aparecer en el Inicio de los alumnos.')) return;
+  try{
+    hcAnnouncement=null;
+    const ok=await saveHcAnnouncement();
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+    showToast('Aviso quitado');
+    renderModal();
+  }catch(e){ alert('Error: '+e.message); }
 }
 
 // ---- ADMIN TAB: LLAMADAS (Hybrid Club) ----
