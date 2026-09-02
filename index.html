@@ -1577,7 +1577,7 @@ function hcExDisplayHTML(wi,di,ei,ex){
   return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px">
     <div style="font-size:13px;font-weight:600">${escH(ex.name)}</div>
     ${rowsHTML}
-    ${ex.notes?`<div style="font-size:11px;color:var(--orange2);background:var(--orange-dim2);border-radius:var(--radius-sm);padding:8px 10px;margin-top:8px">🗣️ ${escH(ex.notes)}</div>`:''}
+    ${ex.notes?`<div style="font-size:11px;color:var(--orange2);background:var(--orange-dim2);border-radius:var(--radius-sm);padding:8px 10px;margin-top:8px;white-space:pre-line;line-height:1.5">🗣️ ${escH(ex.notes)}</div>`:''}
     <div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-top:10px;margin-bottom:4px">Tu anotación</div>
     <textarea class="auth-inp" style="height:44px;padding:8px 12px;resize:vertical;margin-bottom:0;font-size:12px" placeholder="¿Cómo te sentiste, qué pesos usaste...?" onchange="hcSetExNote(${wi},${di},${ei},this.value)">${escH(ex.studentNotes||'')}</textarea>
   </div>`;
@@ -1585,7 +1585,7 @@ function hcExDisplayHTML(wi,di,ei,ex){
 function hcDayCardHTML(wi,di,day){
   const exList = day.exercises.length ? day.exercises.map((ex,ei)=>hcExDisplayHTML(wi,di,ei,ex)).join('') : `<div style="font-size:11px;color:var(--text3);padding:4px 0 12px">Sin ejercicios cargados</div>`;
   return `<div style="margin-bottom:16px">
-    <div class="admin-section-title" style="margin-bottom:8px">${escH(day.name)}</div>
+    <div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:1px;color:var(--orange);text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">${escH(day.name)}</div>
     ${exList}
   </div>`;
 }
@@ -2544,7 +2544,7 @@ function renderHcExCard(wi,di,ei,ex){
     <button class="adm-btn adm-btn-ghost" style="margin-bottom:12px" onclick="hcAddExRow(${wi},${di},${ei})">${IC.plus} Otra serie (ej: más pesado, menos reps)</button>
     <div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">Tus indicaciones (para el alumno)</div>
     <textarea class="auth-inp" style="height:90px;padding:10px 14px;resize:vertical;margin-bottom:${ex.studentNotes?'8px':'0'}" placeholder="Ej: enfocate en la técnica, no busques el peso máximo..." oninput="hcUpdateEx(${wi},${di},${ei},'notes',this.value)">${escH(ex.notes||'')}</textarea>
-    ${ex.studentNotes?`<div style="font-size:11px;color:var(--text2);background:var(--surface3);border-radius:var(--radius-sm);padding:8px 10px">📝 <b>El alumno anotó:</b> ${escH(ex.studentNotes)}</div>`:''}
+    ${ex.studentNotes?`<div style="font-size:11px;color:var(--text2);background:var(--surface3);border-radius:var(--radius-sm);padding:8px 10px;white-space:pre-line;line-height:1.5">📝 <b>El alumno anotó:</b> ${escH(ex.studentNotes)}</div>`:''}
   </div>`;
 }
 
