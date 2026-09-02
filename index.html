@@ -609,22 +609,23 @@ let tracked = null; // [{name, matchTerms:[]}]
 async function loadUsers(){ const u=await sharedGet(K.USERS); if(u) users=u; }
 async function saveUsers(){ await sharedSet(K.USERS,users); }
 
-function getUserByEmail(email){ return Object.values(users).find(u=>u.email===email.toLowerCase().trim())||null; }
+function getUserByEmail(email,club){ email=email.toLowerCase().trim(); return Object.values(users).find(u=>u.email===email&&(u.club||'fuerza')===club)||null; }
 function getUserById(id){ return users[id]||null; }
 
 async function registerUser(name,email,password,club){
   email=email.toLowerCase().trim();
-  if(getUserByEmail(email)) return {ok:false,err:'Ya existe una cuenta con ese email.'};
+  club=club||'fuerza';
+  if(getUserByEmail(email,club)) return {ok:false,err:'Ya existe una cuenta con ese email en este club.'};
   const id = 'u_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
-  users[id]={ id, name:name.trim(), email, hash:hashStr(password), status:STATUS.PENDING, club: club||'fuerza' };
+  users[id]={ id, name:name.trim(), email, hash:hashStr(password), status:STATUS.PENDING, club };
   await saveUsers();
   return {ok:true};
 }
 
-async function loginUser(email,password){
+async function loginUser(email,password,club){
   await loadUsers();
   email=email.toLowerCase().trim();
-  const u=getUserByEmail(email);
+  const u=getUserByEmail(email,club);
   if(!u) return {ok:false,err:'Email o contraseña incorrectos.'};
   if(u.hash!==hashStr(password)) return {ok:false,err:'Email o contraseña incorrectos.'};
   if(u.status===STATUS.PENDING) return {ok:false,err:'PENDING'};
@@ -1272,7 +1273,7 @@ function switchAuth(mode){ authState={...authState,mode,err:''}; render(); }
 async function doLogin(){
   authState.loading=true; authState.err=''; render();
   await loadUsers();
-  const res=await loginUser(authState.email,authState.pw);
+  const res=await loginUser(authState.email,authState.pw,getClub());
   authState.loading=false;
   if(!res.ok){
     if(res.err==='PENDING'){ authState.err=''; session={uid:'__pending__',name:'',email:authState.email,club:getClub()}; render(); return; }
@@ -1315,7 +1316,7 @@ function renderPending(){
 
 async function recheckApproval(){
   await loadUsers();
-  const u=getUserByEmail(authState.email||session.email);
+  const u=getUserByEmail(authState.email||session.email, session.club||getClub());
   if(u&&u.status===STATUS.ACTIVE){ saveSession(u); await loadProgress(); render(); showToast('✅ ¡Cuenta aprobada!'); }
   else showToast('Todavía pendiente de aprobación.');
 }
