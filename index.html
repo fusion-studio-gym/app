@@ -426,6 +426,7 @@ const K = {
   RPE_INFO: 'fs_rpe_info_v1',
   BLOCK_NAME: 'fs_block_name_v1',  // shared: current block name string
   WEEK_MSGS: 'fs_week_messages_v1',  // shared: {weekIndex: message string}
+  HC_PROFILE: (uid) => `hc_profile_${uid}_v1`,  // personal: ficha completa del alumno (Hybrid Club)
 };
 const DEFAULT_ADMIN_PW = 'fusion2025';
 const DEFAULT_ADMIN_PW_HYBRID = 'hybrid2025';
@@ -1075,7 +1076,7 @@ function toggleUserMenu(){ if(suppressNextClick){suppressNextClick=false;return;
 function closeUserMenu(){ if(userMenuOpen){userMenuOpen=false;render();} }
 
 // admin state
-let adminState={ open:false, pwOk:false, pwErr:'', tab:0, editWeekIdx:0, editDayIdx:0, editBlockIdx:0, viewUserIdx:null, viewUserWeek:0, userSubTab:'active', userSearch:'', savedScroll:0, userActivityFilter:'all', impersonating:null };
+let adminState={ open:false, pwOk:false, pwErr:'', tab:0, editWeekIdx:0, editDayIdx:0, editBlockIdx:0, viewUserIdx:null, viewFichaUid:null, viewUserWeek:0, userSubTab:'active', userSearch:'', savedScroll:0, userActivityFilter:'all', impersonating:null };
 
 // logo hold
 let logoTimer=null;
@@ -1241,7 +1242,7 @@ function renderLogin(logoImg){
       <button class="auth-btn" onclick="doLogin()" ${authState.loading?'disabled':''}>ENTRAR</button>
     </div>
     <div class="auth-link" onclick="switchAuth('register')">¿No tenés cuenta? <span>Registrate</span></div>
-    <div class="auth-link" style="margin-top:8px;opacity:0.6" onclick="changeClub()">Cambiar de club</div>
+    <div class="auth-link" style="margin-top:8px;opacity:0.6" onclick="changeClub()">Cambiar de <span>APP</span></div>
   </div>`;
 }
 
@@ -1262,7 +1263,7 @@ function renderRegister(logoImg){
       <button class="auth-btn" onclick="doRegister()" ${authState.loading?'disabled':''}>CREAR CUENTA</button>
     </div>
     <div class="auth-link" onclick="switchAuth('login')">¿Ya tenés cuenta? <span>Iniciá sesión</span></div>
-    <div class="auth-link" style="margin-top:8px;opacity:0.6" onclick="changeClub()">Cambiar de club</div>
+    <div class="auth-link" style="margin-top:8px;opacity:0.6" onclick="changeClub()">Cambiar de <span>APP</span></div>
   </div>`;
 }
 
@@ -1320,22 +1321,145 @@ async function recheckApproval(){
 }
 
 // ============================================================
-// HYBRID CLUB HOME (placeholder — se reemplaza a medida que sumamos features)
+// HYBRID CLUB HOME
 // ============================================================
-function renderHybridHome(){
-  return `${navBarHTML(false,'')}
-  <div class="page" style="padding:20px 16px 90px">
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px 20px;text-align:center;margin-top:8px">
-      <div style="font-size:36px;margin-bottom:10px">🚧</div>
-      <div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;margin-bottom:8px">¡Bienvenido, ${escH(session.name.split(' ')[0])}!</div>
-      <p style="font-size:13px;color:var(--text2);line-height:1.5">Estamos construyendo tu planificación de Fusión Hybrid Club. Muy pronto vas a poder ver acá tu programa semanal, ficha de alumno, calendario de carreras y reserva de videollamadas.</p>
+let hcState = { tab:'home' };
+let hcProfile = null;
+let hcProfileUid = null;
+
+async function hcOpenFicha(){
+  if(hcProfileUid!==session.uid){
+    hcProfile = await personalGet(K.HC_PROFILE(session.uid)) || {};
+    hcProfileUid = session.uid;
+  }
+  hcState.tab='ficha';
+  render();
+}
+function hcOpenHome(){ hcState.tab='home'; render(); }
+
+function hcTabBarHTML(){
+  return `<div class="tab-bar">
+    <div class="tab-bar-item ${hcState.tab==='home'?'active':''}" onclick="hcOpenHome()">
+      <div class="tab-bar-icon">🏠</div>Inicio
+    </div>
+    <div class="tab-bar-item ${hcState.tab==='ficha'?'active':''}" onclick="hcOpenFicha()">
+      <div class="tab-bar-icon">📋</div>Mi ficha
     </div>
   </div>`;
 }
 
-// ============================================================
-// HOME
-// ============================================================
+function renderHybridHome(){
+  const body = hcState.tab==='ficha'
+    ? renderFichaForm(hcProfile||{}, session.uid, {onSave:'hcSaveOwnFicha', ownerLabel:session.name})
+    : `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px 20px;text-align:center;margin-top:8px">
+        <div style="font-size:36px;margin-bottom:10px">🚧</div>
+        <div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;margin-bottom:8px">¡Bienvenido, ${escH(session.name.split(' ')[0])}!</div>
+        <p style="font-size:13px;color:var(--text2);line-height:1.5">Completá tu ficha de alumno desde la pestaña "Mi ficha". Muy pronto vas a poder ver acá tu programa semanal, calendario de carreras y reserva de videollamadas.</p>
+      </div>`;
+  return `${navBarHTML(false,'')}
+  <div class="page" style="padding:20px 16px 90px">${body}</div>
+  ${hcTabBarHTML()}`;
+}
+
+async function hcSaveOwnFicha(){
+  await personalSet(K.HC_PROFILE(session.uid), hcProfile);
+  showToast('✅ Ficha guardada');
+}
+
+// ---- Ficha de alumno: campos + foto (compartido Alumno/Admin) ----
+const FICHA_FIELDS = [
+  { key:'edad', label:'Edad', type:'number', suffix:'años' },
+  { key:'altura', label:'Altura', type:'number', suffix:'cm' },
+  { key:'peso', label:'Peso', type:'number', suffix:'kg' },
+  { key:'objetivo', label:'Objetivo', type:'text' },
+  { key:'testeosFuerza', label:'Testeos de fuerza', type:'textarea' },
+  { key:'capacidadAerobica', label:'Capacidad aeróbica', type:'textarea' },
+  { key:'vo2max', label:'VO2 Max', type:'number', suffix:'ml/kg/min' },
+];
+
+function compressPhotoAndSet(inputEl, targetObj, onDone){
+  const file=inputEl.files&&inputEl.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=(e)=>{
+    const img=new Image();
+    img.onload=()=>{
+      const maxSide=320;
+      let w=img.width,h=img.height;
+      if(w>h){ if(w>maxSide){ h=Math.round(h*maxSide/w); w=maxSide; } }
+      else{ if(h>maxSide){ w=Math.round(w*maxSide/h); h=maxSide; } }
+      const canvas=document.createElement('canvas');
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      targetObj.photo=canvas.toDataURL('image/jpeg',0.75);
+      onDone();
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderFichaForm(profile, uid, opts){
+  const p=profile||{};
+  const fieldsHTML=FICHA_FIELDS.map(f=>{
+    const val=p[f.key]!=null?p[f.key]:'';
+    if(f.type==='textarea'){
+      return `<div style="margin-bottom:12px">
+        <div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">${f.label}</div>
+        <textarea class="auth-inp" style="height:64px;padding:10px 14px;resize:vertical" oninput="ficha_setField('${uid}','${f.key}',this.value)">${escH(val.toString())}</textarea>
+      </div>`;
+    }
+    return `<div style="margin-bottom:12px">
+      <div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">${f.label}${f.suffix?` (${f.suffix})`:''}</div>
+      <input class="auth-inp" type="${f.type}" value="${escH(val.toString())}" oninput="ficha_setField('${uid}','${f.key}',this.value)">
+    </div>`;
+  }).join('');
+
+  const extra=(p.camposExtra||[]);
+  const extraHTML=extra.map((c,i)=>`<div style="display:flex;gap:8px;margin-bottom:8px">
+    <input class="auth-inp" style="margin:0" placeholder="Campo" value="${escH(c.label||'')}" oninput="ficha_setExtra('${uid}',${i},'label',this.value)">
+    <input class="auth-inp" style="margin:0" placeholder="Valor" value="${escH(c.value||'')}" oninput="ficha_setExtra('${uid}',${i},'value',this.value)">
+    <button class="adm-btn adm-btn-red" style="padding:0 10px" onclick="ficha_removeExtra('${uid}',${i})">✕</button>
+  </div>`).join('');
+
+  const ini=(opts.ownerLabel||'?').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+
+  return `<div>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+      <label style="position:relative;cursor:pointer">
+        <input type="file" accept="image/*" style="display:none" onchange="ficha_onPhoto('${uid}',this)">
+        ${p.photo
+          ?`<div style="width:64px;height:64px;border-radius:50%;background-image:url('${p.photo}');background-size:cover;background-position:center;border:2px solid var(--orange)"></div>`
+          :`<div class="user-row-avatar" style="width:64px;height:64px;font-size:20px;border:2px solid var(--border2)">${ini}</div>`}
+        <div style="position:absolute;bottom:-2px;right:-2px;background:var(--orange);border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;border:2px solid var(--bg)">📷</div>
+      </label>
+      <div>
+        <div style="font-family:'Oswald',sans-serif;font-size:15px;font-weight:700">${escH(opts.ownerLabel||'')}</div>
+        <div style="font-size:11px;color:var(--text3)">Tocá la foto para cambiarla</div>
+      </div>
+    </div>
+    ${fieldsHTML}
+    <div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin:16px 0 8px">Otros datos</div>
+    <div id="ficha-extra-${uid}">${extraHTML}</div>
+    <button class="adm-btn adm-btn-ghost" style="margin-bottom:16px" onclick="ficha_addExtra('${uid}')">+ Agregar campo</button>
+    <button class="auth-btn" onclick="${opts.onSave}('${uid}')">GUARDAR FICHA</button>
+  </div>`;
+}
+
+// Field editing helpers operate on whichever profile object is currently in view —
+// the student's own (hcProfile) or the one the Admin is editing (adminFichaProfile).
+function ficha_activeProfile(uid){
+  return (session && session.uid===uid) ? hcProfile : adminFichaProfile;
+}
+function ficha_setField(uid,key,val){ const p=ficha_activeProfile(uid); if(p) p[key]=val; }
+function ficha_addExtra(uid){ const p=ficha_activeProfile(uid); if(!p) return; p.camposExtra=p.camposExtra||[]; p.camposExtra.push({label:'',value:''}); renderModal(); render(); }
+function ficha_setExtra(uid,i,field,val){ const p=ficha_activeProfile(uid); if(!p||!p.camposExtra) return; p.camposExtra[i][field]=val; }
+function ficha_removeExtra(uid,i){ const p=ficha_activeProfile(uid); if(!p||!p.camposExtra) return; p.camposExtra.splice(i,1); renderModal(); render(); }
+function ficha_onPhoto(uid,inputEl){
+  const p=ficha_activeProfile(uid); if(!p) return;
+  compressPhotoAndSet(inputEl,p,()=>{ renderModal(); render(); });
+}
+
 function renderHome(){
   const streak=calcStreak();
   const activeIdx=ST.activeWeek!==null?ST.activeWeek:detectActiveWeek();
@@ -1711,7 +1835,7 @@ function renderAdminBody(){
 }
 
 async function setAdminTab(i){
-  if(i!==1) adminState.viewUserIdx=null; // only clear when leaving users tab
+  if(i!==1){ adminState.viewUserIdx=null; adminState.viewFichaUid=null; }
   adminState.tab=i;
   if(i===0||i===1){
     await loadUsers();
@@ -1742,6 +1866,7 @@ async function loadUserActivityStatus(){
 // ---- TAB: USUARIOS ----
 function renderTabUsers(){
   if(adminState.viewUserIdx) return renderUserProgress();
+  if(adminState.viewFichaUid) return renderAdminFicha();
 
   const all=Object.values(users).filter(u=>(u.club||'fuerza')===getClub());
   const pending=all.filter(u=>u.status===STATUS.PENDING);
@@ -1809,9 +1934,21 @@ function renderUserRow(u){
   const ini=u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
   const isPending=u.status===STATUS.PENDING;
   const isBlocked=u.status===STATUS.BLOCKED;
+  const isHybrid=(u.club||'fuerza')==='hybrid';
   const hasRec=userActivityMap[u.id];
   const recBadge=(!isPending&&hasRec===false)?`<span style="font-size:9px;font-weight:700;color:var(--red);background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:4px;padding:1px 6px;margin-top:3px;display:inline-block">SIN REGISTROS</span>`
     :(!isPending&&hasRec===true)?`<span style="font-size:9px;font-weight:700;color:var(--green);background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);border-radius:4px;padding:1px 6px;margin-top:3px;display:inline-block">📝 ANOTANDO</span>`:'';
+  const actionsHybrid=`
+      ${isPending?`<button class="adm-btn adm-btn-green" style="padding:6px 12px;font-weight:700" onclick="approveUser('${u.id}')">✓ Aprobar</button>`:''}
+      ${!isPending&&!isBlocked?`<button class="adm-btn adm-btn-red" style="padding:6px 8px" onclick="blockUser('${u.id}')" title="Bloquear">✕</button>`:''}
+      ${isBlocked?`<button class="adm-btn adm-btn-blue" style="padding:6px 8px" onclick="unblockUser('${u.id}')" title="Reactivar">↩</button>`:''}
+      ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserFicha('${u.id}')" title="Ver ficha">📋</button>`:''}`;
+  const actionsFuerza=`
+      ${isPending?`<button class="adm-btn adm-btn-green" style="padding:6px 12px;font-weight:700" onclick="approveUser('${u.id}')">✓ Aprobar</button>`:''}
+      ${!isPending&&!isBlocked?`<button class="adm-btn adm-btn-red" style="padding:6px 8px" onclick="blockUser('${u.id}')" title="Bloquear">✕</button>`:''}
+      ${isBlocked?`<button class="adm-btn adm-btn-blue" style="padding:6px 8px" onclick="unblockUser('${u.id}')" title="Reactivar">↩</button>`:''}
+      ${!isPending?`<button class="adm-btn adm-btn-blue" style="padding:6px 8px" onclick="impersonateUser('${u.id}')" title="Entrar como alumno">👤</button>`:''}
+      ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserProgress('${u.id}')" title="Ver progreso">${IC.eye}</button>`:''}`;
   return `<div class="user-row">
     <div class="user-row-avatar">${ini}</div>
     <div class="user-row-info">
@@ -1820,11 +1957,7 @@ function renderUserRow(u){
       ${isBlocked?`<div style="margin-top:3px"><span class="badge badge-blocked">BLOQUEADO</span></div>`:recBadge?`<div>${recBadge}</div>`:''}
     </div>
     <div class="user-row-actions">
-      ${isPending?`<button class="adm-btn adm-btn-green" style="padding:6px 12px;font-weight:700" onclick="approveUser('${u.id}')">✓ Aprobar</button>`:''}
-      ${!isPending&&!isBlocked?`<button class="adm-btn adm-btn-red" style="padding:6px 8px" onclick="blockUser('${u.id}')" title="Bloquear">✕</button>`:''}
-      ${isBlocked?`<button class="adm-btn adm-btn-blue" style="padding:6px 8px" onclick="unblockUser('${u.id}')" title="Reactivar">↩</button>`:''}
-      ${!isPending?`<button class="adm-btn adm-btn-blue" style="padding:6px 8px" onclick="impersonateUser('${u.id}')" title="Entrar como alumno">👤</button>`:''}
-      ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserProgress('${u.id}')" title="Ver progreso">${IC.eye}</button>`:''}
+      ${isHybrid?actionsHybrid:actionsFuerza}
     </div>
   </div>`;
 }
@@ -1972,6 +2105,37 @@ function goBackToUserList(){
     const modal=document.querySelector('#modal-root .modal');
     if(modal) modal.scrollTop=adminState.savedScroll;
   });
+}
+
+// ---- Admin: Ficha de alumno (Hybrid Club) ----
+let adminFichaProfile=null;
+async function viewUserFicha(id){
+  const modal=document.querySelector('#modal-root .modal');
+  adminState.savedScroll=modal?modal.scrollTop:0;
+  adminState.viewFichaUid=id;
+  adminFichaProfile=await personalGet(K.HC_PROFILE(id))||{};
+  renderModal();
+}
+async function adminSaveFicha(uid){
+  await personalSet(K.HC_PROFILE(uid), adminFichaProfile);
+  showToast('✅ Ficha guardada');
+}
+function goBackFromFicha(){
+  adminState.viewFichaUid=null;
+  adminFichaProfile=null;
+  renderModal();
+  requestAnimationFrame(()=>{
+    const modal=document.querySelector('#modal-root .modal');
+    if(modal) modal.scrollTop=adminState.savedScroll;
+  });
+}
+function renderAdminFicha(){
+  const u=getUserById(adminState.viewFichaUid);
+  if(!u) return '';
+  return `<div>
+    <button class="adm-btn adm-btn-ghost" style="margin-bottom:14px;gap:8px" onclick="goBackFromFicha()">${IC.back} Volver a usuarios</button>
+    ${renderFichaForm(adminFichaProfile||{}, u.id, {onSave:'adminSaveFicha', ownerLabel:u.name})}
+  </div>`;
 }
 
 // ── ARCHIVED BLOCK VIEW ──
