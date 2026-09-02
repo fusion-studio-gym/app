@@ -427,6 +427,8 @@ const K = {
   BLOCK_NAME: 'fs_block_name_v1',  // shared: current block name string
   WEEK_MSGS: 'fs_week_messages_v1',  // shared: {weekIndex: message string}
   HC_PROFILE: (uid) => `hc_profile_${uid}_v1`,  // personal: ficha completa del alumno (Hybrid Club)
+  HC_RACES: 'hc_races_v1',  // shared: [{id,name,series,location,date}]
+  HC_GOAL: (uid) => `hc_goal_${uid}_v1`,  // personal: {raceId} — carrera objetivo del alumno
 };
 const DEFAULT_ADMIN_PW = 'fusion2025';
 const DEFAULT_ADMIN_PW_HYBRID = 'hybrid2025';
@@ -720,6 +722,27 @@ async function loadTracked(){
   if(!tracked) tracked=JSON.parse(JSON.stringify(DEFAULT_TRACKED));
 }
 async function saveTracked(){ await sharedSet(K.TRACKED,tracked); lsSet(K.TRACKED,tracked); }
+
+// ---- Hybrid Club: calendario de carreras ----
+const HC_RACE_SERIES = ['HYROX Oficial','Hybrid Race','Smart Race','Otra'];
+let hcRaces = null; // [{id,name,series,location,date}]
+async function loadHcRaces(){
+  const remote = await sharedGet(K.HC_RACES);
+  if(remote){ hcRaces=remote; lsSet(K.HC_RACES,remote); }
+  else { hcRaces=lsGet(K.HC_RACES); }
+  if(!hcRaces) hcRaces=[];
+}
+async function saveHcRaces(){ await sharedSet(K.HC_RACES,hcRaces); lsSet(K.HC_RACES,hcRaces); }
+function hcDaysUntil(dateStr){
+  const today=new Date(); today.setHours(0,0,0,0);
+  const d=new Date(dateStr+'T00:00:00');
+  return Math.round((d-today)/86400000);
+}
+function hcFmtDate(dateStr){
+  const d=new Date(dateStr+'T00:00:00');
+  return d.toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'});
+}
+
 
 async function loadPrs(){
   if(!session||session.uid==='__pending__') return;
@@ -1327,6 +1350,8 @@ async function recheckApproval(){
 let hcState = { tab:'home' };
 let hcProfile = null;
 let hcProfileUid = null;
+let hcGoal = null; // {raceId} — carrera objetivo del alumno logueado
+let hcGoalUid = null;
 
 async function hcOpenFicha(){
   if(hcProfileUid!==session.uid){
@@ -1338,6 +1363,22 @@ async function hcOpenFicha(){
 }
 function hcOpenHome(){ hcState.tab='home'; render(); }
 
+async function hcOpenCarreras(){
+  if(!hcRaces) await loadHcRaces();
+  if(hcGoalUid!==session.uid){
+    hcGoal = await personalGet(K.HC_GOAL(session.uid)) || {raceId:null};
+    hcGoalUid = session.uid;
+  }
+  hcState.tab='carreras';
+  render();
+}
+async function hcSetGoal(raceId){
+  hcGoal.raceId = (hcGoal.raceId===raceId) ? null : raceId;
+  await personalSet(K.HC_GOAL(session.uid), hcGoal);
+  showToast(hcGoal.raceId ? '🎯 Objetivo marcado' : 'Objetivo quitado');
+  render();
+}
+
 function hcTabBarHTML(){
   return `<div class="tab-bar">
     <div class="tab-bar-item ${hcState.tab==='home'?'active':''}" onclick="hcOpenHome()">
@@ -1346,16 +1387,57 @@ function hcTabBarHTML(){
     <div class="tab-bar-item ${hcState.tab==='ficha'?'active':''}" onclick="hcOpenFicha()">
       <div class="tab-bar-icon">📋</div>Mi ficha
     </div>
+    <div class="tab-bar-item ${hcState.tab==='carreras'?'active':''}" onclick="hcOpenCarreras()">
+      <div class="tab-bar-icon">🏁</div>Carreras
+    </div>
   </div>`;
+}
+
+function renderHcCarrerasBody(){
+  const races=(hcRaces||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const goalRace=hcGoal&&hcGoal.raceId ? races.find(r=>r.id===hcGoal.raceId) : null;
+
+  const heroHTML = goalRace ? (()=>{
+    const d=hcDaysUntil(goalRace.date);
+    const dLabel = d>1 ? `Faltan ${d} días` : d===1 ? 'Falta 1 día' : d===0 ? '¡Es hoy!' : 'Ya pasó';
+    return `<div style="background:linear-gradient(135deg,rgba(240,90,40,0.18),rgba(240,90,40,0.06));border:1px solid rgba(240,90,40,0.4);border-radius:var(--radius);padding:16px;margin-bottom:16px">
+      <div style="font-size:10px;color:var(--orange2);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">🎯 Tu objetivo</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:17px;font-weight:700">${escH(goalRace.name)}</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:2px">${escH(goalRace.location||'')} · ${hcFmtDate(goalRace.date)}</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:var(--orange);margin-top:8px">${dLabel}</div>
+    </div>`;
+  })() : '';
+
+  const listHTML = races.length ? races.map(r=>{
+    const d=hcDaysUntil(r.date);
+    const isGoal=hcGoal&&hcGoal.raceId===r.id;
+    return `<div style="background:var(--surface2);border:1px solid ${isGoal?'var(--orange)':'var(--border)'};border-radius:var(--radius-sm);padding:14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
+        <div>
+          <div style="font-size:9px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px">${escH(r.series||'')}</div>
+          <div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700">${escH(r.name)}</div>
+          <div style="font-size:11px;color:var(--text2);margin-top:2px">${escH(r.location||'')} · ${hcFmtDate(r.date)}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:11px;color:${d<0?'var(--text3)':'var(--orange2)'};font-weight:700">${d<0?'Pasó':d+' días'}</div>
+        </div>
+      </div>
+      <button class="adm-btn ${isGoal?'adm-btn-orange':'adm-btn-ghost'}" style="width:100%;justify-content:center;margin-top:10px;padding:8px" onclick="hcSetGoal('${r.id}')">${isGoal?'✓ Es tu objetivo':'Marcar como objetivo'}</button>
+    </div>`;
+  }).join('') : `<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="font-size:32px;margin-bottom:10px">🏁</div>Todavía no hay carreras cargadas</div>`;
+
+  return `${heroHTML}<div class="admin-section-title" style="margin-bottom:10px">CALENDARIO DE CARRERAS</div>${listHTML}`;
 }
 
 function renderHybridHome(){
   const body = hcState.tab==='ficha'
     ? renderFichaForm(hcProfile||{}, session.uid, {onSave:'hcSaveOwnFicha', ownerLabel:session.name})
+    : hcState.tab==='carreras'
+    ? renderHcCarrerasBody()
     : `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px 20px;text-align:center;margin-top:8px">
         <div style="font-size:36px;margin-bottom:10px">🚧</div>
         <div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;margin-bottom:8px">¡Bienvenido, ${escH(session.name.split(' ')[0])}!</div>
-        <p style="font-size:13px;color:var(--text2);line-height:1.5">Completá tu ficha de alumno desde la pestaña "Mi ficha". Muy pronto vas a poder ver acá tu programa semanal, calendario de carreras y reserva de videollamadas.</p>
+        <p style="font-size:13px;color:var(--text2);line-height:1.5">Completá tu ficha de alumno y marcá tu carrera objetivo desde las pestañas de abajo. Muy pronto vas a poder ver acá tu programa semanal y reservar videollamadas.</p>
       </div>`;
   return `${navBarHTML(false,'')}
   <div class="page" style="padding:20px 16px 90px">${body}</div>
@@ -1810,15 +1892,16 @@ async function checkAdminPw(){
 function renderAdminBody(){
   if(getClub()==='hybrid'){
     // Fusión Hybrid Club: solo lo que ya existe hoy — el resto se suma a medida que construimos sus features propias.
-    const tabs=['📊 Dashboard','👥 Usuarios','🔑 Contraseña'];
-    const map=[0,1,7]; // reuse renderTabDashboard/renderTabUsers/renderTabPw tab indices below
+    const tabs=['📊 Dashboard','👥 Usuarios','🏁 Carreras','🔑 Contraseña'];
+    const map=[0,1,2,7]; // reuse renderTabDashboard/renderTabUsers/renderTabHcRaces/renderTabPw tab indices below
     const nav=tabs.map((t,i)=>`<div class="admin-tab ${adminState.tab===map[i]?'active':''}" onclick="setAdminTab(${map[i]})">${t}</div>`).join('');
     let body='';
     if(adminState.tab===1) body=renderTabUsers();
+    else if(adminState.tab===2) body=renderTabHcRaces();
     else if(adminState.tab===7) body=renderTabPw();
-    else { adminState.tab=0; body=renderTabDashboard(); }
+    else { adminState.tab=0; body=renderTabDashboard()+renderHcDashboardRaces(); }
     return `<div class="admin-nav">${nav}</div>${body}
-      <div style="margin-top:18px;padding:14px;border:1px dashed var(--border2);border-radius:var(--radius-sm);font-size:12px;color:var(--text3);text-align:center">🚧 Planificación, calendario de carreras y videollamadas se van a sumar acá a medida que los construimos.</div>`;
+      ${adminState.tab===2?'':'<div style="margin-top:18px;padding:14px;border:1px dashed var(--border2);border-radius:var(--radius-sm);font-size:12px;color:var(--text3);text-align:center">🚧 Planificación y videollamadas se van a sumar acá a medida que los construimos.</div>'}`;
   }
   const tabs=['📊 Dashboard','👥 Usuarios','📋 Ejercicios','📅 Semanas','📖 RPE','🎯 PRs','📈 Grupo','🔑 Contraseña','🔍 Diagnóstico'];
   const nav=tabs.map((t,i)=>`<div class="admin-tab ${adminState.tab===i?'active':''}" onclick="setAdminTab(${i})">${t}</div>`).join('');
@@ -1840,8 +1923,12 @@ async function setAdminTab(i){
   adminState.tab=i;
   if(i===0||i===1){
     await loadUsers();
+    if(getClub()==='hybrid'&&!hcRaces) await loadHcRaces();
     renderModal();
     await loadUserActivityStatus();
+    renderModal();
+  } else if(i===2 && getClub()==='hybrid'){
+    if(!hcRaces) await loadHcRaces();
     renderModal();
   } else if(i===6){
     if(!Object.keys(users).length) await loadUsers();
@@ -2480,6 +2567,79 @@ function updateDayName(wi,di,v){ plan[wi].days[di].name=v; }
 function updateDayDays(wi,di,v){ plan[wi].days[di].days=v; }
 
 // ---- TAB: PRs / EJERCICIOS TRACKEADOS ----
+// ---- ADMIN TAB: CARRERAS (Hybrid Club) ----
+function renderHcDashboardRaces(){
+  const upcoming=(hcRaces||[]).filter(r=>hcDaysUntil(r.date)>=0).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3);
+  if(!upcoming.length) return '';
+  return `<div class="admin-section-title" style="margin:20px 0 10px">🏁 PRÓXIMAS CARRERAS</div>
+    ${upcoming.map(r=>`<div class="user-row" style="margin-bottom:8px">
+      <div class="user-row-info">
+        <div class="user-row-name">${escH(r.name)}</div>
+        <div class="user-row-email">${escH(r.location||'')} · ${hcFmtDate(r.date)}</div>
+      </div>
+      <span style="font-size:11px;font-weight:700;color:var(--orange2);flex-shrink:0">${hcDaysUntil(r.date)} días</span>
+    </div>`).join('')}`;
+}
+function renderTabHcRaces(){
+  const races=(hcRaces||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const rows=races.map(r=>{
+    const idx=hcRaces.findIndex(x=>x.id===r.id);
+    const d=hcDaysUntil(r.date);
+    return `<div class="ex-edit-card">
+      <div class="ex-edit-card-header">
+        <span class="ex-edit-title">${d<0?'Ya pasó':d+' días'}</span>
+        <button class="adm-btn adm-btn-red" onclick="hcAdmDeleteRace('${r.id}')">${IC.trash}</button>
+      </div>
+      <input class="adm-inp" style="margin-bottom:8px" value="${escH(r.name)}" placeholder="Nombre de la carrera" oninput="hcAdmUpdateRace('${r.id}','name',this.value)">
+      <select class="adm-inp" style="margin-bottom:8px" onchange="hcAdmUpdateRace('${r.id}','series',this.value)">
+        ${HC_RACE_SERIES.map(s=>`<option value="${escH(s)}" ${r.series===s?'selected':''}>${escH(s)}</option>`).join('')}
+      </select>
+      <input class="adm-inp" style="margin-bottom:8px" value="${escH(r.location||'')}" placeholder="Ubicación (ej: Buenos Aires, Argentina)" oninput="hcAdmUpdateRace('${r.id}','location',this.value)">
+      <input class="adm-inp" type="date" value="${escH(r.date||'')}" oninput="hcAdmUpdateRace('${r.id}','date',this.value)">
+    </div>`;
+  }).join('');
+
+  return `<div>
+    ${rows||`<p style="font-size:12px;color:var(--text3);margin-bottom:16px">Todavía no cargaste ninguna carrera.</p>`}
+    <div style="background:var(--surface2);border:1px dashed var(--border2);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px">
+      <div class="admin-section-title" style="margin-bottom:10px">AGREGAR CARRERA</div>
+      <input class="adm-inp" id="new-race-name" placeholder="Nombre (ej: HYROX Buenos Aires 2026)" style="margin-bottom:8px">
+      <select class="adm-inp" id="new-race-series" style="margin-bottom:8px">
+        ${HC_RACE_SERIES.map(s=>`<option value="${escH(s)}">${escH(s)}</option>`).join('')}
+      </select>
+      <input class="adm-inp" id="new-race-location" placeholder="Ubicación" style="margin-bottom:8px">
+      <input class="adm-inp" id="new-race-date" type="date" style="margin-bottom:8px">
+      <button class="adm-btn adm-btn-orange" onclick="hcAdmAddRace()" style="width:100%;justify-content:center">${IC.plus} Agregar</button>
+    </div>
+    <button class="adm-btn adm-btn-ghost" onclick="hcAdmSaveRaces()" style="width:100%;justify-content:center;padding:12px">💾 Guardar cambios</button>
+  </div>`;
+}
+
+function hcAdmAddRace(){
+  const name=document.getElementById('new-race-name').value.trim();
+  const series=document.getElementById('new-race-series').value;
+  const location=document.getElementById('new-race-location').value.trim();
+  const date=document.getElementById('new-race-date').value;
+  if(!name||!date){ showToast('Completá al menos nombre y fecha'); return; }
+  if(!hcRaces) hcRaces=[];
+  hcRaces.push({ id:'r_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), name, series, location, date });
+  renderModal();
+}
+function hcAdmUpdateRace(id,field,val){
+  const r=hcRaces.find(x=>x.id===id);
+  if(r) r[field]=val;
+}
+function hcAdmDeleteRace(id){
+  hcRaces=hcRaces.filter(x=>x.id!==id);
+  saveHcRaces();
+  renderModal();
+}
+async function hcAdmSaveRaces(){
+  await saveHcRaces();
+  showToast('✅ Calendario de carreras guardado');
+  renderModal();
+}
+
 function renderTabTracked(){
   const trList=tracked||DEFAULT_TRACKED;
   const isDefault=(name)=>DEFAULT_TRACKED.some(d=>d.name===name);
