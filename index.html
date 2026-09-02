@@ -67,6 +67,15 @@ body{max-width:480px;margin:0 auto;}
 .auth-btn:active{transform:scale(0.98);}
 .auth-link{font-size:13px;color:var(--text2);text-align:center;margin-top:16px;cursor:pointer;}
 .auth-link span{color:var(--orange);font-weight:600;}
+
+/* CLUB SELECT */
+.club-pick{width:100%;max-width:360px;background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:22px;margin-bottom:16px;display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:border-color .15s,transform .1s;}
+.club-pick:active{transform:scale(0.98);}
+.club-pick:hover{border-color:var(--orange);}
+.club-pick-title{font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:2px;text-align:center;}
+.club-pick-title span{color:var(--orange);}
+.club-pick-sub{font-size:12px;color:var(--text3);margin-top:4px;}
+.club-pick-textlogo{width:64px;height:64px;border-radius:50%;border:3px solid var(--orange);margin:0 0 12px;display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:28px;font-weight:700;color:var(--orange);box-shadow:0 0 40px rgba(240,90,40,0.3);background:var(--surface2);-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation;}
 .auth-err{font-size:12px;color:var(--red);margin-bottom:10px;padding:8px 12px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:6px;}
 
 /* PENDING SCREEN */
@@ -413,12 +422,13 @@ const K = {
   PRS:      (uid) => `fs_prs_${uid}_v2`,   // personal: {exName: {rm1,rm2,rm3,rm4}} each = {weight,week,newPr, history:[{weight,week}]}
   TRACKED:  'fs_tracked_v1',               // shared: [{name, matchTerms:[]}]
   SESSION:  'fs_session_v1',
-  ADMINPW:  'fs_adminpw_v1',
+  ADMINPW:  (club) => club==='hybrid' ? 'fs_adminpw_hybrid_v1' : 'fs_adminpw_v1',
   RPE_INFO: 'fs_rpe_info_v1',
   BLOCK_NAME: 'fs_block_name_v1',  // shared: current block name string
   WEEK_MSGS: 'fs_week_messages_v1',  // shared: {weekIndex: message string}
 };
 const DEFAULT_ADMIN_PW = 'fusion2025';
+const DEFAULT_ADMIN_PW_HYBRID = 'hybrid2025';
 const STATUS = { PENDING:'pending', ACTIVE:'active', BLOCKED:'blocked' };
 
 // PR rep ranges
@@ -601,11 +611,11 @@ async function saveUsers(){ await sharedSet(K.USERS,users); }
 function getUserByEmail(email){ return Object.values(users).find(u=>u.email===email.toLowerCase().trim())||null; }
 function getUserById(id){ return users[id]||null; }
 
-async function registerUser(name,email,password){
+async function registerUser(name,email,password,club){
   email=email.toLowerCase().trim();
   if(getUserByEmail(email)) return {ok:false,err:'Ya existe una cuenta con ese email.'};
   const id = 'u_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
-  users[id]={ id, name:name.trim(), email, hash:hashStr(password), status:STATUS.PENDING };
+  users[id]={ id, name:name.trim(), email, hash:hashStr(password), status:STATUS.PENDING, club: club||'fuerza' };
   await saveUsers();
   return {ok:true};
 }
@@ -626,7 +636,7 @@ async function loginUser(email,password){
 // ============================================================
 let session = null;  // {uid,email,name}
 function loadSession(){ session=lsGet(K.SESSION); }
-function saveSession(u){ session={uid:u.id,email:u.email,name:u.name}; lsSet(K.SESSION,session); }
+function saveSession(u){ session={uid:u.id,email:u.email,name:u.name,club:u.club||'fuerza'}; lsSet(K.SESSION,session); }
 function clearSession(){ session=null; localStorage.removeItem(K.SESSION); }
 
 // ============================================================
@@ -1122,16 +1132,23 @@ function cancelAvatarHold(){ if(avatarTimer){clearTimeout(avatarTimer);avatarTim
 function navBarHTML(showBack=false,backFn=''){
   const initials=session?session.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase():'?';
   const impBanner='';
+  const club=getClub();
+  const navLogo = club==='hybrid'
+    ? `<div class="nav-logo club-pick-textlogo" style="width:36px;height:36px;font-size:16px;margin:0" oncontextmenu="return false" ondragstart="return false"
+        onmousedown="handleLogoMouseDown()" onmouseup="handleLogoMouseUp()" onmouseleave="cancelLogoHold()"
+        ontouchstart="handleLogoTouchStart(event)" ontouchend="handleLogoTouchEnd(event)" ontouchcancel="cancelLogoHold()" ontouchmove="cancelLogoHold()">F</div>`
+    : `<div class="nav-logo" oncontextmenu="return false" ondragstart="return false"
+        style="background-image:url('${LOGO_URL}')"
+        onmousedown="handleLogoMouseDown()" onmouseup="handleLogoMouseUp()" onmouseleave="cancelLogoHold()"
+        ontouchstart="handleLogoTouchStart(event)" ontouchend="handleLogoTouchEnd(event)" ontouchcancel="cancelLogoHold()" ontouchmove="cancelLogoHold()">
+      </div>`;
+  const navTitle = club==='hybrid' ? `FUSIÓN<span>HYBRID CLUB</span>` : `FUSION<span>STUDIO</span>`;
 
   return `<nav class="nav">
     ${showBack?`<button class="nav-back" onclick="${backFn}">${IC.back}</button>`:`<div class="nav-spacer"></div>`}
     <div class="nav-brand" onclick="nav('home')">
-      <div class="nav-logo" oncontextmenu="return false" ondragstart="return false"
-        style="background-image:url('${LOGO_URL}')"
-        onmousedown="handleLogoMouseDown()" onmouseup="handleLogoMouseUp()" onmouseleave="cancelLogoHold()"
-        ontouchstart="handleLogoTouchStart(event)" ontouchend="handleLogoTouchEnd(event)" ontouchcancel="cancelLogoHold()" ontouchmove="cancelLogoHold()">
-      </div>
-      <div class="nav-title">FUSION<span>STUDIO</span></div>
+      ${navLogo}
+      <div class="nav-title">${navTitle}</div>
     </div>
     ${session?`<div class="nav-user" onclick="toggleUserMenu()" oncontextmenu="return false"
         onmousedown="handleAvatarMouseDown()" onmouseup="handleAvatarMouseUp()" onmouseleave="cancelAvatarHold()"
@@ -1152,12 +1169,55 @@ function userMenuHTML(){
 }
 
 // ============================================================
+// CLUB SELECTION (Fusion Studio vs Fusión Hybrid Club)
+// ============================================================
+// currentClub persists locally so returning users don't have to pick every time.
+let currentClub = lsGet('fs_current_club_v1') || null;
+
+function getClub(){ return (session && session.club) || currentClub || 'fuerza'; }
+
+function selectClub(club){
+  currentClub = club;
+  lsSet('fs_current_club_v1', club);
+  authState = { mode:'login', name:'', email:'', pw:'', pw2:'', err:'', loading:false };
+  render();
+}
+
+function changeClub(){
+  currentClub = null;
+  localStorage.removeItem('fs_current_club_v1');
+  render();
+}
+
+function renderClubSelect(){
+  return `<div class="auth-wrap">
+    <h1 class="auth-title" style="font-size:22px;margin-bottom:4px">ELEGÍ TU CLUB</h1>
+    <p class="auth-subtitle" style="margin-bottom:28px">¿A qué programa querés acceder?</p>
+    <div class="club-pick" onclick="selectClub('fuerza')">
+      <div class="auth-logo" style="width:64px;height:64px;margin:0 0 12px;background-image:url('${LOGO_URL}')" oncontextmenu="return false" ondragstart="return false"></div>
+      <div class="club-pick-title">FUSION<span>STUDIO</span></div>
+      <div class="club-pick-sub">Plan de fuerza</div>
+    </div>
+    <div class="club-pick" onclick="selectClub('hybrid')">
+      <div class="club-pick-textlogo">F</div>
+      <div class="club-pick-title">FUSIÓN<span>HYBRID CLUB</span></div>
+      <div class="club-pick-sub">Entrenamiento híbrido (HYROX)</div>
+    </div>
+  </div>`;
+}
+
+// ============================================================
 // AUTH SCREENS
 // ============================================================
 let authState={ mode:'login', name:'', email:'', pw:'', pw2:'', err:'', loading:false };
 
 function renderAuth(){
-  const logoImg=`<div class="auth-logo" oncontextmenu="return false" ondragstart="return false"
+  const club=getClub();
+  const logoImg = club==='hybrid'
+    ? `<div class="auth-logo club-pick-textlogo" oncontextmenu="return false" ondragstart="return false"
+        onmousedown="handleLogoMouseDown()" onmouseup="handleLogoMouseUp()" onmouseleave="cancelLogoHold()"
+        ontouchstart="handleLogoTouchStart(event)" ontouchend="handleLogoTouchEnd(event)" ontouchcancel="cancelLogoHold()" ontouchmove="cancelLogoHold()">F</div>`
+    : `<div class="auth-logo" oncontextmenu="return false" ondragstart="return false"
       style="background-image:url('${LOGO_URL}')"
       onmousedown="handleLogoMouseDown()" onmouseup="handleLogoMouseUp()" onmouseleave="cancelLogoHold()"
       ontouchstart="handleLogoTouchStart(event)" ontouchend="handleLogoTouchEnd(event)" ontouchcancel="cancelLogoHold()" ontouchmove="cancelLogoHold()">
@@ -1167,9 +1227,11 @@ function renderAuth(){
 }
 
 function renderLogin(logoImg){
+  const club=getClub();
+  const title = club==='hybrid' ? `FUSIÓN<span>HYBRID CLUB</span>` : `FUSION<span>STUDIO</span>`;
   return `<div class="auth-wrap">
     ${logoImg}
-    <h1 class="auth-title">FUSION<span>STUDIO</span></h1>
+    <h1 class="auth-title">${title}</h1>
     <p class="auth-subtitle">Iniciá sesión para continuar</p>
     <div class="auth-card">
       <div class="auth-card-title">INICIAR SESIÓN</div>
@@ -1179,13 +1241,16 @@ function renderLogin(logoImg){
       <button class="auth-btn" onclick="doLogin()" ${authState.loading?'disabled':''}>ENTRAR</button>
     </div>
     <div class="auth-link" onclick="switchAuth('register')">¿No tenés cuenta? <span>Registrate</span></div>
+    <div class="auth-link" style="margin-top:8px;opacity:0.6" onclick="changeClub()">Cambiar de club</div>
   </div>`;
 }
 
 function renderRegister(logoImg){
+  const club=getClub();
+  const title = club==='hybrid' ? `FUSIÓN<span>HYBRID CLUB</span>` : `FUSION<span>STUDIO</span>`;
   return `<div class="auth-wrap">
     ${logoImg}
-    <h1 class="auth-title">FUSION<span>STUDIO</span></h1>
+    <h1 class="auth-title">${title}</h1>
     <p class="auth-subtitle">Creá tu cuenta para comenzar</p>
     <div class="auth-card">
       <div class="auth-card-title">CREAR CUENTA</div>
@@ -1197,6 +1262,7 @@ function renderRegister(logoImg){
       <button class="auth-btn" onclick="doRegister()" ${authState.loading?'disabled':''}>CREAR CUENTA</button>
     </div>
     <div class="auth-link" onclick="switchAuth('login')">¿Ya tenés cuenta? <span>Iniciá sesión</span></div>
+    <div class="auth-link" style="margin-top:8px;opacity:0.6" onclick="changeClub()">Cambiar de club</div>
   </div>`;
 }
 
@@ -1208,7 +1274,7 @@ async function doLogin(){
   const res=await loginUser(authState.email,authState.pw);
   authState.loading=false;
   if(!res.ok){
-    if(res.err==='PENDING'){ authState.err=''; session={uid:'__pending__',name:'',email:authState.email}; render(); return; }
+    if(res.err==='PENDING'){ authState.err=''; session={uid:'__pending__',name:'',email:authState.email,club:getClub()}; render(); return; }
     authState.err=res.err; render(); return;
   }
   saveSession(res.user);
@@ -1223,7 +1289,7 @@ async function doRegister(){
   if(authState.pw!==authState.pw2){ authState.err='Las contraseñas no coinciden.'; render(); return; }
   authState.loading=true; authState.err=''; render();
   await loadUsers();
-  const res=await registerUser(authState.name,authState.email,authState.pw);
+  const res=await registerUser(authState.name,authState.email,authState.pw,getClub());
   authState.loading=false;
   if(!res.ok){ authState.err=res.err; render(); return; }
   authState.err=''; authState.mode='login';
@@ -1251,6 +1317,20 @@ async function recheckApproval(){
   const u=getUserByEmail(authState.email||session.email);
   if(u&&u.status===STATUS.ACTIVE){ saveSession(u); await loadProgress(); render(); showToast('✅ ¡Cuenta aprobada!'); }
   else showToast('Todavía pendiente de aprobación.');
+}
+
+// ============================================================
+// HYBRID CLUB HOME (placeholder — se reemplaza a medida que sumamos features)
+// ============================================================
+function renderHybridHome(){
+  return `${navBarHTML(false,'')}
+  <div class="page" style="padding:20px 16px 90px">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px 20px;text-align:center;margin-top:8px">
+      <div style="font-size:36px;margin-bottom:10px">🚧</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;margin-bottom:8px">¡Bienvenido, ${escH(session.name.split(' ')[0])}!</div>
+      <p style="font-size:13px;color:var(--text2);line-height:1.5">Estamos construyendo tu planificación de Fusión Hybrid Club. Muy pronto vas a poder ver acá tu programa semanal, ficha de alumno, calendario de carreras y reserva de videollamadas.</p>
+    </div>
+  </div>`;
 }
 
 // ============================================================
@@ -1565,7 +1645,7 @@ function renderModal(){
     // First render — build full modal structure
     root.innerHTML=`<div class="modal-overlay" onclick="closeAdminBg(event)">
       <div class="modal">
-        <div class="modal-header"><span class="modal-title">${IC.lock} ADMIN</span><button class="modal-close" onclick="closeAdmin()">✕</button></div>
+        <div class="modal-header"><span class="modal-title">${IC.lock} ADMIN ${getClub()==='hybrid'?'· HYBRID CLUB':'· FUERZA'}</span><button class="modal-close" onclick="closeAdmin()">✕</button></div>
         <div class="modal-body">${adminState.pwOk?renderAdminBody():renderAdminPw()}</div>
       </div>
     </div>`;
@@ -1586,9 +1666,11 @@ function renderAdminPw(){
 
 async function checkAdminPw(){
   const val=document.getElementById('adm-pw-inp').value;
-  const remote=await sharedGet(K.ADMINPW);
-  const stored=remote || lsGet(K.ADMINPW) || hashStr(DEFAULT_ADMIN_PW);
-  if(remote) lsSet(K.ADMINPW,remote); // keep local cache in sync
+  const club=getClub();
+  const defaultPw = club==='hybrid' ? DEFAULT_ADMIN_PW_HYBRID : DEFAULT_ADMIN_PW;
+  const remote=await sharedGet(K.ADMINPW(club));
+  const stored=remote || lsGet(K.ADMINPW(club)) || hashStr(defaultPw);
+  if(remote) lsSet(K.ADMINPW(club),remote); // keep local cache in sync
   if(hashStr(val)===stored){
     adminState.pwOk=true; adminState.pwErr='';
     await loadUsers();
@@ -1601,6 +1683,18 @@ async function checkAdminPw(){
 
 // ADMIN TABS
 function renderAdminBody(){
+  if(getClub()==='hybrid'){
+    // Fusión Hybrid Club: solo lo que ya existe hoy — el resto se suma a medida que construimos sus features propias.
+    const tabs=['📊 Dashboard','👥 Usuarios','🔑 Contraseña'];
+    const map=[0,1,7]; // reuse renderTabDashboard/renderTabUsers/renderTabPw tab indices below
+    const nav=tabs.map((t,i)=>`<div class="admin-tab ${adminState.tab===map[i]?'active':''}" onclick="setAdminTab(${map[i]})">${t}</div>`).join('');
+    let body='';
+    if(adminState.tab===1) body=renderTabUsers();
+    else if(adminState.tab===7) body=renderTabPw();
+    else { adminState.tab=0; body=renderTabDashboard(); }
+    return `<div class="admin-nav">${nav}</div>${body}
+      <div style="margin-top:18px;padding:14px;border:1px dashed var(--border2);border-radius:var(--radius-sm);font-size:12px;color:var(--text3);text-align:center">🚧 Planificación, calendario de carreras y videollamadas se van a sumar acá a medida que los construimos.</div>`;
+  }
   const tabs=['📊 Dashboard','👥 Usuarios','📋 Ejercicios','📅 Semanas','📖 RPE','🎯 PRs','📈 Grupo','🔑 Contraseña','🔍 Diagnóstico'];
   const nav=tabs.map((t,i)=>`<div class="admin-tab ${adminState.tab===i?'active':''}" onclick="setAdminTab(${i})">${t}</div>`).join('');
   let body='';
@@ -1649,7 +1743,7 @@ async function loadUserActivityStatus(){
 function renderTabUsers(){
   if(adminState.viewUserIdx) return renderUserProgress();
 
-  const all=Object.values(users);
+  const all=Object.values(users).filter(u=>(u.club||'fuerza')===getClub());
   const pending=all.filter(u=>u.status===STATUS.PENDING);
   const active=all.filter(u=>u.status===STATUS.ACTIVE||u.status===STATUS.BLOCKED);
 
@@ -1705,7 +1799,7 @@ function filterUsers(val){
   adminState.userSearch=val;
   const wrap=document.getElementById('user-list-wrap');
   if(!wrap) return;
-  const active=Object.values(users).filter(u=>u.status===STATUS.ACTIVE||u.status===STATUS.BLOCKED);
+  const active=Object.values(users).filter(u=>(u.club||'fuerza')===getClub()&&(u.status===STATUS.ACTIVE||u.status===STATUS.BLOCKED));
   wrap.innerHTML=buildUserListHTML(active, val, adminState.userActivityFilter);
 }
 
@@ -2271,7 +2365,7 @@ async function doSaveTracked(){ await saveTracked(); showToast('✅ Ejercicios g
 
 // ---- TAB: DASHBOARD ----
 function renderTabDashboard(){
-  const all=Object.values(users);
+  const all=Object.values(users).filter(u=>(u.club||'fuerza')===getClub());
   const active=all.filter(u=>u.status===STATUS.ACTIVE);
   const blocked=all.filter(u=>u.status===STATUS.BLOCKED);
   const pending=all.filter(u=>u.status===STATUS.PENDING);
@@ -2750,14 +2844,16 @@ async function changeAdminPw(){
   const n1=document.getElementById('pw-new').value;
   const n2=document.getElementById('pw-new2').value;
   const err=document.getElementById('pw-ch-err');
-  const remote=await sharedGet(K.ADMINPW);
-  const stored=remote || lsGet(K.ADMINPW) || hashStr(DEFAULT_ADMIN_PW);
+  const club=getClub();
+  const defaultPw = club==='hybrid' ? DEFAULT_ADMIN_PW_HYBRID : DEFAULT_ADMIN_PW;
+  const remote=await sharedGet(K.ADMINPW(club));
+  const stored=remote || lsGet(K.ADMINPW(club)) || hashStr(defaultPw);
   if(hashStr(cur)!==stored){err.textContent='Contraseña actual incorrecta.';err.style.display='block';return;}
   if(n1.length<4){err.textContent='Mínimo 4 caracteres.';err.style.display='block';return;}
   if(n1!==n2){err.textContent='No coinciden.';err.style.display='block';return;}
   const newHash=hashStr(n1);
-  await sharedSet(K.ADMINPW,newHash);
-  lsSet(K.ADMINPW,newHash);
+  await sharedSet(K.ADMINPW(club),newHash);
+  lsSet(K.ADMINPW(club),newHash);
   err.style.display='none';
   showToast('✅ Contraseña actualizada en todos los dispositivos');
 }
@@ -3242,8 +3338,12 @@ function renderImpBanner(){
 
 function render(){
   const app=document.getElementById('app');
-  if(!session){ app.innerHTML=renderAuth(); renderImpBanner(); return; }
+  if(!session){
+    if(!currentClub){ app.innerHTML=renderClubSelect(); renderImpBanner(); return; }
+    app.innerHTML=renderAuth(); renderImpBanner(); return;
+  }
   if(session.uid==='__pending__'){ app.innerHTML=renderPending(); renderImpBanner(); return; }
+  if(session.club==='hybrid'){ app.innerHTML=renderHybridHome(); renderImpBanner(); return; }
   if(ST.mainTab==='prs')   { app.innerHTML=renderPrs(); }
   else if(ST.mainTab==='chart') { app.innerHTML=renderChart(); }
   else if(ST.view==='archived_block'){
