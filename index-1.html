@@ -2674,9 +2674,25 @@ function hcAdmDeleteRace(id){
   renderModal();
 }
 async function hcAdmSaveRaces(){
-  await saveHcRaces();
-  showToast('✅ Calendario de carreras guardado');
-  renderModal();
+  try{
+    const nameEl=document.getElementById('new-race-name');
+    if(nameEl && nameEl.value.trim()){
+      const name=nameEl.value.trim();
+      const date=document.getElementById('new-race-date').value;
+      if(!date){
+        showToast('Ponele fecha a la carrera nueva antes de guardar');
+        return;
+      }
+      const series=document.getElementById('new-race-series').value;
+      const location=document.getElementById('new-race-location').value.trim();
+      if(!hcRaces) hcRaces=[];
+      hcRaces.push({ id:'r_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), name, series, location, date });
+    }
+    const ok=await saveHcRaces();
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+    showToast('✅ Calendario de carreras guardado');
+    renderModal();
+  }catch(e){ alert('Error al guardar: '+e.message); renderModal(); }
 }
 
 function renderTabTracked(){
