@@ -2615,7 +2615,7 @@ function renderTabHcRaces(){
   </div>`;
 }
 
-function hcAdmAddRace(){
+async function hcAdmAddRace(){
   const name=document.getElementById('new-race-name').value.trim();
   const series=document.getElementById('new-race-series').value;
   const location=document.getElementById('new-race-location').value.trim();
@@ -2623,6 +2623,8 @@ function hcAdmAddRace(){
   if(!name||!date){ showToast('Completá al menos nombre y fecha'); return; }
   if(!hcRaces) hcRaces=[];
   hcRaces.push({ id:'r_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), name, series, location, date });
+  await saveHcRaces();
+  showToast('✅ Carrera agregada');
   renderModal();
 }
 function hcAdmUpdateRace(id,field,val){
