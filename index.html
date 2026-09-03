@@ -440,6 +440,7 @@ const K = {
   HC_CHAT: (uid) => `hc_chat_${uid}_v1`,  // personal: [{id,from:'coach'|'student',text,ts,read}] — chat con el alumno
   HC_ANNOUNCEMENT: 'hc_announcement_v1',  // shared: {id,text,ts} | null — mensaje para todos los alumnos
   HC_ANN_DISMISSED: (uid) => `hc_ann_dismissed_${uid}_v1`,  // personal: id del último aviso que el alumno cerró
+  HC_TEMPLATES: 'hc_templates_v1',  // shared: [{id,name,plan}] — plantillas de planificación reutilizables
 };
 const DEFAULT_ADMIN_PW = 'fusion2025';
 const DEFAULT_ADMIN_PW_HYBRID = 'hybrid2025';
@@ -777,6 +778,15 @@ async function loadHcAnnouncement(){
 }
 async function saveHcAnnouncement(){ const ok=await sharedSet(K.HC_ANNOUNCEMENT,hcAnnouncement); lsSet(K.HC_ANNOUNCEMENT,hcAnnouncement); return ok; }
 
+let hcTemplates=null; // [{id,name,plan}]
+async function loadHcTemplates(){
+  const remote = await sharedGet(K.HC_TEMPLATES);
+  if(remote){ hcTemplates=remote; lsSet(K.HC_TEMPLATES,remote); }
+  else { hcTemplates=lsGet(K.HC_TEMPLATES)||[]; }
+  hcTemplates.forEach(t=>hcNormalizePlan(t.plan));
+}
+async function saveHcTemplates(){ const ok=await sharedSet(K.HC_TEMPLATES,hcTemplates); lsSet(K.HC_TEMPLATES,hcTemplates); return ok; }
+
 
 async function loadPrs(){
   if(!session||session.uid==='__pending__') return;
@@ -1109,7 +1119,8 @@ const IC={
   lock:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
   logout:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`,
   user:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
-  eye:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`
+  eye:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`,
+  eyeOff:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
 };
 
 // ============================================================
@@ -1295,13 +1306,13 @@ function pwToggle(id){
   const el=document.getElementById(id);
   const btn=document.getElementById(id+'-eye');
   if(!el) return;
-  if(el.type==='password'){ el.type='text'; if(btn) btn.textContent='🙈'; }
-  else { el.type='password'; if(btn) btn.textContent='👁'; }
+  if(el.type==='password'){ el.type='text'; if(btn) btn.innerHTML=IC.eye; }
+  else { el.type='password'; if(btn) btn.innerHTML=IC.eyeOff; }
 }
 function pwFieldHTML(id, placeholder, oninput, onkeydown){
   return `<div style="position:relative">
     <input class="auth-inp" style="padding-right:44px" type="password" placeholder="${placeholder}" id="${id}" oninput="${oninput}" onkeydown="${onkeydown}">
-    <button type="button" id="${id}-eye" onclick="pwToggle('${id}')" style="position:absolute;right:2px;top:0;height:48px;width:38px;background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px">👁</button>
+    <button type="button" id="${id}-eye" onclick="pwToggle('${id}')" style="position:absolute;right:2px;top:0;height:48px;width:38px;background:none;border:none;color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center">${IC.eyeOff}</button>
   </div>`;
 }
 
@@ -2753,33 +2764,78 @@ function goBackFromPlan(){
   });
 }
 let hcPlanCopySearch='';
-function hcTogglePlanCopyPicker(){ adminState.planCopyPickerOpen=!adminState.planCopyPickerOpen; hcPlanCopySearch=''; renderModal(); }
+let hcPlanCopyTab='alumnos'; // 'alumnos' | 'plantillas'
+async function hcTogglePlanCopyPicker(){
+  adminState.planCopyPickerOpen=!adminState.planCopyPickerOpen;
+  hcPlanCopySearch=''; hcPlanCopyTab='alumnos';
+  if(adminState.planCopyPickerOpen && !hcTemplates) await loadHcTemplates();
+  renderModal();
+}
+function hcSetPlanCopyTab(t){ hcPlanCopyTab=t; renderModal(); }
+
+// Archiva lo que haya en edición (si tiene contenido) y reemplaza por newPlan/newBlockName.
+// Reutilizado tanto para "copiar de otro alumno" como para "usar plantilla".
+async function hcApplyPlanAsBase(newPlan, newBlockName){
+  if(hcHasAnyContent(hcPlanEditing) || hcPlanBlockName){
+    hcPlanArchived=hcPlanArchived||[];
+    hcPlanArchived.push({ id:'blk_'+Date.now(), name:hcPlanBlockName||'Bloque sin nombre', archivedAt:Date.now(), plan:JSON.parse(JSON.stringify(hcPlanEditing)) });
+    await personalSet(K.HC_BLOCKS(adminState.viewPlanUid), hcPlanArchived);
+  }
+  const cloned = JSON.parse(JSON.stringify(newPlan));
+  cloned.forEach(w=>{
+    w.id='w_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);
+    w.days.forEach(d=>{
+      d.id='d_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);
+      d.exercises.forEach(ex=>{ ex.id='ex_'+Date.now()+'_'+Math.random().toString(36).slice(2,5); ex.studentNotes=''; });
+    });
+  });
+  hcPlanEditing = cloned.length ? cloned : [hcNewWeek()];
+  hcPlanBlockName = newBlockName;
+  adminState.planWeekIdx=0; adminState.planDayIdx=0; adminState.planCopyPickerOpen=false;
+}
 async function hcCopyPlanFrom(sourceUid){
   const srcUser=getUserById(sourceUid);
   const dstUser=getUserById(adminState.viewPlanUid);
   if(!confirm('Esto reemplaza la planificación actual de '+(dstUser?dstUser.name:'este alumno')+' por una copia de la de '+(srcUser?srcUser.name:'ese alumno')+' (la actual se archiva automáticamente antes de reemplazarla). Las anotaciones propias del alumno de origen no se copian. ¿Confirmás?')) return;
   try{
-    if(hcHasAnyContent(hcPlanEditing) || hcPlanBlockName){
-      hcPlanArchived=hcPlanArchived||[];
-      hcPlanArchived.push({ id:'blk_'+Date.now(), name:hcPlanBlockName||'Bloque sin nombre', archivedAt:Date.now(), plan:JSON.parse(JSON.stringify(hcPlanEditing)) });
-      await personalSet(K.HC_BLOCKS(adminState.viewPlanUid), hcPlanArchived);
-    }
     const srcPlan = hcNormalizePlan(await personalGet(K.HC_PLAN(sourceUid)) || []);
     const srcBlockName = await personalGet(K.HC_BLOCK_NAME(sourceUid)) || '';
-    const cloned = JSON.parse(JSON.stringify(srcPlan));
-    cloned.forEach(w=>{
-      w.id='w_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);
-      w.days.forEach(d=>{
-        d.id='d_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);
-        d.exercises.forEach(ex=>{ ex.id='ex_'+Date.now()+'_'+Math.random().toString(36).slice(2,5); ex.studentNotes=''; });
-      });
-    });
-    hcPlanEditing = cloned.length ? cloned : [hcNewWeek()];
-    hcPlanBlockName = srcBlockName ? srcBlockName+' (copia)' : '';
-    adminState.planWeekIdx=0; adminState.planDayIdx=0; adminState.planCopyPickerOpen=false;
+    await hcApplyPlanAsBase(srcPlan, srcBlockName ? srcBlockName+' (copia)' : '');
     showToast('✅ Plan copiado — el anterior quedó archivado. Revisá y tocá "Guardar planificación"');
     renderModal();
   }catch(e){ alert('Error al copiar el plan: '+e.message); }
+}
+async function hcSaveAsTemplate(){
+  const name=prompt('Nombre para esta plantilla (ej: "Base HYROX principiante"):', hcPlanBlockName||'');
+  if(!name||!name.trim()) return;
+  try{
+    if(!hcTemplates) await loadHcTemplates();
+    hcTemplates.push({ id:'tpl_'+Date.now(), name:name.trim(), plan:JSON.parse(JSON.stringify(hcPlanEditing)) });
+    const ok=await saveHcTemplates();
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+    showToast('✅ Guardada como plantilla');
+  }catch(e){ alert('Error al guardar la plantilla: '+e.message); }
+}
+async function hcApplyTemplate(templateId){
+  const tpl=(hcTemplates||[]).find(t=>t.id===templateId);
+  if(!tpl) return;
+  const dstUser=getUserById(adminState.viewPlanUid);
+  if(!confirm('Esto reemplaza la planificación actual de '+(dstUser?dstUser.name:'este alumno')+' por la plantilla "'+tpl.name+'" (la actual se archiva automáticamente antes de reemplazarla). ¿Confirmás?')) return;
+  try{
+    await hcApplyPlanAsBase(tpl.plan, tpl.name);
+    showToast('✅ Plantilla aplicada — el plan anterior quedó archivado. Revisá y tocá "Guardar planificación"');
+    renderModal();
+  }catch(e){ alert('Error al aplicar la plantilla: '+e.message); }
+}
+async function hcDeleteTemplate(templateId){
+  if(!confirm('¿Eliminar esta plantilla? No afecta los planes ya asignados a alumnos.')) return;
+  try{
+    hcTemplates=(hcTemplates||[]).filter(t=>t.id!==templateId);
+    const ok=await saveHcTemplates();
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+    showToast('Plantilla eliminada');
+    renderModal();
+  }catch(e){ alert('Error: '+e.message); }
 }
 async function hcSavePlan(){
   try{
@@ -2904,12 +2960,24 @@ function renderAdminPlan(){
     </div>`).join('')}` : '';
 
   const otherStudents=Object.values(users).filter(x=>(x.club||'fuerza')==='hybrid' && x.id!==u.id && x.status===STATUS.ACTIVE && x.name.toLowerCase().includes((hcPlanCopySearch||'').toLowerCase()));
+  const templates=(hcTemplates||[]).filter(t=>t.name.toLowerCase().includes((hcPlanCopySearch||'').toLowerCase()));
+  const pickerTabs=`<div style="display:flex;gap:6px;margin-bottom:10px">
+    <div class="admin-tab ${hcPlanCopyTab==='alumnos'?'active':''}" style="flex:1;text-align:center" onclick="hcSetPlanCopyTab('alumnos')">👤 Alumnos</div>
+    <div class="admin-tab ${hcPlanCopyTab==='plantillas'?'active':''}" style="flex:1;text-align:center" onclick="hcSetPlanCopyTab('plantillas')">📐 Plantillas</div>
+  </div>`;
+  const alumnosListHTML = otherStudents.length ? otherStudents.map(s=>`<div class="user-row" style="margin-bottom:6px">
+      <div class="user-row-info"><div class="user-row-name">${escH(s.name)}</div></div>
+      <button class="adm-btn adm-btn-orange" style="padding:6px 10px" onclick="hcCopyPlanFrom('${s.id}')">Usar como base</button>
+    </div>`).join('') : `<p style="font-size:12px;color:var(--text3);margin:0">No hay alumnos activos que coincidan. (Los alumnos pendientes de aprobación no aparecen acá.)</p>`;
+  const templatesListHTML = templates.length ? templates.map(t=>`<div class="user-row" style="margin-bottom:6px">
+      <div class="user-row-info"><div class="user-row-name">${escH(t.name)}</div><div class="user-row-email">${t.plan.length} semana(s)</div></div>
+      <button class="adm-btn adm-btn-orange" style="padding:6px 10px" onclick="hcApplyTemplate('${t.id}')">Usar como base</button>
+      <button class="adm-btn adm-btn-red" style="padding:6px 8px" onclick="hcDeleteTemplate('${t.id}')">${IC.trash}</button>
+    </div>`).join('') : `<p style="font-size:12px;color:var(--text3);margin:0">Todavía no guardaste ninguna plantilla. Armá un plan y tocá "Guardar como plantilla" para empezar tu biblioteca.</p>`;
   const copyPickerHTML = adminState.planCopyPickerOpen ? `<div style="background:var(--surface2);border:1px dashed var(--border2);border-radius:var(--radius-sm);padding:12px;margin-bottom:16px">
-    <input class="adm-inp" placeholder="Buscar alumno..." value="${escH(hcPlanCopySearch||'')}" oninput="hcPlanCopySearch=this.value;renderModal()" style="margin-bottom:10px">
-    ${otherStudents.length ? otherStudents.map(s=>`<div class="user-row" style="margin-bottom:6px">
-        <div class="user-row-info"><div class="user-row-name">${escH(s.name)}</div></div>
-        <button class="adm-btn adm-btn-orange" style="padding:6px 10px" onclick="hcCopyPlanFrom('${s.id}')">Usar como base</button>
-      </div>`).join('') : `<p style="font-size:12px;color:var(--text3);margin:0">No hay alumnos activos que coincidan. (Los alumnos pendientes de aprobación no aparecen acá.)</p>`}
+    ${pickerTabs}
+    <input class="adm-inp" placeholder="${hcPlanCopyTab==='alumnos'?'Buscar alumno...':'Buscar plantilla...'}" value="${escH(hcPlanCopySearch||'')}" oninput="hcPlanCopySearch=this.value;renderModal()" style="margin-bottom:10px">
+    ${hcPlanCopyTab==='alumnos'?alumnosListHTML:templatesListHTML}
   </div>` : '';
 
   return `<div>
@@ -2919,7 +2987,10 @@ function renderAdminPlan(){
       <div><div style="font-family:'Oswald',sans-serif;font-size:16px;font-weight:700">${escH(u.name)}</div></div>
     </div>
 
-    <button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;margin-bottom:16px" onclick="hcTogglePlanCopyPicker()">📋 ${adminState.planCopyPickerOpen?'Cancelar':'Copiar plan de otro alumno como base'}</button>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center" onclick="hcTogglePlanCopyPicker()">📋 ${adminState.planCopyPickerOpen?'Cancelar':'Usar plan existente como base'}</button>
+      <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center" onclick="hcSaveAsTemplate()">💾 Guardar como plantilla</button>
+    </div>
     ${copyPickerHTML}
 
     <div class="admin-section-title" style="margin-bottom:8px">NOMBRE DEL BLOQUE</div>
