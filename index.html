@@ -1220,7 +1220,8 @@ function navBarHTML(showBack=false,backFn=''){
 
 function userMenuHTML(){
   const club=getClub();
-  const fichaItem = club==='hybrid' ? `<div class="user-menu-item" onclick="closeUserMenu();hcOpenFicha()">📋 Mi ficha</div>` : '';
+  const fichaItem = club==='hybrid' ? `<div class="user-menu-item" onclick="closeUserMenu();hcOpenFicha()">📋 Mi ficha</div>
+    <div class="user-menu-item" onclick="closeUserMenu();hcOpenLlamadas()">📞 Videollamadas</div>` : '';
   return `<div class="user-menu-overlay" onclick="closeUserMenu()"></div>
   <div class="user-menu">
     <div class="user-menu-name">${escH(session.name)}</div>
@@ -1290,6 +1291,20 @@ function renderAuth(){
   return renderRegister(logoImg);
 }
 
+function pwToggle(id){
+  const el=document.getElementById(id);
+  const btn=document.getElementById(id+'-eye');
+  if(!el) return;
+  if(el.type==='password'){ el.type='text'; if(btn) btn.textContent='🙈'; }
+  else { el.type='password'; if(btn) btn.textContent='👁'; }
+}
+function pwFieldHTML(id, placeholder, oninput, onkeydown){
+  return `<div style="position:relative">
+    <input class="auth-inp" style="padding-right:44px" type="password" placeholder="${placeholder}" id="${id}" oninput="${oninput}" onkeydown="${onkeydown}">
+    <button type="button" id="${id}-eye" onclick="pwToggle('${id}')" style="position:absolute;right:2px;top:0;height:48px;width:38px;background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px">👁</button>
+  </div>`;
+}
+
 function renderLogin(logoImg){
   const club=getClub();
   const title = club==='hybrid' ? `FUSIÓN<span>HYBRID CLUB</span>` : `FUSION<span>STUDIO</span>`;
@@ -1301,7 +1316,7 @@ function renderLogin(logoImg){
       <div class="auth-card-title">INICIAR SESIÓN</div>
       ${authState.err?`<div class="auth-err">${escH(authState.err)}</div>`:''}
       <input class="auth-inp" type="email" placeholder="Email" id="a-email" value="${escH(authState.email)}" oninput="authState.email=this.value" onkeydown="if(event.key==='Enter')document.getElementById('a-pw').focus()">
-      <input class="auth-inp" type="password" placeholder="Contraseña" id="a-pw" oninput="authState.pw=this.value" onkeydown="if(event.key==='Enter')doLogin()">
+      ${pwFieldHTML('a-pw','Contraseña',"authState.pw=this.value","if(event.key==='Enter')doLogin()")}
       <button class="auth-btn" onclick="doLogin()" ${authState.loading?'disabled':''}>ENTRAR</button>
     </div>
     <div class="auth-link" onclick="switchAuth('register')">¿No tenés cuenta? <span>Registrate</span></div>
@@ -1321,8 +1336,8 @@ function renderRegister(logoImg){
       ${authState.err?`<div class="auth-err">${escH(authState.err)}</div>`:''}
       <input class="auth-inp" type="text" placeholder="Nombre completo" id="a-name" value="${escH(authState.name)}" oninput="authState.name=this.value" onkeydown="if(event.key==='Enter')document.getElementById('a-reg-email').focus()">
       <input class="auth-inp" type="email" placeholder="Email" id="a-reg-email" value="${escH(authState.email)}" oninput="authState.email=this.value" onkeydown="if(event.key==='Enter')document.getElementById('a-reg-pw').focus()">
-      <input class="auth-inp" type="password" placeholder="Contraseña" id="a-reg-pw" oninput="authState.pw=this.value" onkeydown="if(event.key==='Enter')document.getElementById('a-reg-pw2').focus()">
-      <input class="auth-inp" type="password" placeholder="Repetir contraseña" id="a-reg-pw2" oninput="authState.pw2=this.value" onkeydown="if(event.key==='Enter')doRegister()">
+      ${pwFieldHTML('a-reg-pw','Contraseña',"authState.pw=this.value","if(event.key==='Enter')document.getElementById('a-reg-pw2').focus()")}
+      ${pwFieldHTML('a-reg-pw2','Repetir contraseña',"authState.pw2=this.value","if(event.key==='Enter')doRegister()")}
       <button class="auth-btn" onclick="doRegister()" ${authState.loading?'disabled':''}>CREAR CUENTA</button>
     </div>
     <div class="auth-link" onclick="switchAuth('login')">¿Ya tenés cuenta? <span>Iniciá sesión</span></div>
@@ -1484,18 +1499,26 @@ async function hcCancelCall(slotId){
 
 // ---- Plan del alumno (día/semana/mes) ----
 let hcOwnPlan=null, hcOwnBlockName='', hcOwnPlanUid=null;
+let hcOwnArchived=null;
 let hcPlanView={ mode:'semana', week:0, day:0 };
+let hcArchView={ open:false, blockId:null, week:0 };
 
 async function hcOpenPlan(){
   if(hcOwnPlanUid!==session.uid){
     hcOwnPlan = hcNormalizePlan(await personalGet(K.HC_PLAN(session.uid)) || []);
     hcOwnBlockName = await personalGet(K.HC_BLOCK_NAME(session.uid)) || '';
+    hcOwnArchived = await personalGet(K.HC_BLOCKS(session.uid)) || [];
     hcOwnPlanUid = session.uid;
     hcPlanView={ mode:'semana', week:0, day:0 };
+    hcArchView={ open:false, blockId:null, week:0 };
   }
   hcState.tab='plan';
   render();
 }
+function hcToggleArchivedList(){ hcArchView.open=!hcArchView.open; hcArchView.blockId=null; render(); }
+function hcViewArchivedBlock(id){ hcArchView.blockId=id; hcArchView.week=0; render(); }
+function hcBackToArchivedList(){ hcArchView.blockId=null; render(); }
+function hcSetArchWeek(i){ hcArchView.week=i; render(); }
 function hcSetPlanViewMode(m){ hcPlanView.mode=m; render(); }
 function hcSetPlanViewWeek(i){ hcPlanView.week=i; hcPlanView.day=0; render(); }
 function hcSetPlanViewDay(i){ hcPlanView.day=i; render(); }
@@ -1571,9 +1594,6 @@ function hcTabBarHTML(){
     </div>
     <div class="tab-bar-item ${hcState.tab==='carreras'?'active':''}" onclick="hcOpenCarreras()">
       <div class="tab-bar-icon">🏁</div>Carreras
-    </div>
-    <div class="tab-bar-item ${hcState.tab==='llamadas'?'active':''}" onclick="hcOpenLlamadas()">
-      <div class="tab-bar-icon">📞</div>Llamadas
     </div>
     <div class="tab-bar-item ${hcState.tab==='chat'?'active':''}" style="position:relative" onclick="hcOpenChat()">
       <div class="tab-bar-icon">💬</div>Chat
@@ -1681,10 +1701,54 @@ function hcDayCardHTML(wi,di,day){
   </div>`;
 }
 
+// Versión de solo lectura (bloques archivados) — sin campo de anotación editable.
+function hcExReadOnlyHTML(ex){
+  const rowsHTML=ex.rows.map(r=>`<div style="font-size:12px;color:var(--text2);margin-top:2px">• ${escH(String(r.series))} x ${escH(r.reps)} ${r.rpe?escH(r.rpe):''}</div>`).join('');
+  return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px">
+    <div style="font-size:13px;font-weight:600">${escH(ex.name)}</div>
+    ${rowsHTML}
+    ${ex.notes?`<div style="font-size:11px;color:var(--orange2);background:var(--orange-dim2);border-radius:var(--radius-sm);padding:8px 10px;margin-top:8px;white-space:pre-line;line-height:1.5">🗣️ ${escH(ex.notes)}</div>`:''}
+    ${ex.studentNotes?`<div style="font-size:11px;color:var(--text2);background:var(--surface3);border-radius:var(--radius-sm);padding:8px 10px;margin-top:8px;white-space:pre-line;line-height:1.5">📝 ${escH(ex.studentNotes)}</div>`:''}
+  </div>`;
+}
+function hcDayCardReadOnlyHTML(day){
+  const exList = day.exercises.length ? day.exercises.map(ex=>hcExReadOnlyHTML(ex)).join('') : `<div style="font-size:11px;color:var(--text3);padding:4px 0 12px">Sin ejercicios cargados</div>`;
+  return `<div style="margin-bottom:16px">
+    <div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:1px;color:var(--orange);text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">${escH(day.name)}</div>
+    ${exList}
+  </div>`;
+}
+
+function renderHcArchivedBrowser(){
+  const list=hcOwnArchived||[];
+  if(!hcArchView.blockId){
+    return `<button class="adm-btn adm-btn-ghost" style="margin-bottom:14px;gap:8px" onclick="hcToggleArchivedList()">${IC.back} Volver a mi plan actual</button>
+    ${list.length ? list.slice().reverse().map(b=>`<div class="user-row" style="margin-bottom:8px;cursor:pointer" onclick="hcViewArchivedBlock('${b.id}')">
+        <div class="user-row-info">
+          <div class="user-row-name">${escH(b.name)}</div>
+          <div class="user-row-email">${new Date(b.archivedAt).toLocaleDateString('es-AR')} · ${b.plan.length} semana(s)</div>
+        </div>
+      </div>`).join('') : `<div style="text-align:center;padding:32px 0;color:var(--text3)">Todavía no tenés bloques archivados</div>`}`;
+  }
+  const blk=list.find(b=>b.id===hcArchView.blockId);
+  if(!blk) return '';
+  const wi=Math.min(hcArchView.week, blk.plan.length-1);
+  const week=blk.plan[wi];
+  const weekTabs = blk.plan.length>1 ? `<div class="prog-week-tabs" style="margin-bottom:12px">${blk.plan.map((w,i)=>`<div class="prog-week-tab ${wi===i?'active':''}" onclick="hcSetArchWeek(${i})">S${i+1}</div>`).join('')}</div>` : '';
+  return `<button class="adm-btn adm-btn-ghost" style="margin-bottom:14px;gap:8px" onclick="hcBackToArchivedList()">${IC.back} Volver a bloques archivados</button>
+    <div style="font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;margin-bottom:4px">${escH(blk.name)}</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:16px">Archivado el ${new Date(blk.archivedAt).toLocaleDateString('es-AR')}</div>
+    ${weekTabs}
+    ${week ? week.days.map(d=>hcDayCardReadOnlyHTML(d)).join('') : ''}`;
+}
+
 function renderHcPlanBody(){
+  if(hcArchView.open) return renderHcArchivedBrowser();
+
   const plan=hcOwnPlan||[];
+  const archButton = `<button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;margin-bottom:16px" onclick="hcToggleArchivedList()">📦 Bloques anteriores${hcOwnArchived&&hcOwnArchived.length?' ('+hcOwnArchived.length+')':''}</button>`;
   if(!hcHasAnyContent(plan)&&!hcOwnBlockName){
-    return `<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="font-size:32px;margin-bottom:10px">📅</div>Tu profe todavía no cargó tu planificación</div>`;
+    return `<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="font-size:32px;margin-bottom:10px">📅</div>Tu profe todavía no cargó tu planificación</div>${archButton}`;
   }
   const wi=Math.min(hcPlanView.week, Math.max(0,plan.length-1));
   const week=plan[wi];
@@ -1707,7 +1771,8 @@ function renderHcPlanBody(){
   }
 
   return `${hcOwnBlockName?`<div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">BLOQUE ACTUAL</div><div style="font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;margin-bottom:16px">${escH(hcOwnBlockName)}</div>`:''}
-  ${modeToggle}${content}`;
+  ${modeToggle}${content}
+  <div style="margin-top:20px">${archButton}</div>`;
 }
 
 function renderHybridHome(){
@@ -1750,7 +1815,7 @@ async function hcSaveOwnFicha(){
 
 // ---- Ficha de alumno: campos + foto (compartido Alumno/Admin) ----
 const FICHA_FIELDS = [
-  { key:'edad', label:'Edad', type:'number', suffix:'años' },
+  { key:'fechaNacimiento', label:'Fecha de nacimiento', type:'date' },
   { key:'altura', label:'Altura', type:'number', suffix:'cm' },
   { key:'peso', label:'Peso', type:'number', suffix:'kg' },
   { key:'objetivo', label:'Objetivo', type:'text' },
@@ -1758,6 +1823,16 @@ const FICHA_FIELDS = [
   { key:'capacidadAerobica', label:'Capacidad aeróbica', type:'textarea' },
   { key:'vo2max', label:'VO2 Max', type:'number', suffix:'ml/kg/min' },
 ];
+function hcCalcAge(dob){
+  if(!dob) return null;
+  const b=new Date(dob+'T00:00:00');
+  if(isNaN(b.getTime())) return null;
+  const t=new Date();
+  let age=t.getFullYear()-b.getFullYear();
+  const m=t.getMonth()-b.getMonth();
+  if(m<0||(m===0&&t.getDate()<b.getDate())) age--;
+  return age;
+}
 
 function compressPhotoAndSet(inputEl, targetObj, onDone){
   const file=inputEl.files&&inputEl.files[0];
@@ -2344,6 +2419,7 @@ function renderUserRow(u){
       ${isPending?`<button class="adm-btn adm-btn-green" style="padding:6px 12px;font-weight:700" onclick="approveUser('${u.id}')">✓ Aprobar</button>`:''}
       ${!isPending&&!isBlocked?`<button class="adm-btn adm-btn-red" style="padding:6px 8px" onclick="blockUser('${u.id}')" title="Bloquear">✕</button>`:''}
       ${isBlocked?`<button class="adm-btn adm-btn-blue" style="padding:6px 8px" onclick="unblockUser('${u.id}')" title="Reactivar">↩</button>`:''}
+      ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="adminResetPassword('${u.id}')" title="Restablecer contraseña">🔑</button>`:''}
       ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserFicha('${u.id}')" title="Ver ficha">📋</button>`:''}
       ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserPlan('${u.id}')" title="Planificación">📅</button>`:''}
       ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px;position:relative" onclick="viewUserChat('${u.id}')" title="Chat">💬${chatPending?'<span style="position:absolute;top:2px;right:2px;width:7px;height:7px;border-radius:50%;background:var(--red)"></span>':''}</button>`:''}`;
@@ -2351,6 +2427,7 @@ function renderUserRow(u){
       ${isPending?`<button class="adm-btn adm-btn-green" style="padding:6px 12px;font-weight:700" onclick="approveUser('${u.id}')">✓ Aprobar</button>`:''}
       ${!isPending&&!isBlocked?`<button class="adm-btn adm-btn-red" style="padding:6px 8px" onclick="blockUser('${u.id}')" title="Bloquear">✕</button>`:''}
       ${isBlocked?`<button class="adm-btn adm-btn-blue" style="padding:6px 8px" onclick="unblockUser('${u.id}')" title="Reactivar">↩</button>`:''}
+      ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="adminResetPassword('${u.id}')" title="Restablecer contraseña">🔑</button>`:''}
       ${!isPending?`<button class="adm-btn adm-btn-blue" style="padding:6px 8px" onclick="impersonateUser('${u.id}')" title="Entrar como alumno">👤</button>`:''}
       ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserProgress('${u.id}')" title="Ver progreso">${IC.eye}</button>`:''}`;
   return `<div class="user-row">
@@ -2380,6 +2457,19 @@ async function blockUser(id){
 async function unblockUser(id){
   await loadUsers(); users[id].status=STATUS.ACTIVE; await saveUsers();
   renderModal(); showToast('✅ Usuario reactivado');
+}
+async function adminResetPassword(id){
+  const u=getUserById(id);
+  const newPw=prompt('Nueva contraseña para '+(u?u.name:'este alumno')+' (mínimo 4 caracteres). Se la vas a tener que pasar vos por fuera de la app:');
+  if(newPw===null) return;
+  const clean=newPw.trim();
+  if(clean.length<4){ alert('La contraseña tiene que tener al menos 4 caracteres.'); return; }
+  try{
+    await loadUsers();
+    users[id].hash=hashStr(clean);
+    await saveUsers();
+    alert('✅ Contraseña actualizada. Nueva contraseña: '+clean+'\n\nPasásela al alumno para que pueda entrar de nuevo.');
+  }catch(e){ alert('Error al actualizar la contraseña: '+e.message); }
 }
 
 let viewProgData=null;
@@ -2536,9 +2626,13 @@ function goBackFromFicha(){
 function renderAdminFicha(){
   const u=getUserById(adminState.viewFichaUid);
   if(!u) return '';
+  const p=adminFichaProfile||{};
+  const age=hcCalcAge(p.fechaNacimiento);
+  const ageBadge=age!=null?`<span style="background:var(--surface2);border:1px solid var(--border2);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--text2);font-weight:600">${age} años</span>`:'';
   return `<div>
     <button class="adm-btn adm-btn-ghost" style="margin-bottom:14px;gap:8px" onclick="goBackFromFicha()">${IC.back} Volver a usuarios</button>
-    ${renderFichaForm(adminFichaProfile||{}, u.id, {onSave:'adminSaveFicha', ownerLabel:u.name})}
+    ${ageBadge?`<div style="margin-bottom:14px">${ageBadge}</div>`:''}
+    ${renderFichaForm(p, u.id, {onSave:'adminSaveFicha', ownerLabel:u.name})}
   </div>`;
 }
 
@@ -2658,7 +2752,8 @@ function goBackFromPlan(){
     if(modal) modal.scrollTop=adminState.savedScroll;
   });
 }
-function hcTogglePlanCopyPicker(){ adminState.planCopyPickerOpen=!adminState.planCopyPickerOpen; renderModal(); }
+let hcPlanCopySearch='';
+function hcTogglePlanCopyPicker(){ adminState.planCopyPickerOpen=!adminState.planCopyPickerOpen; hcPlanCopySearch=''; renderModal(); }
 async function hcCopyPlanFrom(sourceUid){
   const srcUser=getUserById(sourceUid);
   const dstUser=getUserById(adminState.viewPlanUid);
@@ -2808,12 +2903,13 @@ function renderAdminPlan(){
       <button class="adm-btn adm-btn-ghost" style="padding:6px 10px" onclick="hcRestoreBlock('${b.id}')">Restaurar</button>
     </div>`).join('')}` : '';
 
-  const otherStudents=Object.values(users).filter(x=>(x.club||'fuerza')==='hybrid' && x.id!==u.id && x.status===STATUS.ACTIVE);
+  const otherStudents=Object.values(users).filter(x=>(x.club||'fuerza')==='hybrid' && x.id!==u.id && x.status===STATUS.ACTIVE && x.name.toLowerCase().includes((hcPlanCopySearch||'').toLowerCase()));
   const copyPickerHTML = adminState.planCopyPickerOpen ? `<div style="background:var(--surface2);border:1px dashed var(--border2);border-radius:var(--radius-sm);padding:12px;margin-bottom:16px">
+    <input class="adm-inp" placeholder="Buscar alumno..." value="${escH(hcPlanCopySearch||'')}" oninput="hcPlanCopySearch=this.value;renderModal()" style="margin-bottom:10px">
     ${otherStudents.length ? otherStudents.map(s=>`<div class="user-row" style="margin-bottom:6px">
         <div class="user-row-info"><div class="user-row-name">${escH(s.name)}</div></div>
         <button class="adm-btn adm-btn-orange" style="padding:6px 10px" onclick="hcCopyPlanFrom('${s.id}')">Usar como base</button>
-      </div>`).join('') : `<p style="font-size:12px;color:var(--text3);margin:0">No hay otros alumnos activos en Hybrid Club todavía.</p>`}
+      </div>`).join('') : `<p style="font-size:12px;color:var(--text3);margin:0">No hay alumnos activos que coincidan. (Los alumnos pendientes de aprobación no aparecen acá.)</p>`}
   </div>` : '';
 
   return `<div>
