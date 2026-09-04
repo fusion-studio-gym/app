@@ -1140,6 +1140,24 @@ const IC={
   eyeOff:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
 };
 
+// Set de íconos de línea para Hybrid Club — reemplaza los emoji por algo más "app profesional".
+const HC_ICONS={
+  home:'<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  calendar:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  flag:'<path d="M4 22V4a1 1 0 0 1 1-1h13l-2 5 2 5H6"/>',
+  phone:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  chat:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  clipboard:'<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/>',
+  chart:'<path d="M12 20V10M18 20V4M6 20v-4"/>',
+  file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
+  megaphone:'<path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+  calc:'<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="10" x2="16" y2="18"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/>'
+};
+function hcIcon(name,size,color){
+  size=size||18; color=color||'currentColor';
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${HC_ICONS[name]||''}</svg>`;
+}
+
 // ============================================================
 // TOAST
 // ============================================================
@@ -1248,11 +1266,11 @@ function navBarHTML(showBack=false,backFn=''){
 
 function userMenuHTML(){
   const club=getClub();
-  const fichaItem = club==='hybrid' ? `<div class="user-menu-item" onclick="closeUserMenu();hcOpenFicha()">📋 Mi ficha</div>
-    <div class="user-menu-item" onclick="closeUserMenu();hcOpenMetrics()">📊 Mis métricas</div>
-    <div class="user-menu-item" onclick="closeUserMenu();hcOpenLlamadas()">📞 Videollamadas</div>
-    <div class="user-menu-item" onclick="closeUserMenu();hcOpenDocs()">📄 Documentos</div>
-    <div class="user-menu-item" onclick="closeUserMenu();hcOpenCalc()">🧮 Calculadora de ritmos</div>` : '';
+  const fichaItem = club==='hybrid' ? `<div class="user-menu-item" onclick="closeUserMenu();hcOpenFicha()">${IC.user} Mi ficha</div>
+    <div class="user-menu-item" onclick="closeUserMenu();hcOpenMetrics()">${hcIcon('chart',15)} Mis métricas</div>
+    <div class="user-menu-item" onclick="closeUserMenu();hcOpenLlamadas()">${hcIcon('phone',15)} Videollamadas</div>
+    <div class="user-menu-item" onclick="closeUserMenu();hcOpenDocs()">${hcIcon('file',15)} Documentos</div>
+    <div class="user-menu-item" onclick="closeUserMenu();hcOpenCalc()">${hcIcon('calc',15)} Calculadora de ritmos</div>` : '';
   return `<div class="user-menu-overlay" onclick="closeUserMenu()"></div>
   <div class="user-menu">
     <div class="user-menu-name">${escH(session.name)}</div>
@@ -1798,23 +1816,31 @@ function renderHcChatBody(){
 
 function hcTabBarHTML(){
   const unread=(hcOwnChat||[]).some(m=>m.from==='coach'&&!m.read);
+  const item=(tab,icon,label,onclick)=>{
+    const on=hcState.tab===tab;
+    return `<div class="tab-bar-item ${on?'active':''}" style="position:relative" onclick="${onclick}">
+      <div class="tab-bar-icon" style="display:flex;justify-content:center">${hcIcon(icon,20,on?'#f05a28':'#5a5a5f')}</div>${label}
+      ${tab==='chat'&&unread?'<div style="position:absolute;top:4px;right:calc(50% - 22px);width:8px;height:8px;border-radius:50%;background:var(--red)"></div>':''}
+    </div>`;
+  };
   return `<div class="tab-bar">
-    <div class="tab-bar-item ${hcState.tab==='home'?'active':''}" onclick="hcOpenHome()">
-      <div class="tab-bar-icon">🏠</div>Inicio
-    </div>
-    <div class="tab-bar-item ${hcState.tab==='plan'?'active':''}" onclick="hcOpenPlan()">
-      <div class="tab-bar-icon">📅</div>Plan
-    </div>
-    <div class="tab-bar-item ${hcState.tab==='carreras'?'active':''}" onclick="hcOpenCarreras()">
-      <div class="tab-bar-icon">🏁</div>Carreras
-    </div>
-    <div class="tab-bar-item ${hcState.tab==='chat'?'active':''}" style="position:relative" onclick="hcOpenChat()">
-      <div class="tab-bar-icon">💬</div>Chat
-      ${unread?'<div style="position:absolute;top:4px;right:calc(50% - 22px);width:8px;height:8px;border-radius:50%;background:var(--red)"></div>':''}
-    </div>
+    ${item('home','home','Inicio','hcOpenHome()')}
+    ${item('plan','calendar','Plan','hcOpenPlan()')}
+    ${item('carreras','flag','Carreras','hcOpenCarreras()')}
+    ${item('chat','chat','Chat','hcOpenChat()')}
   </div>`;
 }
 
+function hcCountdownRingSVG(d){
+  const pct = d<=0 ? 1 : Math.max(0.08, Math.min(1, 1-(d/90)));
+  const r=22, c=2*Math.PI*r;
+  const label = d<=0 ? '¡Hoy!' : d;
+  return `<svg width="52" height="52" viewBox="0 0 52 52" style="flex-shrink:0">
+    <circle cx="26" cy="26" r="${r}" fill="none" stroke="#242220" stroke-width="4"/>
+    <circle cx="26" cy="26" r="${r}" fill="none" stroke="#f05a28" stroke-width="4" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-pct)}" transform="rotate(-90 26 26)"/>
+    <text x="26" y="30" text-anchor="middle" font-size="${d<=0?'11':'14'}" font-weight="700" fill="#fff" font-family="Oswald,sans-serif">${label}</text>
+  </svg>`;
+}
 function hcGoalHeroHTML(){
   const races=(hcRaces||[]);
   const ids=(hcGoal&&hcGoal.raceIds)||[];
@@ -1823,14 +1849,19 @@ function hcGoalHeroHTML(){
   const [nearest,...rest]=goalRaces;
   const d=hcDaysUntil(nearest.date);
   const dLabel = d>1 ? `Faltan ${d} días` : d===1 ? 'Falta 1 día' : d===0 ? '¡Es hoy!' : 'Ya pasó';
-  const heroHTML=`<div style="background:linear-gradient(135deg,rgba(240,90,40,0.18),rgba(240,90,40,0.06));border:1px solid rgba(240,90,40,0.4);border-radius:var(--radius);padding:16px;margin-bottom:${rest.length?'10px':'16px'}">
-    <div style="font-size:10px;color:var(--orange2);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">🎯 Tu próximo objetivo</div>
-    <div style="font-family:'Oswald',sans-serif;font-size:17px;font-weight:700">${escH(nearest.name)}</div>
-    <div style="font-size:12px;color:var(--text2);margin-top:2px">${escH(nearest.location||'')} · ${hcFmtDate(nearest.date)}</div>
-    <div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:var(--orange);margin-top:8px">${dLabel}</div>
+  const heroHTML=`<div style="background:linear-gradient(155deg,#171310,#0e0d0c 60%);border:1px solid #2a1f16;border-radius:16px;padding:18px;margin-bottom:${rest.length?'10px':'16px'};position:relative;overflow:hidden">
+    <div style="position:absolute;top:-30px;right:-30px;width:100px;height:100px;border-radius:50%;background:radial-gradient(circle,rgba(240,90,40,0.18),transparent 70%)"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div>
+        <div style="font-size:10px;color:#c9784f;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px">Tu próximo objetivo</div>
+        <div style="font-family:'Oswald',sans-serif;font-size:17px;font-weight:700">${escH(nearest.name)}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">${escH(nearest.location||'')} · ${hcFmtDate(nearest.date)}</div>
+      </div>
+      ${d>=0?hcCountdownRingSVG(d):`<div style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;color:var(--text3);flex-shrink:0">Pasó</div>`}
+    </div>
   </div>`;
   const restHTML = rest.length ? `<div style="margin-bottom:16px">
-    ${rest.map(r=>`<div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:6px">
+    ${rest.map(r=>`<div style="display:flex;justify-content:space-between;align-items:center;background:#131315;border:1px solid #232326;border-radius:12px;padding:10px 12px;margin-bottom:6px">
       <div>
         <div style="font-size:12px;font-weight:600">${escH(r.name)}</div>
         <div style="font-size:10px;color:var(--text3)">${hcFmtDate(r.date)}</div>
@@ -1868,10 +1899,12 @@ function renderHcCarrerasBody(){
 function hcOwnCallHTML(){
   const own=(hcCalls||[]).find(c=>c.uid===session.uid && !hcCallIsPast(c));
   if(!own) return '';
-  return `<div style="background:linear-gradient(135deg,rgba(59,130,246,0.18),rgba(59,130,246,0.06));border:1px solid rgba(59,130,246,0.4);border-radius:var(--radius);padding:16px;margin-bottom:16px">
-    <div style="font-size:10px;color:var(--blue);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">📞 Tu videollamada</div>
-    <div style="font-family:'Oswald',sans-serif;font-size:17px;font-weight:700">${hcFmtDate(own.date)} · ${escH(own.time)}</div>
-    <div style="font-size:12px;color:var(--text2);margin-top:2px">Con ${escH(own.profesor||'el profe')}</div>
+  return `<div style="background:#131315;border:1px solid #232326;border-radius:14px;padding:14px;margin-bottom:16px;display:flex;align-items:center;gap:12px">
+    <div style="width:38px;height:38px;border-radius:10px;background:rgba(59,130,246,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0">${hcIcon('phone',18,'#3b82f6')}</div>
+    <div>
+      <div style="font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase">Tu videollamada</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:15px;font-weight:700">${hcFmtDate(own.date)} · ${escH(own.time)} <span style="font-family:'Inter',sans-serif;font-size:11px;font-weight:400;color:var(--text2)">con ${escH(own.profesor||'el profe')}</span></div>
+    </div>
   </div>`;
 }
 
@@ -1993,15 +2026,15 @@ function renderHybridHome(){
   const hasCall = (hcCalls||[]).some(c=>c.uid===session.uid && !hcCallIsPast(c));
   const showAnn = hcAnnouncement && hcAnnouncement.id!==hcAnnDismissedId;
   const hasTop = hasGoal||hasCall||showAnn;
-  const annHTML = showAnn ? `<div style="background:var(--surface2);border:1px solid var(--orange);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px">
+  const annHTML = showAnn ? `<div style="background:#131315;border:1px solid #2a2a2e;border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 0 1px rgba(240,90,40,0.12)">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
-        <div style="font-size:10px;color:var(--orange2);letter-spacing:1px;text-transform:uppercase">📢 Aviso</div>
-        <div style="font-size:11px;color:var(--text3);cursor:pointer;flex-shrink:0" onclick="hcDismissAnnouncement()">✕ Cerrar</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--orange2);letter-spacing:1px;text-transform:uppercase">${hcIcon('megaphone',13,'#f05a28')} Aviso</div>
+        <div style="font-size:11px;color:var(--text3);cursor:pointer;flex-shrink:0" onclick="hcDismissAnnouncement()">Cerrar</div>
       </div>
       <div style="font-size:13px;white-space:pre-line;line-height:1.5;margin-top:4px">${escH(hcAnnouncement.text)}</div>
     </div>` : '';
-  const welcomeHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px 20px;text-align:center;margin-top:${hasTop?'0':'8px'}">
-      <div style="font-size:36px;margin-bottom:10px">🚧</div>
+  const welcomeHTML = `<div style="background:#131315;border:1px solid #232326;border-radius:16px;padding:26px 20px;text-align:center;margin-top:${hasTop?'0':'8px'}">
+      <div style="width:44px;height:44px;border-radius:12px;background:rgba(240,90,40,0.12);display:flex;align-items:center;justify-content:center;margin:0 auto 14px">${hcIcon('home',22,'#f05a28')}</div>
       <div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;margin-bottom:8px">¡Bienvenido, ${escH(session.name.split(' ')[0])}!</div>
       <p style="font-size:13px;color:var(--text2);line-height:1.5">Completá tu ficha de alumno, marcá tu carrera objetivo y reservá tu videollamada desde las pestañas de abajo. Tu planificación semanal la vas a encontrar en la pestaña "Plan".</p>
     </div>`;
