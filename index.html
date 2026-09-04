@@ -1545,11 +1545,11 @@ function renderHcDocsBody(){
 // - Zonas de remo/ski como ajuste % sobre el ritmo/500m del test de 2 km (esquema UT2/UT1/AT/test/anaeróbico).
 // - Zonas de FC como % de la frecuencia cardíaca máxima.
 const HC_RUN_ZONES = [
-  { label:'Z1 · Recuperación', pctMin:55, pctMax:65 },
-  { label:'Z2 · Aeróbico / Base', pctMin:65, pctMax:75 },
-  { label:'Z3 · Umbral / Tempo', pctMin:75, pctMax:85 },
-  { label:'Z4 · VO2 Máx', pctMin:85, pctMax:100 },
-  { label:'Z5 · Anaeróbico', pctMin:100, pctMax:120 },
+  { label:'Fase I · Recuperación', pctMin:55, pctMax:65 },
+  { label:'Primer Umbral Aeróbico · VT1', pctMin:65, pctMax:75 },
+  { label:'Fase II · Transición entre Umbrales', pctMin:75, pctMax:85 },
+  { label:'Segundo Umbral Anaeróbico · VT2', pctMin:85, pctMax:100 },
+  { label:'Fase III · VO2 Máx', pctMin:100, pctMax:120 },
 ];
 const HC_ERG_ZONES = [
   { label:'Z1 · Recuperación (UT2)', adj:22 },
@@ -1596,7 +1596,7 @@ function hcRunZonesHTML(metros){
     </div>`;
   }).join('');
   return `<div style="margin-bottom:20px">
-    <div class="admin-section-title" style="margin-bottom:4px">🏃 CARRERA — VAM ${vam.toFixed(1)} km/h</div>
+    <div class="admin-section-title" style="margin-bottom:4px;color:var(--text);font-weight:700">🏃 CARRERA — VAM ${vam.toFixed(1)} km/h</div>
     ${rows}
   </div>`;
 }
@@ -1612,7 +1612,7 @@ function hcErgZonesHTML(title, timeStr){
     </div>`;
   }).join('');
   return `<div style="margin-bottom:20px">
-    <div class="admin-section-title" style="margin-bottom:4px">${title} — ritmo base ${hcFmtMinSec(base500)}/500m</div>
+    <div class="admin-section-title" style="margin-bottom:4px;color:var(--text);font-weight:700">${title} — ritmo base ${hcFmtMinSec(base500)}/500m</div>
     ${rows}
   </div>`;
 }
@@ -1627,7 +1627,7 @@ function hcHrZonesHTML(hrMax){
     </div>`;
   }).join('');
   return `<div style="margin-bottom:20px">
-    <div class="admin-section-title" style="margin-bottom:4px">❤️ FRECUENCIA CARDÍACA — máx ${hr} lpm</div>
+    <div class="admin-section-title" style="margin-bottom:4px;color:var(--text);font-weight:700">❤️ FRECUENCIA CARDÍACA — máx ${hr} lpm</div>
     ${rows}
   </div>`;
 }
@@ -1662,13 +1662,13 @@ function hcCalcResultsHTML(){
 function renderHcCalcBody(){
   const s=hcCalcState||{};
   const inputsHTML=`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:20px">
-    <div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">Test VAM 5' (metros)</div>
+    <div style="font-size:11px;color:var(--text);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">Test VAM 5' (metros)</div>
     <input class="auth-inp" type="number" placeholder="ej: 1400" value="${escH(String(s.vamMetros||''))}" oninput="hcCalcSetField('vamMetros',this.value)">
-    <div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">2 Km Row (tiempo)</div>
+    <div style="font-size:11px;color:var(--text);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">2 Km Row (tiempo)</div>
     <input class="auth-inp" placeholder="ej: 7:45" value="${escH(s.row2km||'')}" oninput="hcCalcSetField('row2km',this.value)">
-    <div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">2 Km Sky (tiempo)</div>
+    <div style="font-size:11px;color:var(--text);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">2 Km Sky (tiempo)</div>
     <input class="auth-inp" placeholder="ej: 8:10" value="${escH(s.ski2km||'')}" oninput="hcCalcSetField('ski2km',this.value)">
-    <div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">Pulsaciones máximas</div>
+    <div style="font-size:11px;color:var(--text);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">Pulsaciones máximas</div>
     <input class="auth-inp" type="number" placeholder="ej: 190" style="margin-bottom:0" value="${escH(String(s.hrMax||''))}" oninput="hcCalcSetField('hrMax',this.value)">
   </div>`;
 
