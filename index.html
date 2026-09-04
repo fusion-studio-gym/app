@@ -441,6 +441,9 @@ const K = {
   HC_ANNOUNCEMENT: 'hc_announcement_v1',  // shared: {id,text,ts} | null — mensaje para todos los alumnos
   HC_ANN_DISMISSED: (uid) => `hc_ann_dismissed_${uid}_v1`,  // personal: id del último aviso que el alumno cerró
   HC_TEMPLATES: 'hc_templates_v1',  // shared: [{id,name,plan}] — plantillas de planificación reutilizables
+  HC_DOCS_INDEX: 'hc_docs_index_v1',  // shared: [{id,name,category,size,uploadedAt}] — metadata liviana de documentos
+  HC_DOC_FILE: (id) => `hc_doc_file_${id}_v1`,  // shared: {dataUrl} — el archivo en sí, uno por doc (evita el límite de 1MB agregado)
+  HC_METRICS: (uid) => `hc_metrics_${uid}_v1`,  // personal: métricas físicas del alumno (VAM, remo, ski, fuerza, movilidad)
 };
 const DEFAULT_ADMIN_PW = 'fusion2025';
 const DEFAULT_ADMIN_PW_HYBRID = 'hybrid2025';
@@ -786,6 +789,20 @@ async function loadHcTemplates(){
   hcTemplates.forEach(t=>hcNormalizePlan(t.plan));
 }
 async function saveHcTemplates(){ const ok=await sharedSet(K.HC_TEMPLATES,hcTemplates); lsSet(K.HC_TEMPLATES,hcTemplates); return ok; }
+
+const HC_DOC_MAX_BYTES = 900*1024; // ~900KB crudo — deja margen bajo el límite de 1MB por documento de Firestore una vez codificado en base64
+let hcDocsIndex=null; // [{id,name,category,size,uploadedAt}]
+async function loadHcDocsIndex(){
+  const remote = await sharedGet(K.HC_DOCS_INDEX);
+  if(remote){ hcDocsIndex=remote; lsSet(K.HC_DOCS_INDEX,remote); }
+  else { hcDocsIndex=lsGet(K.HC_DOCS_INDEX)||[]; }
+}
+async function saveHcDocsIndex(){ const ok=await sharedSet(K.HC_DOCS_INDEX,hcDocsIndex); lsSet(K.HC_DOCS_INDEX,hcDocsIndex); return ok; }
+function hcFmtBytes(n){
+  if(n<1024) return n+' B';
+  if(n<1024*1024) return Math.round(n/1024)+' KB';
+  return (n/1024/1024).toFixed(1)+' MB';
+}
 
 
 async function loadPrs(){
@@ -1145,7 +1162,7 @@ function toggleUserMenu(){ if(suppressNextClick){suppressNextClick=false;return;
 function closeUserMenu(){ if(userMenuOpen){userMenuOpen=false;render();} }
 
 // admin state
-let adminState={ open:false, pwOk:false, pwErr:'', tab:0, editWeekIdx:0, editDayIdx:0, editBlockIdx:0, viewUserIdx:null, viewFichaUid:null, viewPlanUid:null, viewChatUid:null, planWeekIdx:0, planDayIdx:0, planCopyPickerOpen:false, viewUserWeek:0, userSubTab:'active', userSearch:'', savedScroll:0, userActivityFilter:'all', impersonating:null };
+let adminState={ open:false, pwOk:false, pwErr:'', tab:0, editWeekIdx:0, editDayIdx:0, editBlockIdx:0, viewUserIdx:null, viewFichaUid:null, viewPlanUid:null, viewChatUid:null, viewMetricsUid:null, planWeekIdx:0, planDayIdx:0, planCopyPickerOpen:false, viewUserWeek:0, userSubTab:'active', userSearch:'', savedScroll:0, userActivityFilter:'all', impersonating:null };
 
 // logo hold
 let logoTimer=null;
@@ -1232,7 +1249,10 @@ function navBarHTML(showBack=false,backFn=''){
 function userMenuHTML(){
   const club=getClub();
   const fichaItem = club==='hybrid' ? `<div class="user-menu-item" onclick="closeUserMenu();hcOpenFicha()">📋 Mi ficha</div>
-    <div class="user-menu-item" onclick="closeUserMenu();hcOpenLlamadas()">📞 Videollamadas</div>` : '';
+    <div class="user-menu-item" onclick="closeUserMenu();hcOpenMetrics()">📊 Mis métricas</div>
+    <div class="user-menu-item" onclick="closeUserMenu();hcOpenLlamadas()">📞 Videollamadas</div>
+    <div class="user-menu-item" onclick="closeUserMenu();hcOpenDocs()">📄 Documentos</div>
+    <div class="user-menu-item" onclick="closeUserMenu();hcOpenCalc()">🧮 Calculadora de ritmos</div>` : '';
   return `<div class="user-menu-overlay" onclick="closeUserMenu()"></div>
   <div class="user-menu">
     <div class="user-menu-name">${escH(session.name)}</div>
@@ -1472,6 +1492,182 @@ async function hcOpenLlamadas(){
   await hcEnsureGoalData();
   hcState.tab='llamadas';
   render();
+}
+let hcOwnMetrics=null, hcOwnMetricsUid=null;
+async function hcOpenMetrics(){
+  if(hcOwnMetricsUid!==session.uid){
+    hcOwnMetrics = await personalGet(K.HC_METRICS(session.uid)) || {fuerza:{}};
+    hcOwnMetricsUid = session.uid;
+  }
+  hcState.tab='metrics';
+  render();
+}
+async function hcSaveOwnMetrics(){
+  try{
+    const ok=await personalSet(K.HC_METRICS(session.uid), hcOwnMetrics);
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+    showToast('✅ Métricas guardadas');
+  }catch(e){ alert('No se pudieron guardar las métricas: '+e.message); }
+}
+function renderHcMetricsBody(){
+  return renderMetricsForm(hcOwnMetrics||{fuerza:{}}, session.uid, {onSave:'hcSaveOwnMetrics'});
+}
+async function hcOpenDocs(){
+  if(!hcDocsIndex) await loadHcDocsIndex();
+  hcState.tab='docs';
+  hcDocsFilter='Todas';
+  render();
+}
+let hcDocsFilter='Todas';
+function hcSetDocsFilter(c){ hcDocsFilter=c; render(); }
+function renderHcDocsBody(){
+  const docs=(hcDocsIndex||[]).slice().sort((a,b)=>b.uploadedAt-a.uploadedAt);
+  if(!docs.length) return `<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="font-size:32px;margin-bottom:10px">📄</div>Tu profe todavía no subió documentos</div>`;
+  const cats=['Todas',...new Set(docs.map(d=>d.category))];
+  const filterHTML=`<div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto">
+    ${cats.map(c=>`<div class="admin-tab ${hcDocsFilter===c?'active':''}" style="flex-shrink:0" onclick="hcSetDocsFilter('${escH(c)}')">${escH(c)}</div>`).join('')}
+  </div>`;
+  const shown=hcDocsFilter==='Todas'?docs:docs.filter(d=>d.category===hcDocsFilter);
+  const listHTML=shown.map(d=>`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="hcOpenDocFile('${d.id}')">
+      <div style="font-size:26px;flex-shrink:0">📄</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600">${escH(d.name)}</div>
+        <div style="font-size:11px;color:var(--text3)">${escH(d.category)} · ${hcFmtBytes(d.size)}</div>
+      </div>
+    </div>`).join('');
+  return `${filterHTML}${listHTML}`;
+}
+
+// ---- Calculadora de Ritmos y Zonas ----
+// Fórmulas estándar y documentadas (no son las internas de Kionox, que no son accesibles):
+// - VAM (Velocidad Aeróbica Máxima) desde test de 5': distancia recorrida / tiempo.
+// - Zonas de carrera como % de la VAM (esquema habitual R1..R5).
+// - Zonas de remo/ski como ajuste % sobre el ritmo/500m del test de 2 km (esquema UT2/UT1/AT/test/anaeróbico).
+// - Zonas de FC como % de la frecuencia cardíaca máxima.
+const HC_RUN_ZONES = [
+  { label:'Z1 · Recuperación', pctMin:55, pctMax:65 },
+  { label:'Z2 · Aeróbico / Base', pctMin:65, pctMax:75 },
+  { label:'Z3 · Umbral / Tempo', pctMin:75, pctMax:85 },
+  { label:'Z4 · VO2 Máx', pctMin:85, pctMax:100 },
+  { label:'Z5 · Anaeróbico', pctMin:100, pctMax:120 },
+];
+const HC_ERG_ZONES = [
+  { label:'Z1 · Recuperación (UT2)', adj:22 },
+  { label:'Z2 · Aeróbico (UT1)', adj:14 },
+  { label:'Z3 · Umbral (AT)', adj:6 },
+  { label:'Z4 · Ritmo de test (2 km)', adj:0 },
+  { label:'Z5 · Anaeróbico / Sprint', adj:-4 },
+];
+const HC_HR_ZONES = [
+  { label:'Z1 · Muy suave', pctMin:50, pctMax:60 },
+  { label:'Z2 · Suave', pctMin:60, pctMax:70 },
+  { label:'Z3 · Moderado', pctMin:70, pctMax:80 },
+  { label:'Z4 · Intenso', pctMin:80, pctMax:90 },
+  { label:'Z5 · Máximo', pctMin:90, pctMax:100 },
+];
+function hcFmtMinSec(totalSeconds){
+  if(totalSeconds==null||!isFinite(totalSeconds)||totalSeconds<=0) return '—';
+  const m=Math.floor(totalSeconds/60);
+  const s=Math.round(totalSeconds%60);
+  return m+':'+String(s).padStart(2,'0');
+}
+function hcParseTimeToSec(str){
+  if(!str) return null;
+  const parts=String(str).trim().split(':').map(x=>parseFloat(x));
+  if(parts.some(isNaN)) return null;
+  if(parts.length===2) return parts[0]*60+parts[1];
+  if(parts.length===1) return parts[0];
+  return null;
+}
+function hcVamKmh(metros){
+  const m=parseFloat(metros);
+  if(!m||m<=0) return null;
+  return (m/300)*3.6; // 5' = 300s; m/s a km/h
+}
+function hcRunZonesHTML(metros){
+  const vam=hcVamKmh(metros);
+  if(!vam) return '';
+  const rows=HC_RUN_ZONES.map(z=>{
+    const speedMin=vam*z.pctMin/100, speedMax=vam*z.pctMax/100;
+    const paceFast=hcFmtMinSec(3600/speedMax), paceSlow=hcFmtMinSec(3600/speedMin);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="font-size:12px;font-weight:600">${z.label}</div>
+      <div style="font-size:13px;color:var(--orange2);font-weight:700">${paceFast} – ${paceSlow} /km</div>
+    </div>`;
+  }).join('');
+  return `<div style="margin-bottom:20px">
+    <div class="admin-section-title" style="margin-bottom:4px">🏃 CARRERA — VAM ${vam.toFixed(1)} km/h</div>
+    ${rows}
+  </div>`;
+}
+function hcErgZonesHTML(title, timeStr){
+  const totalSec=hcParseTimeToSec(timeStr);
+  if(!totalSec) return '';
+  const base500=totalSec/4;
+  const rows=HC_ERG_ZONES.map(z=>{
+    const sec500=base500*(1+z.adj/100);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="font-size:12px;font-weight:600">${z.label}</div>
+      <div style="font-size:13px;color:var(--orange2);font-weight:700">${hcFmtMinSec(sec500)} /500m</div>
+    </div>`;
+  }).join('');
+  return `<div style="margin-bottom:20px">
+    <div class="admin-section-title" style="margin-bottom:4px">${title} — ritmo base ${hcFmtMinSec(base500)}/500m</div>
+    ${rows}
+  </div>`;
+}
+function hcHrZonesHTML(hrMax){
+  const hr=parseFloat(hrMax);
+  if(!hr||hr<=0) return '';
+  const rows=HC_HR_ZONES.map(z=>{
+    const lo=Math.round(hr*z.pctMin/100), hi=Math.round(hr*z.pctMax/100);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="font-size:12px;font-weight:600">${z.label}</div>
+      <div style="font-size:13px;color:var(--orange2);font-weight:700">${lo} – ${hi} lpm</div>
+    </div>`;
+  }).join('');
+  return `<div style="margin-bottom:20px">
+    <div class="admin-section-title" style="margin-bottom:4px">❤️ FRECUENCIA CARDÍACA — máx ${hr} lpm</div>
+    ${rows}
+  </div>`;
+}
+
+let hcCalcState=null;
+async function hcOpenCalc(){
+  if(!hcCalcState){
+    if(hcOwnMetricsUid!==session.uid){
+      hcOwnMetrics = await personalGet(K.HC_METRICS(session.uid)) || {fuerza:{}};
+      hcOwnMetricsUid = session.uid;
+    }
+    hcCalcState = {
+      vamMetros: hcOwnMetrics.vam5Metros || '',
+      row2km: hcOwnMetrics.row2km || '',
+      ski2km: hcOwnMetrics.ski2km || '',
+      hrMax: hcOwnMetrics.pulsacionesMax || '',
+    };
+  }
+  hcState.tab='calc';
+  render();
+}
+function hcCalcSetField(key,val){ hcCalcState[key]=val; render(); }
+function renderHcCalcBody(){
+  const s=hcCalcState||{};
+  const inputsHTML=`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:20px">
+    <div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">Test VAM 5' (metros)</div>
+    <input class="auth-inp" type="number" placeholder="ej: 1400" value="${escH(String(s.vamMetros||''))}" oninput="hcCalcSetField('vamMetros',this.value)">
+    <div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">2 Km Row (tiempo)</div>
+    <input class="auth-inp" placeholder="ej: 7:45" value="${escH(s.row2km||'')}" oninput="hcCalcSetField('row2km',this.value)">
+    <div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">2 Km Sky (tiempo)</div>
+    <input class="auth-inp" placeholder="ej: 8:10" value="${escH(s.ski2km||'')}" oninput="hcCalcSetField('ski2km',this.value)">
+    <div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">Pulsaciones máximas</div>
+    <input class="auth-inp" type="number" placeholder="ej: 190" style="margin-bottom:0" value="${escH(String(s.hrMax||''))}" oninput="hcCalcSetField('hrMax',this.value)">
+  </div>`;
+
+  const results = hcRunZonesHTML(s.vamMetros) + hcErgZonesHTML('🚣 REMO (ROW)', s.row2km) + hcErgZonesHTML('⛷️ SKI ERG', s.ski2km) + hcHrZonesHTML(s.hrMax);
+  const empty = !results ? `<div style="text-align:center;padding:24px 0;color:var(--text3)">Completá al menos un test arriba para ver tus zonas</div>` : '';
+
+  return `${inputsHTML}${results}${empty}
+    <div style="font-size:11px;color:var(--text3);line-height:1.5;margin-top:8px">Estimación con fórmulas estándar de VAM, remo/ski erg y frecuencia cardíaca. Tu profe puede ajustar los porcentajes si hace falta afinarla.</div>`;
 }
 async function hcSetGoal(raceId){
   try{
@@ -1813,6 +2009,12 @@ function renderHybridHome(){
     ? renderHcPlanBody()
     : hcState.tab==='chat'
     ? renderHcChatBody()
+    : hcState.tab==='docs'
+    ? renderHcDocsBody()
+    : hcState.tab==='metrics'
+    ? renderHcMetricsBody()
+    : hcState.tab==='calc'
+    ? renderHcCalcBody()
     : annHTML+hcGoalHeroHTML()+hcOwnCallHTML()+welcomeHTML;
   return `${navBarHTML(false,'')}
   <div class="page" style="padding:20px 16px ${hcState.tab==='chat'?'12px':'90px'}">${body}</div>
@@ -1827,13 +2029,53 @@ async function hcSaveOwnFicha(){
 // ---- Ficha de alumno: campos + foto (compartido Alumno/Admin) ----
 const FICHA_FIELDS = [
   { key:'fechaNacimiento', label:'Fecha de nacimiento', type:'date' },
+  { key:'dni', label:'DNI', type:'text' },
+  { key:'celular', label:'Celular', type:'text' },
+  { key:'email', label:'Email de contacto', type:'text' },
+  { key:'redSocial', label:'Red social (opcional)', type:'text' },
   { key:'altura', label:'Altura', type:'number', suffix:'cm' },
   { key:'peso', label:'Peso', type:'number', suffix:'kg' },
   { key:'objetivo', label:'Objetivo', type:'text' },
-  { key:'testeosFuerza', label:'Testeos de fuerza', type:'textarea' },
-  { key:'capacidadAerobica', label:'Capacidad aeróbica', type:'textarea' },
-  { key:'vo2max', label:'VO2 Max', type:'number', suffix:'ml/kg/min' },
 ];
+
+// ---- Métricas físicas (Hybrid Club) ----
+const FUERZA_TEST_ITEMS = [
+  { key:'backSquat', label:'Back Squat' },
+  { key:'deadlift', label:'Deadlift' },
+  { key:'dominadas', label:'Dominadas' },
+  { key:'bancoPlano', label:'Banco Plano' },
+  { key:'pressMilitar', label:'Press Militar' },
+];
+function metrics_active(uid){ return (session && session.uid===uid) ? hcOwnMetrics : adminMetricsProfile; }
+function metrics_setField(uid,key,val){ const m=metrics_active(uid); if(m) m[key]=val; }
+function metrics_setFuerza(uid,key,val){ const m=metrics_active(uid); if(m){ m.fuerza=m.fuerza||{}; m.fuerza[key]=val; } }
+
+function renderMetricsForm(metrics, uid, opts){
+  const m=metrics||{}; const f=m.fuerza||{};
+  const field=(key,label,type,suffix,placeholder)=>{
+    const val=m[key]!=null?m[key]:'';
+    return `<div style="margin-bottom:12px">
+      <div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">${label}${suffix?` (${suffix})`:''}</div>
+      <input class="auth-inp" type="${type}" placeholder="${placeholder||''}" value="${escH(val.toString())}" oninput="metrics_setField('${uid}','${key}',this.value)">
+    </div>`;
+  };
+  const fuerzaHTML = FUERZA_TEST_ITEMS.map(it=>`<div style="margin-bottom:10px">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:4px">${it.label}</div>
+      <input class="auth-inp" style="margin:0" placeholder="ej: 100 kg x 3" value="${escH(f[it.key]||'')}" oninput="metrics_setFuerza('${uid}','${it.key}',this.value)">
+    </div>`).join('');
+
+  return `<div>
+    ${field('vam5Metros',"Test de VAM 5' (distancia recorrida)",'number','metros')}
+    ${field('pulsacionesMax','Test de Pulsaciones Máximas','number','lpm')}
+    ${field('row2km','2 Km Row (tiempo)','text','', 'ej: 7:45')}
+    ${field('ski2km','2 Km Sky (tiempo)','text','','ej: 8:10')}
+    <div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin:16px 0 10px">Test de fuerza</div>
+    ${fuerzaHTML}
+    <div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin:16px 0 4px">Test de movilidad</div>
+    <textarea class="auth-inp" style="height:70px;padding:10px 14px;resize:vertical;margin-bottom:16px" oninput="metrics_setField('${uid}','movilidad',this.value)">${escH((m.movilidad||'').toString())}</textarea>
+    <button class="auth-btn" onclick="${opts.onSave}('${uid}')">GUARDAR MÉTRICAS</button>
+  </div>`;
+}
 function hcCalcAge(dob){
   if(!dob) return null;
   const b=new Date(dob+'T00:00:00');
@@ -2276,19 +2518,18 @@ async function checkAdminPw(){
 // ADMIN TABS
 function renderAdminBody(){
   if(getClub()==='hybrid'){
-    // Fusión Hybrid Club: solo lo que ya existe hoy — el resto se suma a medida que construimos sus features propias.
-    const tabs=['📊 Dashboard','👥 Usuarios','🏁 Carreras','📞 Llamadas','📢 Aviso','🔑 Contraseña'];
-    const map=[0,1,2,3,4,7]; // reuse renderTabDashboard/renderTabUsers/renderTabHcRaces/renderTabHcCalls/renderTabHcAnnouncement/renderTabPw tab indices below
+    const tabs=['📊 Dashboard','👥 Usuarios','🏁 Carreras','📞 Llamadas','📢 Aviso','📄 Documentos','🔑 Contraseña'];
+    const map=[0,1,2,3,4,5,7]; // reuse renderTabDashboard/renderTabUsers/renderTabHcRaces/renderTabHcCalls/renderTabHcAnnouncement/renderTabHcDocs/renderTabPw tab indices below
     const nav=tabs.map((t,i)=>`<div class="admin-tab ${adminState.tab===map[i]?'active':''}" onclick="setAdminTab(${map[i]})">${t}</div>`).join('');
     let body='';
     if(adminState.tab===1) body=renderTabUsers();
     else if(adminState.tab===2) body=renderTabHcRaces();
     else if(adminState.tab===3) body=renderTabHcCalls();
     else if(adminState.tab===4) body=renderTabHcAnnouncement();
+    else if(adminState.tab===5) body=renderTabHcDocs();
     else if(adminState.tab===7) body=renderTabPw();
     else { adminState.tab=0; body=renderTabDashboard()+renderHcDashboardRaces()+renderHcDashboardCalls()+renderHcDashboardChats(); }
-    return `<div class="admin-nav">${nav}</div>${body}
-      ${(adminState.tab===2||adminState.tab===3||adminState.tab===4)?'':'<div style="margin-top:18px;padding:14px;border:1px dashed var(--border2);border-radius:var(--radius-sm);font-size:12px;color:var(--text3);text-align:center">🚧 La planificación semanal se va a sumar acá a medida que la construimos.</div>'}`;
+    return `<div class="admin-nav">${nav}</div>${body}`;
   }
   const tabs=['📊 Dashboard','👥 Usuarios','📋 Ejercicios','📅 Semanas','📖 RPE','🎯 PRs','📈 Grupo','🔑 Contraseña','🔍 Diagnóstico'];
   const nav=tabs.map((t,i)=>`<div class="admin-tab ${adminState.tab===i?'active':''}" onclick="setAdminTab(${i})">${t}</div>`).join('');
@@ -2306,7 +2547,7 @@ function renderAdminBody(){
 }
 
 async function setAdminTab(i){
-  if(i!==1){ adminState.viewUserIdx=null; adminState.viewFichaUid=null; adminState.viewPlanUid=null; adminState.viewChatUid=null; }
+  if(i!==1){ adminState.viewUserIdx=null; adminState.viewFichaUid=null; adminState.viewPlanUid=null; adminState.viewChatUid=null; adminState.viewMetricsUid=null; }
   adminState.tab=i;
   if(i===0||i===1){
     await loadUsers();
@@ -2326,6 +2567,9 @@ async function setAdminTab(i){
     renderModal();
   } else if(i===4 && getClub()==='hybrid'){
     await loadHcAnnouncement();
+    renderModal();
+  } else if(i===5 && getClub()==='hybrid'){
+    await loadHcDocsIndex();
     renderModal();
   } else if(i===6){
     if(!Object.keys(users).length) await loadUsers();
@@ -2354,6 +2598,7 @@ function renderTabUsers(){
   if(adminState.viewFichaUid) return renderAdminFicha();
   if(adminState.viewPlanUid) return renderAdminPlan();
   if(adminState.viewChatUid) return renderAdminChat();
+  if(adminState.viewMetricsUid) return renderAdminMetrics();
 
   const all=Object.values(users).filter(u=>(u.club||'fuerza')===getClub());
   const pending=all.filter(u=>u.status===STATUS.PENDING);
@@ -2432,6 +2677,7 @@ function renderUserRow(u){
       ${isBlocked?`<button class="adm-btn adm-btn-blue" style="padding:6px 8px" onclick="unblockUser('${u.id}')" title="Reactivar">↩</button>`:''}
       ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="adminResetPassword('${u.id}')" title="Restablecer contraseña">🔑</button>`:''}
       ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserFicha('${u.id}')" title="Ver ficha">📋</button>`:''}
+      ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserMetrics('${u.id}')" title="Métricas">📊</button>`:''}
       ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserPlan('${u.id}')" title="Planificación">📅</button>`:''}
       ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px;position:relative" onclick="viewUserChat('${u.id}')" title="Chat">💬${chatPending?'<span style="position:absolute;top:2px;right:2px;width:7px;height:7px;border-radius:50%;background:var(--red)"></span>':''}</button>`:''}`;
   const actionsFuerza=`
@@ -2644,6 +2890,40 @@ function renderAdminFicha(){
     <button class="adm-btn adm-btn-ghost" style="margin-bottom:14px;gap:8px" onclick="goBackFromFicha()">${IC.back} Volver a usuarios</button>
     ${ageBadge?`<div style="margin-bottom:14px">${ageBadge}</div>`:''}
     ${renderFichaForm(p, u.id, {onSave:'adminSaveFicha', ownerLabel:u.name})}
+  </div>`;
+}
+
+// ---- Admin: Métricas de alumnos (Hybrid Club) ----
+let adminMetricsProfile=null;
+async function viewUserMetrics(uid){
+  const modal=document.querySelector('#modal-root .modal');
+  adminState.savedScroll=modal?modal.scrollTop:0;
+  adminState.viewMetricsUid=uid;
+  adminMetricsProfile=await personalGet(K.HC_METRICS(uid))||{fuerza:{}};
+  renderModal();
+}
+async function adminSaveMetrics(uid){
+  try{
+    const ok=await personalSet(K.HC_METRICS(uid), adminMetricsProfile);
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+    showToast('✅ Métricas guardadas');
+  }catch(e){ alert('Error al guardar las métricas: '+e.message); }
+}
+function goBackFromMetrics(){
+  adminState.viewMetricsUid=null;
+  adminMetricsProfile=null;
+  renderModal();
+  requestAnimationFrame(()=>{
+    const modal=document.querySelector('#modal-root .modal');
+    if(modal) modal.scrollTop=adminState.savedScroll;
+  });
+}
+function renderAdminMetrics(){
+  const u=getUserById(adminState.viewMetricsUid);
+  if(!u) return '';
+  return `<div>
+    <button class="adm-btn adm-btn-ghost" style="margin-bottom:14px;gap:8px" onclick="goBackFromMetrics()">${IC.back} Volver a usuarios</button>
+    ${renderMetricsForm(adminMetricsProfile||{fuerza:{}}, u.id, {onSave:'adminSaveMetrics'})}
   </div>`;
 }
 
@@ -3462,6 +3742,87 @@ async function hcAdmSaveRaces(){
     showToast('✅ Calendario de carreras guardado');
     renderModal();
   }catch(e){ alert('Error al guardar: '+e.message); renderModal(); }
+}
+
+// ---- ADMIN TAB: DOCUMENTOS (Hybrid Club) ----
+const HC_DOC_CATEGORIES = ['General','RPE','Zonas de trabajo','Nutrición','Movilidad','Otro'];
+function renderTabHcDocs(){
+  const docs=(hcDocsIndex||[]).slice().sort((a,b)=>b.uploadedAt-a.uploadedAt);
+  const rows=docs.map(d=>`<div class="user-row" style="margin-bottom:8px">
+      <div class="user-row-info">
+        <div class="user-row-name">${escH(d.name)}</div>
+        <div class="user-row-email">${escH(d.category)} · ${hcFmtBytes(d.size)}</div>
+      </div>
+      <button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="hcOpenDocFile('${d.id}')" title="Ver">${IC.eye}</button>
+      <button class="adm-btn adm-btn-red" style="padding:6px 8px" onclick="hcAdmDeleteDoc('${d.id}')" title="Eliminar">${IC.trash}</button>
+    </div>`).join('');
+
+  return `<div>
+    ${rows||`<p style="font-size:12px;color:var(--text3);margin-bottom:16px">Todavía no subiste ningún documento.</p>`}
+    <div style="background:var(--surface2);border:1px dashed var(--border2);border-radius:var(--radius-sm);padding:14px;margin-top:6px">
+      <div class="admin-section-title" style="margin-bottom:10px">SUBIR DOCUMENTO</div>
+      <input class="adm-inp" id="new-doc-name" placeholder="Nombre (ej: Guía de RPE)" style="margin-bottom:8px">
+      <select class="adm-inp" id="new-doc-category" style="margin-bottom:8px">
+        ${HC_DOC_CATEGORIES.map(c=>`<option value="${escH(c)}">${escH(c)}</option>`).join('')}
+      </select>
+      <input class="adm-inp" id="new-doc-file" type="file" accept="application/pdf,.pdf" style="margin-bottom:8px;padding:10px 14px">
+      <div id="new-doc-status" style="font-size:11px;color:var(--text3);margin-bottom:8px">Máximo ${hcFmtBytes(HC_DOC_MAX_BYTES)} por archivo.</div>
+      <button class="adm-btn adm-btn-orange" onclick="hcAdmUploadDoc()" style="width:100%;justify-content:center">${IC.plus} Subir documento</button>
+    </div>
+  </div>`;
+}
+function hcOpenDocFile(id){
+  (async()=>{
+    try{
+      const file=await sharedGet(K.HC_DOC_FILE(id));
+      if(!file||!file.dataUrl){ alert('No se pudo abrir el documento.'); return; }
+      const w=window.open();
+      if(w) w.location.href=file.dataUrl;
+      else alert('Habilitá las ventanas emergentes para ver el documento.');
+    }catch(e){ alert('Error al abrir el documento: '+e.message); }
+  })();
+}
+async function hcAdmUploadDoc(){
+  const nameEl=document.getElementById('new-doc-name');
+  const catEl=document.getElementById('new-doc-category');
+  const fileEl=document.getElementById('new-doc-file');
+  const statusEl=document.getElementById('new-doc-status');
+  const name=nameEl.value.trim();
+  const file=fileEl.files&&fileEl.files[0];
+  if(!name){ showToast('Ponele un nombre al documento'); return; }
+  if(!file){ showToast('Elegí un archivo'); return; }
+  if(file.size>HC_DOC_MAX_BYTES){
+    alert('El archivo pesa '+hcFmtBytes(file.size)+', y el máximo es '+hcFmtBytes(HC_DOC_MAX_BYTES)+'. Probá comprimirlo (hay compresores de PDF gratis online) y volvé a intentar.');
+    return;
+  }
+  statusEl.textContent='Subiendo...';
+  try{
+    const dataUrl=await new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(reader.result);
+      reader.onerror=()=>reject(new Error('no se pudo leer el archivo'));
+      reader.readAsDataURL(file);
+    });
+    const id='doc_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+    const ok1=await sharedSet(K.HC_DOC_FILE(id), {dataUrl});
+    if(!ok1) throw new Error('no se pudo sincronizar el archivo con el servidor');
+    if(!hcDocsIndex) hcDocsIndex=[];
+    hcDocsIndex.push({ id, name, category:catEl.value, size:file.size, uploadedAt:Date.now() });
+    const ok2=await saveHcDocsIndex();
+    if(!ok2) throw new Error('no se pudo sincronizar el índice con el servidor');
+    showToast('✅ Documento subido');
+    renderModal();
+  }catch(e){ alert('Error al subir el documento: '+e.message); statusEl.textContent='Máximo '+hcFmtBytes(HC_DOC_MAX_BYTES)+' por archivo.'; }
+}
+async function hcAdmDeleteDoc(id){
+  if(!confirm('¿Eliminar este documento? Ya no va a estar disponible para los alumnos.')) return;
+  try{
+    hcDocsIndex=(hcDocsIndex||[]).filter(d=>d.id!==id);
+    const ok=await saveHcDocsIndex();
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+    showToast('Documento eliminado');
+    renderModal();
+  }catch(e){ alert('Error: '+e.message); }
 }
 
 // ---- ADMIN TAB: AVISO (Hybrid Club) ----
