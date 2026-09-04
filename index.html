@@ -1649,7 +1649,16 @@ async function hcOpenCalc(){
   hcState.tab='calc';
   render();
 }
-function hcCalcSetField(key,val){ hcCalcState[key]=val; render(); }
+function hcCalcSetField(key,val){
+  hcCalcState[key]=val;
+  const el=document.getElementById('hc-calc-results');
+  if(el) el.innerHTML=hcCalcResultsHTML();
+}
+function hcCalcResultsHTML(){
+  const s=hcCalcState||{};
+  const results = hcRunZonesHTML(s.vamMetros) + hcErgZonesHTML('🚣 REMO (ROW)', s.row2km) + hcErgZonesHTML('⛷️ SKI ERG', s.ski2km) + hcHrZonesHTML(s.hrMax);
+  return results || `<div style="text-align:center;padding:24px 0;color:var(--text3)">Completá al menos un test arriba para ver tus zonas</div>`;
+}
 function renderHcCalcBody(){
   const s=hcCalcState||{};
   const inputsHTML=`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:20px">
@@ -1663,10 +1672,7 @@ function renderHcCalcBody(){
     <input class="auth-inp" type="number" placeholder="ej: 190" style="margin-bottom:0" value="${escH(String(s.hrMax||''))}" oninput="hcCalcSetField('hrMax',this.value)">
   </div>`;
 
-  const results = hcRunZonesHTML(s.vamMetros) + hcErgZonesHTML('🚣 REMO (ROW)', s.row2km) + hcErgZonesHTML('⛷️ SKI ERG', s.ski2km) + hcHrZonesHTML(s.hrMax);
-  const empty = !results ? `<div style="text-align:center;padding:24px 0;color:var(--text3)">Completá al menos un test arriba para ver tus zonas</div>` : '';
-
-  return `${inputsHTML}${results}${empty}
+  return `${inputsHTML}<div id="hc-calc-results">${hcCalcResultsHTML()}</div>
     <div style="font-size:11px;color:var(--text3);line-height:1.5;margin-top:8px">Estimación con fórmulas estándar de VAM, remo/ski erg y frecuencia cardíaca. Tu profe puede ajustar los porcentajes si hace falta afinarla.</div>`;
 }
 async function hcSetGoal(raceId){
@@ -2055,12 +2061,12 @@ function renderMetricsForm(metrics, uid, opts){
   const field=(key,label,type,suffix,placeholder)=>{
     const val=m[key]!=null?m[key]:'';
     return `<div style="margin-bottom:12px">
-      <div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">${label}${suffix?` (${suffix})`:''}</div>
+      <div style="font-size:11px;color:var(--text);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">${label}${suffix?` (${suffix})`:''}</div>
       <input class="auth-inp" type="${type}" placeholder="${placeholder||''}" value="${escH(val.toString())}" oninput="metrics_setField('${uid}','${key}',this.value)">
     </div>`;
   };
   const fuerzaHTML = FUERZA_TEST_ITEMS.map(it=>`<div style="margin-bottom:10px">
-      <div style="font-size:11px;color:var(--text3);margin-bottom:4px">${it.label}</div>
+      <div style="font-size:11px;color:var(--text);font-weight:700;margin-bottom:4px">${it.label}</div>
       <input class="auth-inp" style="margin:0" placeholder="ej: 100 kg x 3" value="${escH(f[it.key]||'')}" oninput="metrics_setFuerza('${uid}','${it.key}',this.value)">
     </div>`).join('');
 
@@ -2069,9 +2075,9 @@ function renderMetricsForm(metrics, uid, opts){
     ${field('pulsacionesMax','Test de Pulsaciones Máximas','number','lpm')}
     ${field('row2km','2 Km Row (tiempo)','text','', 'ej: 7:45')}
     ${field('ski2km','2 Km Sky (tiempo)','text','','ej: 8:10')}
-    <div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin:16px 0 10px">Test de fuerza</div>
+    <div style="font-size:11px;color:var(--text);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin:16px 0 10px">Test de fuerza</div>
     ${fuerzaHTML}
-    <div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin:16px 0 4px">Test de movilidad</div>
+    <div style="font-size:11px;color:var(--text);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin:16px 0 4px">Test de movilidad</div>
     <textarea class="auth-inp" style="height:70px;padding:10px 14px;resize:vertical;margin-bottom:16px" oninput="metrics_setField('${uid}','movilidad',this.value)">${escH((m.movilidad||'').toString())}</textarea>
     <button class="auth-btn" onclick="${opts.onSave}('${uid}')">GUARDAR MÉTRICAS</button>
   </div>`;
@@ -2115,12 +2121,12 @@ function renderFichaForm(profile, uid, opts){
     const val=p[f.key]!=null?p[f.key]:'';
     if(f.type==='textarea'){
       return `<div style="margin-bottom:12px">
-        <div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">${f.label}</div>
+        <div style="font-size:11px;color:var(--text);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">${f.label}</div>
         <textarea class="auth-inp" style="height:64px;padding:10px 14px;resize:vertical" oninput="ficha_setField('${uid}','${f.key}',this.value)">${escH(val.toString())}</textarea>
       </div>`;
     }
     return `<div style="margin-bottom:12px">
-      <div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">${f.label}${f.suffix?` (${f.suffix})`:''}</div>
+      <div style="font-size:11px;color:var(--text);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">${f.label}${f.suffix?` (${f.suffix})`:''}</div>
       <input class="auth-inp" type="${f.type}" value="${escH(val.toString())}" oninput="ficha_setField('${uid}','${f.key}',this.value)">
     </div>`;
   }).join('');
@@ -2149,7 +2155,7 @@ function renderFichaForm(profile, uid, opts){
       </div>
     </div>
     ${fieldsHTML}
-    <div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin:16px 0 8px">Otros datos</div>
+    <div style="font-size:11px;color:var(--text);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin:16px 0 8px">Otros datos</div>
     <div id="ficha-extra-${uid}">${extraHTML}</div>
     <button class="adm-btn adm-btn-ghost" style="margin-bottom:16px" onclick="ficha_addExtra('${uid}')">+ Agregar campo</button>
     <button class="auth-btn" onclick="${opts.onSave}('${uid}')">GUARDAR FICHA</button>
@@ -3052,6 +3058,28 @@ async function hcTogglePlanCopyPicker(){
   renderModal();
 }
 function hcSetPlanCopyTab(t){ hcPlanCopyTab=t; renderModal(); }
+function hcPlanCopyResultsHTML(){
+  const dstUid=adminState.viewPlanUid;
+  const q=(hcPlanCopySearch||'').toLowerCase();
+  if(hcPlanCopyTab==='alumnos'){
+    const otherStudents=Object.values(users).filter(x=>(x.club||'fuerza')==='hybrid' && x.id!==dstUid && x.status===STATUS.ACTIVE && x.name.toLowerCase().includes(q));
+    return otherStudents.length ? otherStudents.map(s=>`<div class="user-row" style="margin-bottom:6px">
+        <div class="user-row-info"><div class="user-row-name">${escH(s.name)}</div></div>
+        <button class="adm-btn adm-btn-orange" style="padding:6px 10px" onclick="hcCopyPlanFrom('${s.id}')">Usar como base</button>
+      </div>`).join('') : `<p style="font-size:12px;color:var(--text3);margin:0">No hay alumnos activos que coincidan. (Los alumnos pendientes de aprobación no aparecen acá.)</p>`;
+  }
+  const templates=(hcTemplates||[]).filter(t=>t.name.toLowerCase().includes(q));
+  return templates.length ? templates.map(t=>`<div class="user-row" style="margin-bottom:6px">
+      <div class="user-row-info"><div class="user-row-name">${escH(t.name)}</div><div class="user-row-email">${t.plan.length} semana(s)</div></div>
+      <button class="adm-btn adm-btn-orange" style="padding:6px 10px" onclick="hcApplyTemplate('${t.id}')">Usar como base</button>
+      <button class="adm-btn adm-btn-red" style="padding:6px 8px" onclick="hcDeleteTemplate('${t.id}')">${IC.trash}</button>
+    </div>`).join('') : `<p style="font-size:12px;color:var(--text3);margin:0">Todavía no guardaste ninguna plantilla. Armá un plan y tocá "Guardar como plantilla" para empezar tu biblioteca.</p>`;
+}
+function hcPlanCopySearchInput(val){
+  hcPlanCopySearch=val;
+  const el=document.getElementById('hc-plan-copy-results');
+  if(el) el.innerHTML=hcPlanCopyResultsHTML();
+}
 
 // Archiva lo que haya en edición (si tiene contenido) y reemplaza por newPlan/newBlockName.
 // Reutilizado tanto para "copiar de otro alumno" como para "usar plantilla".
@@ -3239,25 +3267,14 @@ function renderAdminPlan(){
       <button class="adm-btn adm-btn-ghost" style="padding:6px 10px" onclick="hcRestoreBlock('${b.id}')">Restaurar</button>
     </div>`).join('')}` : '';
 
-  const otherStudents=Object.values(users).filter(x=>(x.club||'fuerza')==='hybrid' && x.id!==u.id && x.status===STATUS.ACTIVE && x.name.toLowerCase().includes((hcPlanCopySearch||'').toLowerCase()));
-  const templates=(hcTemplates||[]).filter(t=>t.name.toLowerCase().includes((hcPlanCopySearch||'').toLowerCase()));
   const pickerTabs=`<div style="display:flex;gap:6px;margin-bottom:10px">
     <div class="admin-tab ${hcPlanCopyTab==='alumnos'?'active':''}" style="flex:1;text-align:center" onclick="hcSetPlanCopyTab('alumnos')">👤 Alumnos</div>
     <div class="admin-tab ${hcPlanCopyTab==='plantillas'?'active':''}" style="flex:1;text-align:center" onclick="hcSetPlanCopyTab('plantillas')">📐 Plantillas</div>
   </div>`;
-  const alumnosListHTML = otherStudents.length ? otherStudents.map(s=>`<div class="user-row" style="margin-bottom:6px">
-      <div class="user-row-info"><div class="user-row-name">${escH(s.name)}</div></div>
-      <button class="adm-btn adm-btn-orange" style="padding:6px 10px" onclick="hcCopyPlanFrom('${s.id}')">Usar como base</button>
-    </div>`).join('') : `<p style="font-size:12px;color:var(--text3);margin:0">No hay alumnos activos que coincidan. (Los alumnos pendientes de aprobación no aparecen acá.)</p>`;
-  const templatesListHTML = templates.length ? templates.map(t=>`<div class="user-row" style="margin-bottom:6px">
-      <div class="user-row-info"><div class="user-row-name">${escH(t.name)}</div><div class="user-row-email">${t.plan.length} semana(s)</div></div>
-      <button class="adm-btn adm-btn-orange" style="padding:6px 10px" onclick="hcApplyTemplate('${t.id}')">Usar como base</button>
-      <button class="adm-btn adm-btn-red" style="padding:6px 8px" onclick="hcDeleteTemplate('${t.id}')">${IC.trash}</button>
-    </div>`).join('') : `<p style="font-size:12px;color:var(--text3);margin:0">Todavía no guardaste ninguna plantilla. Armá un plan y tocá "Guardar como plantilla" para empezar tu biblioteca.</p>`;
   const copyPickerHTML = adminState.planCopyPickerOpen ? `<div style="background:var(--surface2);border:1px dashed var(--border2);border-radius:var(--radius-sm);padding:12px;margin-bottom:16px">
     ${pickerTabs}
-    <input class="adm-inp" placeholder="${hcPlanCopyTab==='alumnos'?'Buscar alumno...':'Buscar plantilla...'}" value="${escH(hcPlanCopySearch||'')}" oninput="hcPlanCopySearch=this.value;renderModal()" style="margin-bottom:10px">
-    ${hcPlanCopyTab==='alumnos'?alumnosListHTML:templatesListHTML}
+    <input class="adm-inp" placeholder="${hcPlanCopyTab==='alumnos'?'Buscar alumno...':'Buscar plantilla...'}" value="${escH(hcPlanCopySearch||'')}" oninput="hcPlanCopySearchInput(this.value)" style="margin-bottom:10px">
+    <div id="hc-plan-copy-results">${hcPlanCopyResultsHTML()}</div>
   </div>` : '';
 
   return `<div>
