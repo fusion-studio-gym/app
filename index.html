@@ -1264,7 +1264,7 @@ function navBarHTML(showBack=false,backFn=''){
         onmousedown="handleLogoMouseDown()" onmouseup="handleLogoMouseUp()" onmouseleave="cancelLogoHold()"
         ontouchstart="handleLogoTouchStart(event)" ontouchend="handleLogoTouchEnd(event)" ontouchcancel="cancelLogoHold()" ontouchmove="cancelLogoHold()">
       </div>`;
-  const navTitle = club==='hybrid' ? `FUSIÓN<span>HYBRID CLUB</span>` : `FUSION<span>STUDIO</span>`;
+  const navTitle = club==='hybrid' ? `FUSION<span>HYBRID CLUB</span>` : `FUSION<span>STUDIO</span>`;
 
   return `<nav class="nav">
     ${showBack?`<button class="nav-back" onclick="${backFn}">${IC.back}</button>`:`<div class="nav-spacer"></div>`}
@@ -1329,7 +1329,7 @@ function renderClubSelect(){
     </div>
     <div class="club-pick" onclick="selectClub('hybrid')">
       <div class="auth-logo" style="width:64px;height:64px;margin:0 0 12px;background-image:url('${LOGO_HYBRID_URL}');border-color:#FFEC03;box-shadow:0 0 40px rgba(255,236,3,0.3)" oncontextmenu="return false" ondragstart="return false"></div>
-      <div class="club-pick-title">FUSIÓN<span style="color:#FFEC03">HYBRID CLUB</span></div>
+      <div class="club-pick-title">FUSION<span style="color:#FFEC03">HYBRID CLUB</span></div>
       <div class="club-pick-sub">Entrenamiento híbrido (HYROX)</div>
     </div>
   </div>`;
@@ -1373,13 +1373,13 @@ function pwFieldHTML(id, placeholder, oninput, onkeydown){
 
 function renderLogin(logoImg){
   const club=getClub();
-  const title = club==='hybrid' ? `FUSIÓN<span>HYBRID CLUB</span>` : `FUSION<span>STUDIO</span>`;
+  const title = club==='hybrid' ? `FUSION<span>HYBRID CLUB</span>` : `FUSION<span>STUDIO</span>`;
   return `<div class="auth-wrap">
     ${logoImg}
     <h1 class="auth-title">${title}</h1>
     <p class="auth-subtitle">Iniciá sesión para continuar</p>
     <div class="auth-card">
-      <div class="auth-card-title">INICIAR SESIÓN</div>
+      <div class="auth-card-title">INICIAR SESION</div>
       ${authState.err?`<div class="auth-err">${escH(authState.err)}</div>`:''}
       <input class="auth-inp" type="email" placeholder="Email" id="a-email" value="${escH(authState.email)}" oninput="authState.email=this.value" onkeydown="if(event.key==='Enter')document.getElementById('a-pw').focus()">
       ${pwFieldHTML('a-pw','Contraseña',"authState.pw=this.value","if(event.key==='Enter')doLogin()")}
@@ -1392,7 +1392,7 @@ function renderLogin(logoImg){
 
 function renderRegister(logoImg){
   const club=getClub();
-  const title = club==='hybrid' ? `FUSIÓN<span>HYBRID CLUB</span>` : `FUSION<span>STUDIO</span>`;
+  const title = club==='hybrid' ? `FUSION<span>HYBRID CLUB</span>` : `FUSION<span>STUDIO</span>`;
   return `<div class="auth-wrap">
     ${logoImg}
     <h1 class="auth-title">${title}</h1>
@@ -1814,7 +1814,7 @@ function hcChatBubblesHTML(msgs, selfSide){
   return msgs.map(m=>{
     const mine=m.from===selfSide;
     return `<div style="display:flex;justify-content:${mine?'flex-end':'flex-start'};margin-bottom:8px">
-      <div style="max-width:78%;background:${mine?'var(--orange)':'var(--surface2)'};color:${mine?'#fff':'var(--text)'};border:1px solid ${mine?'var(--orange)':'var(--border)'};border-radius:14px;padding:8px 12px;font-size:13px;white-space:pre-line;line-height:1.4">
+      <div style="max-width:78%;background:${mine?'var(--orange)':'var(--surface2)'};color:${mine?'var(--on-accent)':'var(--text)'};border:1px solid ${mine?'var(--orange)':'var(--border)'};border-radius:14px;padding:8px 12px;font-size:13px;white-space:pre-line;line-height:1.4">
         ${escH(m.text)}
         <div style="font-size:9px;opacity:0.7;margin-top:3px;text-align:right">${new Date(m.ts).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
       </div>
@@ -1874,7 +1874,7 @@ function hcGoalHeroHTML(){
         <div style="font-family:var(--font-display);font-size:17px;font-weight:700">${escH(nearest.name)}</div>
         <div style="font-size:12px;color:var(--text2);margin-top:2px">${escH(nearest.location||'')} · ${hcFmtDate(nearest.date)}</div>
       </div>
-      ${d>=0?hcCountdownRingSVG(d):`<div style="font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--text3);flex-shrink:0">Pasó</div>`}
+      ${d>=0?hcCountdownRingSVG(d):`<div style="font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--text3);flex-shrink:0">Paso</div>`}
     </div>
   </div>`;
   const restHTML = rest.length ? `<div style="margin-bottom:16px">
@@ -3057,7 +3057,7 @@ function renderHcDashboardChats(){
 }
 
 // ---- Admin: Planificación personalizada (Hybrid Club) ----
-function hcNewDay(n){ return { id:'d_'+Date.now()+'_'+n, name:'Día '+n, exercises:[] }; }
+function hcNewDay(n){ return { id:'d_'+Date.now()+'_'+n, name:'Dia '+n, exercises:[] }; }
 function hcNewWeek(){ return { id:'w_'+Date.now()+'_'+Math.random().toString(36).slice(2,5), days:[hcNewDay(1)] }; }
 function hcNewSetRow(){ return { series:3, reps:'10', rpe:'' }; }
 function hcNewExercise(){ return { id:'ex_'+Date.now()+'_'+Math.random().toString(36).slice(2,5), name:'Nuevo ejercicio', rows:[hcNewSetRow()], notes:'', studentNotes:'' }; }
