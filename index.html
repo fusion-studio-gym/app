@@ -24,13 +24,30 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
+@font-face {
+  font-family:'UAV OSD Sans Mono';
+  src:url(data:font/ttf;base64,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AAUAAAAAC20QAAAHAA8AFwAfACUAAAETEQMhAxETAwERASEBEQkBExEDIQMREwMBEQEhAREJAREBIREBCbaTk/7ckpKS/tsBJQJJAST+3PiSkpL+25KSkv7cASQCSQEl/tv+SQduASX4kgJJASQCSQEl/tv9t/7c/tsCSQJJAkr9tv23/bcIAAElAkkBJP7c/bf+2/7cAkkCSQJJ/bf9t/23+AABJA7c/tvxJQADAAAAAAttEAAABQANACYAAAkCIREJAhEBIQERCQIRCQERASEBEQkBFRc3IREJAREhATUnAQW2ASX9t/23ASQCSQEl/tv9t/7cAST+3P23AST+3AJJBJICSf23ASWSkgJJ/twBJP7c/tuS/kkCSQEkAkn9t/7cBtsBJQJJAST+3P23/tv23AJJBJIBJQEkBJICSv22+279t/7bAZGS/tz+2/7c/bcBJAGR/koAAQSSC20G2xAAAAcAAAERASERIREBBJIBJP7cAkn9twttASUBJAJK/bb9twABA20AAAgAEAAACwAAIQERASERIQERASERBbb9twJJAkr+2/7bASUBJQJJC20CSv7b/tv0k/7b/twAAAABA20AAAgAEAAACwAAIREhAREBIREhAREBA20BJQEk/tz+2wJJAkr9tgEkASULbQElASX9tvST/bcAAAABAAABJAttDtsAFQAAAREBIREJAREhAREhEQEhEQkBESEBEQSS/JL+3ANt/JMBJANuAkkDbgEk/JMDbf7c/JIBJASS/JMCSQNuA20CSfyTBJL7bgNt/bf8k/yS/bcDbftuAAAAAQEkAkkKSQ22AAsAAAERIREhESERIREhEQSS/JIDbgJJA278kgJJBJICSQSS+279t/tuAAEEkv23BtsCSQAHAAABEQEhESERAQSSAST+3AJJ/bf9twElASQCSf23/bcAAQEkBtsKSQkkAAMAAAERIREBJAklBtsCSf23AAEEkgAABtsCSQADAAAhESERBJICSQJJ/bcAAAABAAAAAArbEAAAAwAAMQEhAQgAAtv4ABAA8AAAAwAAAAAKSRAAAAMACAAQAAAJAREJAiEBGQEBEQEhAREBBtsBJftt/twFJPwA/tz9twJJBbcCSf23AkkBJAgA9twBJApJ/tz22/yTAkkLbQJK/bb0k/23AAECSQAACSQQAAAKAAAhESERIREBIREhEQJJAkn9twJJAkkCSQJJCSQCSQJK8kn9twAAAAABAAAAAAttEAAAEAAAMREBEQEhAREhEQEhAREBIREJJP7c+23+3P23AkkG2wJJ+AAIAAJJCSQBJQEk/tz+2wJJAkr9tvyT+AD9twAAAQAAAAALbRAAABwAACEBESERASEBEQEhESEBEQEhAREhEQEhAREJAREBAkn9twJJASQEkwEk/tz8kgNuAST+3Ptt/tz9twJJBtsCSf7cAST9twJJAkn+2/7cASQCSQElAkkBJQJJAST+3P7bAkkCSv22+27+3P7b+279twAAAAABAAAAAAttEAAAEQAAIREhEQEhESEBESERIREhESERCAD4AAgAAkn+2/klBbcCSQEk/twCSQW3CAD9tvkl/bcDbvyS/bf9twABAAAAAAttEAAAEwAAIQERIREBIQERASERIREhESEBEQECSf23AkkBJASTAST+3PgACkn4AAbbAkn9twJJA239t/7cASQDbgElCAD9tvyT/bf6Sf23AAAAAgAAAAALbRAAAAcAFAAACQERASEBEQkCEQkBIREhASEBEQEIAAEk/tz7bf7cAST+3P23ASQFtwJJ/tz7bQW3Akn9twJJASQCSQEl/tv9t/7c/bcCSQW3AkkFt/22+279t/tu/bcAAAABAAAAAAttEAAACQAAMREBESERIREBEQkk9twLbfbcAkkJJAJJAkr6Sfbb/twAAAADAAAAAAttEAAABwAPAB0AAAkBEQEhAREJAhEBIQERCQIRCQERASEBEQkBEQEIAAEk/tz7bf7cASQEkwEk/tz7bf7cAST+3P23AST+3AJJBtsCSf7cAST9twJJASQCSQEl/tv9t/7cBtsBJQJJAST+3P23/tv23AJJBJIBJQEkBJICSv22+27+3P7b+279twACAAAAAAttEAAABwAUAAAJAREBIQERCQERIQEhAREBIQERCQEIAAEk/tz7bf7cAST+3AEkBJP6Sf23AkkG2wJJ/tz6SQkkASUCSQEk/tz9t/7b9twCSQSSAkkEkgJK/bb6Sv22+koAAAIEkgJJBtsLbQADAAcAAAERIREBESERBJICSf23AkkCSQJJ/bcG2wJJ/bcAAgSSAAAG2wttAAcACwAAIREBIREhEQEZASERBJIBJP7cAkn9twJJASQBJQJJ/bf9twkkAkn9twABASQBJApJDtsABwAACQIhEQkBEQgA+SQG3AJJ+kkFtwEkBtwG2/7b+kr6Sf7bAAACASQEkgpJC20AAwAHAAABESERAREhEQEkCSX22wklBJICSf23BJICSf23AAEBJAEkCkkO2wAHAAABEQkBESEJAQEkBbf6SQJJBtz5JAEkASUFtwW2ASX5JfkkAAIAAAAAC20QAAADABMAACERIREBEQERASEBESERASEBEQERBJICSf23BJL+3Ptt/tz9twJJBtsCSftuAkn9twSSAkkEkgElAST+3P7bAkkCSv22/JP7bf7cAAAAAgAAASQLbQ7bAAMAHwAAAREhEQkBEQEhAREBIQEhAREBIQERIREhEQEhAREBIREG2/23/bf9twJJBtsCSf7c/bf+2/23/bcCSQJJASUBJAEl/bf7bf23AkkG3AbbAkn9t/pJAkkJJQJJ/bf4AP7bASUCSQJJAkn+3AEk+kkFtwJJ/bf5Jf23/tsAAAACAAAAAAttEAAABQAPAAABEQEhAREBEQEhAREhESERCST9t/23/bf9twNtBJMDbf23+SUIAANtAkn9t/yT+AAMkgNu/JLzbgW2+koAAwAAAAALbRAAAAUACwAUAAAJAREBIREJAREBIREBESEBEQkBEQEIAAEk/tz6SQW3AST+3PpJ/bcJJAJJ/twBJP23AkkBJAJJASX7bgbbASUCSQEk+2723BAA/bb7bv7c/tv7bv23AAABAAAAAAttEAAAEwAAIQERASEBESERASEBEQEhAREhEQECSf23AkkG2wJJ/bf+3Ptt/twBJASTASQCSf23AkkLbQJK/bb9twElAST+3Pbb/twBJAEl/bf9twAAAAIAAAAAC20QAAAFAAsAAAkBEQEhEQERIQERAQbbAkn9t/tu/bcIAANt/JMCSQJJBtsCSfST/bcQAPyS9tv8kwABAAAAAAttEAAACwAAMREhESERIREhESERC2323ASS+24JJBAA/bb7bv23+279twABAAAAAAttEAAACQAAMREhESERIREhEQtt9twEkvtuEAD9tvtu/bf5JQAAAAEAAAAAC20QAAAVAAAhAREBIQERIREBIQERASEBESERIREBAkn9twJJBtsCSf23/tz7bf7cASQEkwEk/twDbf23AkkLbQJK/bb9twElAST+3Pbb/twBJAJJAkr6Sf23AAEAAAAAC20QAAALAAAxESERIREhESERIRECSQbbAkn9t/klEAD5JAbc8AAG2/klAAEAAAAAC20QAAALAAAxESERIREhESERIREEkvtuC237bgSSAkkLbQJK/bb0k/23AAEAAAAAC20QAAAPAAAhAREhEQEhAREhESERIREBAkn9twJJASQCSQEl+24JJP23/bcCSQJJ/tv+3AEkCkkCSv229JP9twAAAAEAAAAAC20QAAAMAAAxESERASERCQERIQERAkkG2wJJ+SUG2/23+SUQAPkkBtz+2/kl+ST+3Abb+SUAAAEAAAAAC20QAAAFAAAxESERIRECSQkkEADySf23AAAAAQAAAAALbRAAAAsAADERIQkBIREhEQkBEQJJA20DbgJJ/bf8kvyTEAD8kgNu8AAMkvySA27zbgABASQAAAttEAAACQAAIREhAREhESEBEQEkAkkFtwJJ/bf6SRAA9JILbvAAC230kwACAAAAAAttEAAABwAPAAAJAREBIQERCQIRASEBEQEIAAEk/tz7bf7cAST+3P23AkkG2wJJ/bcCSQEkCSUBJP7c9tv+3P23AkkLbQJK/bb0k/23AAACAAAAAAttEAAABQANAAAJAREBIREBESEBEQEhEQgAAST+3PpJ/bcJJAJJ/bf5JQkkASUCSQEk+2723BAA/bb7bv23+SUAAAACAAAAAAttEAAACgAYAAAJAREhAREBIQERCQIRASEBEQkBESE1JwcG2/7bASUCSf7c+23+3AEk/tz9twJJBtsCSf7cAST9t5KSAkkBJAJJ/bcJJQEk/tz22/7c/bcCSQttAkr9tvW3/tz+2/7cAZGSAAAAAAIAAAAAC20QAAAFABIAAAkBEQEhEQERIQERASMBESEBIREIAAEk/tz6Sf23CSQCSf23kgLb/bf8kvyTCSQBJQJJAST7bvbcEAD9tvtu/bf6Sf7cBtv5JQABAAAAAAttEAAAGwAAIQERIREBIQERASEBEQEhAREhEQEhAREBIQERAQJJ/bcCSQEkBJMBJP7c+kn9twJJBtsCSf23/tz7bf7cASQFtwJJ/bcCSQJJ/tv+3AEkAkkBJQJJBJICSv22/bcBJQEk/tz9t/7b/bf7bv23AAAAAQAAAAALbRAAAAcAACERIREhESERBJL7bgtt+24NtgJK/bbySgAAAAEAAAAAC20QAAALAAAhAREhEQEhAREhEQECSf23AkkBJASTASQCSf23AkkNt/Nt/twBJAyT8kn9twAAAAEAAAAAC20QAAAKAAAhAREhEQkBESERAQSS+24CSQNtA24CSftuCSQG3PpJ+SQG3AW3+ST23AAAAQAAAAALbRAAAAsAADERIREJAREhESEJAQJJA20DbgJJ/bf8kvyTEADzbQNu/JIMk/AAA238kwABAAAAAAttEAAADwAAMREJAREhCQEhEQkBESEJAQNt/JMCSQNtA24CSfyTA239t/yS/JMBJAbcBtsBJfkkBtz+2/kl+ST+3Abb+SUAAQAAAAALbRAAAAoAACERAREhCQEhEQERBJL7bgJJA20DbgJJ+24FtgklASX5JAbc/tv22/pKAAABAAAAAAttEAAACgAAMREBIREhEQERIREJJPbcC2323AkkBJIJJAJK/JL22/7c/bcAAAAAAQNtAAAIABAAAAcAACERIREhESERA20Ek/22AkoQAP7b8kn+3AAAAAEAkgAAC20QAAADAAAhASEBCJL4AALbCAAQAPAAAAAAAQNtAAAIABAAAAcAACERIREhESERA20CSf23BJMBJA23ASXwAAAAAAEAAAgAC20QAAAHAAAZAQkBESEJAQW2Bbf+3Ptt+24IAAJJBbf6Sf23BJL7bgAAAAEAAAAAC20CSQADAAAxESERC20CSf23AAEDbQttCAAQAAAFAAAJAREhAREG2/ySAtwBtwttA24BJfyS/tsAAAACAAAAAAttEAAABQAPAAABEQEhAREBEQEhAREhESERCST9t/23/bf9twNtBJMDbf23+SUIAANtAkn9t/yT+AAMkgNu/JLzbgW2+koAAwAAAAALbRAAAAUACwAUAAAJAREBIREJAREBIREBESEBEQkBEQEIAAEk/tz6SQW3AST+3PpJ/bcJJAJJ/twBJP23AkkBJAJJASX7bgbbASUCSQEk+2723BAA/bb7bv7c/tv7bv23AAABAAAAAAttEAAAEwAAIQERASEBESERASEBEQEhAREhEQECSf23AkkG2wJJ/bf+3Ptt/twBJASTASQCSf23AkkLbQJK/bb9twElAST+3Pbb/twBJAEl/bf9twAAAAIAAAAAC20QAAAFAAsAAAkBEQEhEQERIQERAQbbAkn9t/tu/bcIAANt/JMCSQJJBtsCSfST/bcQAPyS9tv8kwABAAAAAAttEAAACwAAMREhESERIREhESERC2323ASS+24JJBAA/bb7bv23+279twABAAAAAAttEAAACQAAMREhESERIREhEQtt9twEkvtuEAD9tvtu/bf5JQAAAAEAAAAAC20QAAAVAAAhAREBIQERIREBIQERASEBESERIREBAkn9twJJBtsCSf23/tz7bf7cASQEkwEk/twDbf23AkkLbQJK/bb9twElAST+3Pbb/twBJAJJAkr6Sf23AAEAAAAAC20QAAALAAAxESERIREhESERIRECSQbbAkn9t/klEAD5JAbc8AAG2/klAAEAAAAAC20QAAALAAAxESERIREhESERIREEkvtuC237bgSSAkkLbQJK/bb0k/23AAEAAAAAC20QAAAPAAAhAREhEQEhAREhESERIREBAkn9twJJASQCSQEl+24JJP23/bcCSQJJ/tv+3AEkCkkCSv229JP9twAAAAEAAAAAC20QAAAMAAAxESERASERCQERIQERAkkG2wJJ+SUG2/23+SUQAPkkBtz+2/kl+ST+3Abb+SUAAAEAAAAAC20QAAAFAAAxESERIRECSQkkEADySf23AAAAAQAAAAALbRAAAAsAADERIQkBIREhEQkBEQJJA20DbgJJ/bf8kvyTEAD8kgNu8AAMkvySA27zbgABASQAAAttEAAACQAAIREhAREhESEBEQEkAkkFtwJJ/bf6SRAA9JILbvAAC230kwACAAAAAAttEAAABwAPAAAJAREBIQERCQIRASEBEQEIAAEk/tz7bf7cAST+3P23AkkG2wJJ/bcCSQEkCSUBJP7c9tv+3P23AkkLbQJK/bb0k/23AAACAAAAAAttEAAABQANAAAJAREBIREBESEBEQEhEQgAAST+3PpJ/bcJJAJJ/bf5JQkkASUCSQEk+2723BAA/bb7bv23+SUAAAACAAAAAAttEAAACgAYAAAJAREhAREBIQERCQIRASEBEQkBESE1JwcG2/7bASUCSf7c+23+3AEk/tz9twJJBtsCSf7cAST9t5KSAkkBJAJJ/bcJJQEk/tz22/7c/bcCSQttAkr9tvW3/tz+2/7cAZGSAAAAAAIAAAAAC20QAAAFABIAAAkBEQEhEQERIQERASMBESEBIREIAAEk/tz6Sf23CSQCSf23kgLb/bf8kvyTCSQBJQJJAST7bvbcEAD9tvtu/bf6Sf7cBtv5JQABAAAAAAttEAAAGwAAIQERIREBIQERASEBEQEhAREhEQEhAREBIQERAQJJ/bcCSQEkBJMBJP7c+kn9twJJBtsCSf23/tz7bf7cASQFtwJJ/bcCSQJJ/tv+3AEkAkkBJQJJBJICSv22/bcBJQEk/tz9t/7b/bf7bv23AAAAAQAAAAALbRAAAAcAACERIREhESERBJL7bgtt+24NtgJK/bbySgAAAAEAAAAAC20QAAALAAAhAREhEQEhAREhEQECSf23AkkBJASTASQCSf23AkkNt/Nt/twBJAyT8kn9twAAAAEAAAAAC20QAAAKAAAhAREhEQkBESERAQSS+24CSQNtA24CSftuCSQG3PpJ+SQG3AW3+ST23AAAAQAAAAALbRAAAAsAADERIREJAREhESEJAQJJA20DbgJJ/bf8kvyTEADzbQNu/JIMk/AAA238kwABAAAAAAttEAAADwAAMREJAREhCQEhEQkBESEJAQNt/JMCSQNtA24CSfyTA239t/yS/JMBJAbcBtsBJfkkBtz+2/kl+ST+3Abb+SUAAQAAAAALbRAAAAoAACERAREhCQEhEQERBJL7bgJJA20DbgJJ+24FtgklASX5JAbc/tv22/pKAAABAAAAAAttEAAACgAAMREBIREhEQERIREJJPbcC2323AkkBJIJJAJK/JL22/7c/bcAAAAAAQJJAAAJJBAAABMAACEBEQERAREBIREhAREBEQERASERBbb+3P23AkkBJANu/tz+2/23AkkBJQEkAkkBJAJJBJMCSQEkAkr+2/23/tv9t/23/bf+2/23/twAAAABBJIAAAbbEAAAAwAAIREhEQSSAkkQAPAAAAAAAQJJAAAJJBAAABMAACERIQERAREBEQEhESEBEQERAREBAkkBJAElAkn9t/7b/twDbQElAkn9t/7bASQCSQElAkkCSQJJASUCSQEl/bb+3P23+239t/7c/bcAAAABAAAFtgttCkkADQAAGQEBIQEhASERASEBIQEDbQElAkkBJQJJAST8k/7b/bf+2/23BbYBJQNu/bcCSf7b/JICSv22AAICSQkkCSQQAAADABcAAAERIRkCIREhESERIREhESERIREhESERBtv9t/7b/twBJAElAkkBJQEk/tz+2wttAkn9t/23ASUBJAJJASUBJf7b/tv9t/7c/tsAAAAAAQSS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) format('truetype');
+  font-weight:normal;
+  font-style:normal;
+  font-display:swap;
+}
+</style>
+<style>
 :root {
   --bg:#0a0a0b; --surface:#111113; --surface2:#18181b; --surface3:#222226;
   --border:#2a2a2f; --border2:#38383f;
-  --orange:#f05a28; --orange2:#ff7043; --orange-dim:rgba(240,90,40,0.15); --orange-dim2:rgba(240,90,40,0.08);
+  --orange:#f05a28; --orange2:#ff7043; --orange-rgb:240,90,40; --orange-dim:rgba(var(--orange-rgb),0.15); --orange-dim2:rgba(var(--orange-rgb),0.08);
+  --on-accent:#fff;
+  --font-display:'Oswald',sans-serif;
   --text:#f0f0f0; --text2:#a0a0a8; --text3:#68686f;
   --green:#22c55e; --red:#ef4444; --blue:#3b82f6; --yellow:#f59e0b; --gold:#f59e0b;
   --radius:14px; --radius-sm:8px;
+}
+/* Fusión Hybrid Club runs its own accent palette (amarillo/negro/blanco) y tipografia de marca — Fuerza mantiene naranja/Oswald. */
+body.hc-theme {
+  --orange:#FFEC03; --orange2:#fff45c; --orange-rgb:255,236,3;
+  --on-accent:#000;
+  --font-display:'UAV OSD Sans Mono','Oswald',sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;overscroll-behavior:none;}
@@ -41,13 +58,13 @@ body{max-width:480px;margin:0 auto;}
 .nav-brand{display:flex;align-items:center;gap:10px;cursor:pointer;}
 .nav-logo{width:36px;height:36px;border-radius:50%;border:2px solid var(--orange);overflow:hidden;flex-shrink:0;user-select:none;-webkit-touch-callout:none;-webkit-user-select:none;touch-action:manipulation;position:relative;background-size:cover;background-position:center;}
 .nav-logo::after{content:'';position:absolute;inset:0;z-index:1;}
-.nav-title{font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:2px;}
+.nav-title{font-family:var(--font-display);font-size:18px;font-weight:700;letter-spacing:2px;}
 .nav-title span{color:var(--orange);}
 .nav-back{width:36px;height:36px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;color:var(--text);}
 .nav-back:active{background:var(--surface3);}
 .nav-spacer{width:36px;}
 .nav-user{display:flex;align-items:center;gap:8px;cursor:pointer;}
-.nav-avatar{width:32px;height:32px;border-radius:50%;background:var(--orange-dim);border:1px solid rgba(240,90,40,0.4);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--orange);flex-shrink:0;}
+.nav-avatar{width:32px;height:32px;border-radius:50%;background:var(--orange-dim);border:1px solid rgba(var(--orange-rgb),0.4);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--orange);flex-shrink:0;}
 
 /* PAGES */
 .page{padding:20px 16px 48px;animation:fadeIn .22s ease;}
@@ -55,15 +72,15 @@ body{max-width:480px;margin:0 auto;}
 
 /* AUTH SCREENS */
 .auth-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
-.auth-logo{width:96px;height:96px;border-radius:50%;border:3px solid var(--orange);overflow:hidden;margin-bottom:20px;box-shadow:0 0 40px rgba(240,90,40,0.3);background-size:cover;background-position:center;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation;}
-.auth-title{font-family:'Oswald',sans-serif;font-size:28px;font-weight:700;letter-spacing:3px;text-align:center;margin-bottom:4px;}
+.auth-logo{width:96px;height:96px;border-radius:50%;border:3px solid var(--orange);overflow:hidden;margin-bottom:20px;box-shadow:0 0 40px rgba(var(--orange-rgb),0.3);background-size:cover;background-position:center;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation;}
+.auth-title{font-family:var(--font-display);font-size:28px;font-weight:700;letter-spacing:3px;text-align:center;margin-bottom:4px;}
 .auth-title span{color:var(--orange);}
 .auth-subtitle{font-size:13px;color:var(--text2);text-align:center;margin-bottom:32px;}
 .auth-card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px;width:100%;max-width:360px;}
-.auth-card-title{font-family:'Oswald',sans-serif;font-size:17px;font-weight:700;letter-spacing:1.5px;margin-bottom:18px;color:var(--text);}
+.auth-card-title{font-family:var(--font-display);font-size:17px;font-weight:700;letter-spacing:1.5px;margin-bottom:18px;color:var(--text);}
 .auth-inp{width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:'Inter',sans-serif;font-size:15px;height:48px;border-radius:var(--radius-sm);padding:0 14px;outline:none;transition:border-color .15s;margin-bottom:12px;}
 .auth-inp:focus{border-color:var(--orange);}
-.auth-btn{width:100%;background:linear-gradient(135deg,var(--orange),var(--orange2));color:white;font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;letter-spacing:2px;padding:14px;border:none;border-radius:var(--radius-sm);cursor:pointer;transition:transform .1s;margin-top:4px;}
+.auth-btn{width:100%;background:linear-gradient(135deg,var(--orange),var(--orange2));color:var(--on-accent);font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:2px;padding:14px;border:none;border-radius:var(--radius-sm);cursor:pointer;transition:transform .1s;margin-top:4px;}
 .auth-btn:active{transform:scale(0.98);}
 .auth-link{font-size:13px;color:var(--text2);text-align:center;margin-top:16px;cursor:pointer;}
 .auth-link span{color:var(--orange);font-weight:600;}
@@ -72,22 +89,22 @@ body{max-width:480px;margin:0 auto;}
 .club-pick{width:100%;max-width:360px;background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:22px;margin-bottom:16px;display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:border-color .15s,transform .1s;}
 .club-pick:active{transform:scale(0.98);}
 .club-pick:hover{border-color:var(--orange);}
-.club-pick-title{font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:2px;text-align:center;}
+.club-pick-title{font-family:var(--font-display);font-size:18px;font-weight:700;letter-spacing:2px;text-align:center;}
 .club-pick-title span{color:var(--orange);}
 .club-pick-sub{font-size:12px;color:var(--text3);margin-top:4px;}
-.club-pick-textlogo{width:64px;height:64px;border-radius:50%;border:3px solid var(--orange);margin:0 0 12px;display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-size:28px;font-weight:700;color:var(--orange);box-shadow:0 0 40px rgba(240,90,40,0.3);background:var(--surface2);-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation;}
+.club-pick-textlogo{width:64px;height:64px;border-radius:50%;border:3px solid var(--orange);margin:0 0 12px;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:28px;font-weight:700;color:var(--orange);box-shadow:0 0 40px rgba(var(--orange-rgb),0.3);background:var(--surface2);-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation;}
 .auth-err{font-size:12px;color:var(--red);margin-bottom:10px;padding:8px 12px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:6px;}
 
 /* PENDING SCREEN */
 .pending-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;gap:16px;}
 .pending-icon{font-size:64px;line-height:1;}
-.pending-title{font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;letter-spacing:2px;color:var(--yellow);}
+.pending-title{font-family:var(--font-display);font-size:22px;font-weight:700;letter-spacing:2px;color:var(--yellow);}
 .pending-text{font-size:14px;color:var(--text2);line-height:1.6;max-width:300px;}
 .pending-btn{background:var(--surface2);border:1px solid var(--border2);color:var(--text2);font-family:'Inter',sans-serif;font-size:13px;font-weight:600;padding:10px 20px;border-radius:30px;cursor:pointer;margin-top:8px;}
 
 /* HOME */
 .home-hero{text-align:center;padding:20px 0 24px;}
-.home-hero h1{font-family:'Oswald',sans-serif;font-size:28px;font-weight:700;letter-spacing:3px;line-height:1.1;}
+.home-hero h1{font-family:var(--font-display);font-size:28px;font-weight:700;letter-spacing:3px;line-height:1.1;}
 .home-hero h1 span{color:var(--orange);}
 .home-hero p{font-size:13px;color:var(--text2);margin-top:5px;}
 .home-greeting{font-size:13px;color:var(--text3);margin-bottom:2px;letter-spacing:.5px;}
@@ -96,8 +113,8 @@ body{max-width:480px;margin:0 auto;}
 .week-card:active{transform:scale(0.97);}
 .week-card:hover{border-color:var(--orange);}
 .week-card-header{display:flex;align-items:center;gap:10px;}
-.week-icon{width:38px;height:38px;border-radius:50%;background:var(--orange-dim);border:1px solid rgba(240,90,40,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.week-label{font-family:'Oswald',sans-serif;font-size:16px;font-weight:600;letter-spacing:1px;}
+.week-icon{width:38px;height:38px;border-radius:50%;background:var(--orange-dim);border:1px solid rgba(var(--orange-rgb),0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.week-label{font-family:var(--font-display);font-size:16px;font-weight:600;letter-spacing:1px;}
 .week-sub{font-size:11px;color:var(--text3);}
 .progress-bar-wrap{height:4px;background:var(--surface3);border-radius:2px;overflow:hidden;}
 .progress-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--orange),var(--orange2));transition:width .5s ease;}
@@ -106,37 +123,37 @@ body{max-width:480px;margin:0 auto;}
 
 /* DAY / BLOCK */
 .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;}
-.page-title{font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;letter-spacing:2px;text-align:center;flex:1;}
+.page-title{font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:2px;text-align:center;flex:1;}
 .page-subtitle{font-size:11px;color:var(--orange);text-align:center;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
 .day-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 16px;cursor:pointer;transition:border-color .2s,transform .1s;margin-bottom:12px;display:flex;align-items:center;gap:14px;}
 .day-card:active{transform:scale(0.98);}
 .day-card:hover{border-color:var(--orange);}
-.day-icon-wrap{width:48px;height:48px;border-radius:12px;background:var(--orange-dim);border:1px solid rgba(240,90,40,0.25);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:22px;}
+.day-icon-wrap{width:48px;height:48px;border-radius:12px;background:var(--orange-dim);border:1px solid rgba(var(--orange-rgb),0.25);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:22px;}
 .day-info{flex:1;}
-.day-name{font-family:'Oswald',sans-serif;font-size:16px;font-weight:600;letter-spacing:1px;}
+.day-name{font-family:var(--font-display);font-size:16px;font-weight:600;letter-spacing:1px;}
 .day-days{font-size:12px;color:var(--text2);margin-top:2px;}
 .block-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 16px;cursor:pointer;transition:border-color .2s,transform .1s;display:flex;align-items:center;gap:16px;margin-bottom:12px;}
 .block-card:active{transform:scale(0.98);}
 .block-card:hover{border-color:var(--orange);}
-.block-icon-wrap{width:56px;height:56px;border-radius:14px;background:var(--orange-dim);border:1px solid rgba(240,90,40,0.3);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;transition:transform .2s;}
+.block-icon-wrap{width:56px;height:56px;border-radius:14px;background:var(--orange-dim);border:1px solid rgba(var(--orange-rgb),0.3);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;transition:transform .2s;}
 .block-card:hover .block-icon-wrap{transform:scale(1.08);}
-.block-name{font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;letter-spacing:2px;}
+.block-name{font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:2px;}
 .block-detail{font-size:12px;color:var(--text2);margin-top:4px;}
 
 /* WORKOUT */
 .workout-header{position:sticky;top:0;z-index:90;background:rgba(10,10,11,0.95);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;}
 .workout-info{text-align:center;flex:1;}
 .workout-week{font-size:10px;color:var(--orange);letter-spacing:1.5px;text-transform:uppercase;font-weight:600;}
-.workout-block{font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;letter-spacing:1.5px;}
+.workout-block{font-family:var(--font-display);font-size:16px;font-weight:700;letter-spacing:1.5px;}
 .workout-content{padding:16px 16px 64px;}
 .ex-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;}
 .ex-header{background:var(--surface2);padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px;}
-.ex-order{font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:var(--orange);flex-shrink:0;line-height:1.1;}
-.ex-name{font-family:'Oswald',sans-serif;font-size:15px;font-weight:600;letter-spacing:.5px;line-height:1.3;}
-.combined-tag{display:inline-block;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;background:var(--orange-dim);color:var(--orange);border:1px solid rgba(240,90,40,.3);border-radius:4px;padding:2px 7px;margin-bottom:5px;}
+.ex-order{font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--orange);flex-shrink:0;line-height:1.1;}
+.ex-name{font-family:var(--font-display);font-size:15px;font-weight:600;letter-spacing:.5px;line-height:1.3;}
+.combined-tag{display:inline-block;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;background:var(--orange-dim);color:var(--orange);border:1px solid rgba(var(--orange-rgb),.3);border-radius:4px;padding:2px 7px;margin-bottom:5px;}
 .sets-wrap{padding:10px 12px 12px;}
 .set-row{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:8px;transition:border-color .2s,background .2s;}
-.set-row.done{background:var(--orange-dim2);border-color:rgba(240,90,40,.35);}
+.set-row.done{background:var(--orange-dim2);border-color:rgba(var(--orange-rgb),.35);}
 .set-row-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
 .set-label{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;}
 .set-target{font-size:12px;font-weight:700;background:var(--surface3);border-radius:5px;padding:3px 8px;display:flex;align-items:center;gap:5px;}
@@ -157,7 +174,7 @@ body{max-width:480px;margin:0 auto;}
 .superset-part-name{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .superset-part-name span{flex:1;line-height:1.3;}
 .superset-part.part-done{background:var(--orange-dim2);}
-.finish-btn{width:100%;background:linear-gradient(135deg,var(--orange),var(--orange2));color:white;font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;letter-spacing:3px;padding:16px;border:none;border-radius:var(--radius);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 8px 24px rgba(240,90,40,0.3);transition:transform .15s;margin-top:20px;}
+.finish-btn{width:100%;background:linear-gradient(135deg,var(--orange),var(--orange2));color:var(--on-accent);font-family:var(--font-display);font-size:16px;font-weight:700;letter-spacing:3px;padding:16px;border:none;border-radius:var(--radius);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 8px 24px rgba(var(--orange-rgb),0.3);transition:transform .15s;margin-top:20px;}
 .finish-btn:active{transform:scale(0.97);}
 
 /* USER MENU */
@@ -174,7 +191,7 @@ body{max-width:480px;margin:0 auto;}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeIn .2s ease;}
 .modal{background:var(--surface);border:1px solid var(--border2);border-radius:18px;width:100%;max-width:440px;max-height:90vh;overflow-y:auto;}
 .modal-header{padding:16px 18px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:1;border-radius:18px 18px 0 0;}
-.modal-title{font-family:'Oswald',sans-serif;font-size:17px;font-weight:700;letter-spacing:1.5px;color:var(--orange);}
+.modal-title{font-family:var(--font-display);font-size:17px;font-weight:700;letter-spacing:1.5px;color:var(--orange);}
 .modal-close{width:32px;height:32px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
 .modal-body{padding:18px;}
 
@@ -182,12 +199,12 @@ body{max-width:480px;margin:0 auto;}
 .admin-nav{display:flex;gap:8px;margin-bottom:18px;overflow-x:auto;padding-bottom:4px;}
 .admin-nav::-webkit-scrollbar{height:3px;} .admin-nav::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
 .admin-tab{flex-shrink:0;padding:6px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;}
-.admin-tab.active{background:var(--orange);border-color:var(--orange);color:white;}
+.admin-tab.active{background:var(--orange);border-color:var(--orange);color:var(--on-accent);}
 .admin-section-title{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text3);text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
 
 /* USER MANAGEMENT */
 .user-row{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;}
-.user-row-avatar{width:38px;height:38px;border-radius:50%;background:var(--orange-dim);border:1px solid rgba(240,90,40,0.3);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:var(--orange);flex-shrink:0;}
+.user-row-avatar{width:38px;height:38px;border-radius:50%;background:var(--orange-dim);border:1px solid rgba(var(--orange-rgb),0.3);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:var(--orange);flex-shrink:0;}
 .user-row-info{flex:1;min-width:0;}
 .user-row-name{font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .user-row-email{font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -202,7 +219,7 @@ body{max-width:480px;margin:0 auto;}
 .prog-week-tabs{display:flex;gap:6px;margin-bottom:16px;overflow-x:auto;padding-bottom:4px;}
 .prog-week-tabs::-webkit-scrollbar{height:3px;} .prog-week-tabs::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
 .prog-week-tab{flex-shrink:0;padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;}
-.prog-week-tab.active{background:var(--orange);border-color:var(--orange);color:white;}
+.prog-week-tab.active{background:var(--orange);border-color:var(--orange);color:var(--on-accent);}
 .prog-entry{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:6px;}
 .prog-entry-header{font-size:11px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;}
 .prog-entry-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
@@ -219,7 +236,7 @@ body{max-width:480px;margin:0 auto;}
 .adm-inp-row label{font-size:11px;color:var(--text3);white-space:nowrap;}
 .adm-btn{padding:8px 16px;border-radius:var(--radius-sm);border:none;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .15s,transform .1s;display:inline-flex;align-items:center;gap:6px;}
 .adm-btn:active{transform:scale(0.97);}
-.adm-btn-orange{background:var(--orange);color:white;}
+.adm-btn-orange{background:var(--orange);color:var(--on-accent);}
 .adm-btn-ghost{background:var(--surface2);color:var(--text2);border:1px solid var(--border2);}
 .adm-btn-red{background:rgba(239,68,68,0.15);color:var(--red);border:1px solid rgba(239,68,68,0.3);}
 .adm-btn-green{background:rgba(34,197,94,0.15);color:var(--green);border:1px solid rgba(34,197,94,0.3);}
@@ -234,7 +251,7 @@ body{max-width:480px;margin:0 auto;}
 .type-btn{flex:1;padding:6px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:12px;font-weight:600;cursor:pointer;text-align:center;transition:all .15s;}
 .type-btn.active{background:var(--orange-dim);border-color:var(--orange);color:var(--orange);}
 .pw-wrap{display:flex;flex-direction:column;gap:12px;}
-.pw-wrap h3{font-family:'Oswald',sans-serif;font-size:16px;font-weight:600;letter-spacing:1px;}
+.pw-wrap h3{font-family:var(--font-display);font-size:16px;font-weight:600;letter-spacing:1px;}
 .pw-wrap p{font-size:13px;color:var(--text2);}
 .pw-err{font-size:12px;color:var(--red);}
 
@@ -247,11 +264,11 @@ body{max-width:480px;margin:0 auto;}
 .page-tabbed{padding:20px 16px 80px;}
 
 /* PR SCREEN */
-.pr-hero{background:linear-gradient(135deg,var(--orange-dim),rgba(240,90,40,0.04));border:1px solid rgba(240,90,40,0.3);border-radius:var(--radius);padding:18px 16px;margin-bottom:16px;display:flex;align-items:center;gap:14px;}
+.pr-hero{background:linear-gradient(135deg,var(--orange-dim),rgba(var(--orange-rgb),0.04));border:1px solid rgba(var(--orange-rgb),0.3);border-radius:var(--radius);padding:18px 16px;margin-bottom:16px;display:flex;align-items:center;gap:14px;}
 .pr-hero-icon{font-size:36px;line-height:1;flex-shrink:0;}
 .pr-hero-label{font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;}
-.pr-hero-name{font-family:'Oswald',sans-serif;font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;}
-.pr-hero-weight{font-family:'Oswald',sans-serif;font-size:40px;font-weight:700;color:var(--orange);line-height:1;}
+.pr-hero-name{font-family:var(--font-display);font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.pr-hero-weight{font-family:var(--font-display);font-size:40px;font-weight:700;color:var(--orange);line-height:1;}
 .pr-hero-meta{font-size:11px;color:var(--text3);margin-top:3px;}
 .pr-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
 .pr-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;position:relative;overflow:hidden;}
@@ -261,7 +278,7 @@ body{max-width:480px;margin:0 auto;}
 .pr-ranges{display:flex;flex-direction:column;gap:5px;}
 .pr-range-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .pr-range-label{font-size:10px;color:var(--text3);font-weight:700;letter-spacing:.5px;width:36px;flex-shrink:0;}
-.pr-range-val{font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;color:var(--text);}
+.pr-range-val{font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--text);}
 .pr-range-val span{font-size:11px;color:var(--text3);}
 .pr-range-week{font-size:10px;color:var(--text3);}
 .pr-range-new{font-size:9px;font-weight:800;color:var(--gold);background:rgba(245,158,11,0.12);border-radius:3px;padding:1px 5px;}
@@ -269,11 +286,11 @@ body{max-width:480px;margin:0 auto;}
 
 /* CHART SCREEN */
 .chart-ex-selector{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
-.chart-ex-name{font-family:'Oswald',sans-serif;font-size:15px;font-weight:600;letter-spacing:.5px;}
+.chart-ex-name{font-family:var(--font-display);font-size:15px;font-weight:600;letter-spacing:.5px;}
 .chart-stat-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;}
 .chart-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 8px;text-align:center;}
 .chart-stat-label{font-size:9px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px;}
-.chart-stat-val{font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;}
+.chart-stat-val{font-family:var(--font-display);font-size:20px;font-weight:700;}
 .chart-stat-val.hi{color:var(--orange);}
 .chart-stat-val.gr{color:var(--green);}
 .chart-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 12px 10px;margin-bottom:14px;}
@@ -282,8 +299,8 @@ body{max-width:480px;margin:0 auto;}
 .chart-week-tabs{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:2px;}
 .chart-week-tabs::-webkit-scrollbar{height:3px;} .chart-week-tabs::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
 .chart-week-tab{flex-shrink:0;width:30px;height:30px;border-radius:50%;border:1px solid var(--border2);background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;}
-.chart-week-tab.done{border-color:rgba(240,90,40,0.35);color:var(--orange);}
-.chart-week-tab.active{background:var(--orange);border-color:var(--orange);color:white;}
+.chart-week-tab.done{border-color:rgba(var(--orange-rgb),0.35);color:var(--orange);}
+.chart-week-tab.active{background:var(--orange);border-color:var(--orange);color:var(--on-accent);}
 .chart-week-tab.empty{opacity:.4;}
 .chart-series-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;}
 .chart-series-hdr{background:var(--surface3);padding:7px 12px;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;border-bottom:1px solid var(--border);}
@@ -292,14 +309,14 @@ body{max-width:480px;margin:0 auto;}
 .chart-s-num{font-size:10px;color:var(--text3);width:52px;flex-shrink:0;font-weight:600;}
 .chart-s-bar-wrap{flex:1;height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;}
 .chart-s-bar{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--orange),var(--orange2));}
-.chart-s-val{font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;color:var(--text);width:52px;text-align:right;flex-shrink:0;}
+.chart-s-val{font-family:var(--font-display);font-size:14px;font-weight:700;color:var(--text);width:52px;text-align:right;flex-shrink:0;}
 .chart-s-check{color:var(--green);font-size:13px;flex-shrink:0;width:14px;}
 
 /* Ex picker overlay */
 .ex-picker-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;display:flex;align-items:flex-end;justify-content:center;}
 .ex-picker{background:var(--surface);border:1px solid var(--border2);border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:70vh;overflow-y:auto;padding:8px 0 32px;}
 .ex-picker-handle{width:40px;height:4px;background:var(--border2);border-radius:2px;margin:12px auto 16px;}
-.ex-picker-item{padding:14px 20px;font-family:'Oswald',sans-serif;font-size:16px;font-weight:600;letter-spacing:.5px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s;}
+.ex-picker-item{padding:14px 20px;font-family:var(--font-display);font-size:16px;font-weight:600;letter-spacing:.5px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s;}
 .ex-picker-item:active{background:var(--surface2);}
 .ex-picker-item.selected{color:var(--orange);}
 
@@ -307,12 +324,12 @@ body{max-width:480px;margin:0 auto;}
 .summary-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:300;display:flex;align-items:flex-end;justify-content:center;}
 .summary-sheet{background:var(--surface);border:1px solid var(--border2);border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;padding:0 0 40px;}
 .summary-handle{width:40px;height:4px;background:var(--border2);border-radius:2px;margin:14px auto 0;}
-.summary-hero{background:linear-gradient(135deg,rgba(240,90,40,0.2),rgba(240,90,40,0.04));padding:20px;margin-top:16px;border-bottom:1px solid var(--border);}
+.summary-hero{background:linear-gradient(135deg,rgba(var(--orange-rgb),0.2),rgba(var(--orange-rgb),0.04));padding:20px;margin-top:16px;border-bottom:1px solid var(--border);}
 .summary-block-tag{font-size:10px;color:var(--orange);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;}
-.summary-block-title{font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;letter-spacing:1.5px;margin-bottom:14px;}
+.summary-block-title{font-family:var(--font-display);font-size:22px;font-weight:700;letter-spacing:1.5px;margin-bottom:14px;}
 .summary-stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
 .summary-stat{background:rgba(0,0,0,0.25);border-radius:var(--radius-sm);padding:10px 8px;text-align:center;}
-.summary-stat-val{font-family:'Oswald',sans-serif;font-size:26px;font-weight:700;line-height:1;}
+.summary-stat-val{font-family:var(--font-display);font-size:26px;font-weight:700;line-height:1;}
 .summary-stat-label{font-size:8px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-top:3px;}
 .week-dots{display:flex;gap:4px;flex-wrap:wrap;margin:10px 0 6px;}
 .wdot{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;}
@@ -323,11 +340,11 @@ body{max-width:480px;margin:0 auto;}
 .summary-pr-row:last-child{border-bottom:none;}
 .ranking-row{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);}
 .ranking-row:last-child{border-bottom:none;}
-.rank-pos{font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;width:24px;flex-shrink:0;text-align:center;}
-.rank-avatar{width:32px;height:32px;border-radius:50%;background:var(--orange-dim);border:1px solid rgba(240,90,40,0.3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--orange);flex-shrink:0;}
+.rank-pos{font-family:var(--font-display);font-size:16px;font-weight:700;width:24px;flex-shrink:0;text-align:center;}
+.rank-avatar{width:32px;height:32px;border-radius:50%;background:var(--orange-dim);border:1px solid rgba(var(--orange-rgb),0.3);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--orange);flex-shrink:0;}
 .ex-pill{flex-shrink:0;padding:5px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--surface2);font-size:12px;font-weight:600;cursor:pointer;color:var(--text2);}
-.ex-pill.active{background:var(--orange);border-color:var(--orange);color:white;}
-.summary-close-btn{width:calc(100% - 40px);margin:16px 20px 0;padding:14px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text2);font-family:'Oswald',sans-serif;font-size:15px;font-weight:600;letter-spacing:1px;cursor:pointer;}
+.ex-pill.active{background:var(--orange);border-color:var(--orange);color:var(--on-accent);}
+.summary-close-btn{width:calc(100% - 40px);margin:16px 20px 0;padding:14px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text2);font-family:var(--font-display);font-size:15px;font-weight:600;letter-spacing:1px;cursor:pointer;}
 /* EXPRESS MODE */
 .express-toggle-bar{display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--surface2);border-bottom:1px solid var(--border);}
 .express-toggle-label{font-size:11px;color:var(--text2);font-weight:500;flex:1;}
@@ -344,7 +361,7 @@ body{max-width:480px;margin:0 auto;}
 .express-ex-title{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;}
 .express-sets-wrap{display:flex;gap:6px;flex-wrap:wrap;}
 .express-set-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:60px;}
-.express-set-card.done{background:var(--orange-dim2);border-color:rgba(240,90,40,0.4);}
+.express-set-card.done{background:var(--orange-dim2);border-color:rgba(var(--orange-rgb),0.4);}
 .express-set-num{font-size:9px;font-weight:700;color:var(--text3);letter-spacing:1px;}
 .express-set-target{font-size:9px;color:var(--orange);font-weight:600;}
 .express-kg-inp{width:52px;background:var(--surface3);border:1px solid var(--border2);color:var(--text);font-size:15px;font-weight:700;text-align:center;height:34px;border-radius:6px;outline:none;font-family:'Inter',sans-serif;}
@@ -352,16 +369,16 @@ body{max-width:480px;margin:0 auto;}
 .express-check-btn.checked{background:var(--orange);}
 .express-check-btn.unchecked{background:var(--surface3);}
 .express-block-nav{display:flex;gap:8px;padding:10px 16px;border-top:1px solid var(--border);background:var(--surface2);position:sticky;bottom:48px;}
-.express-nav-btn{flex:1;padding:10px;border-radius:var(--radius-sm);border:none;font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;}
+.express-nav-btn{flex:1;padding:10px;border-radius:var(--radius-sm);border:none;font-family:var(--font-display);font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;}
 .express-prev{background:var(--surface3);color:var(--text2);}
-.express-next{background:linear-gradient(135deg,var(--orange),var(--orange2));color:white;}
+.express-next{background:linear-gradient(135deg,var(--orange),var(--orange2));color:var(--on-accent);}
 /* PR TIMELINE */
 .pr-detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:250;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn .2s ease;}
 .pr-detail-sheet{background:var(--surface);border:1px solid var(--border2);border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;padding:8px 0 40px;}
 .pr-detail-handle{width:40px;height:4px;background:var(--border2);border-radius:2px;margin:14px auto 18px;}
 .pr-range-tabs{display:flex;gap:8px;padding:0 20px;margin-bottom:20px;overflow-x:auto;}
 .pr-range-tab{flex-shrink:0;padding:5px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--surface2);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;color:var(--text2);}
-.pr-range-tab.active{background:var(--orange);border-color:var(--orange);color:white;}
+.pr-range-tab.active{background:var(--orange);border-color:var(--orange);color:var(--on-accent);}
 /* Timeline */
 .pr-timeline{padding:0 20px;position:relative;}
 .pr-timeline-line{position:absolute;left:36px;top:0;bottom:0;width:2px;background:var(--border);z-index:0;}
@@ -371,20 +388,20 @@ body{max-width:480px;margin:0 auto;}
 .pr-timeline-card{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;}
 .pr-timeline-card.current{border-color:var(--orange);background:var(--orange-dim2);}
 .pr-timeline-week{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
-.pr-timeline-weight{font-family:'Oswald',sans-serif;font-size:28px;font-weight:700;line-height:1;}
+.pr-timeline-weight{font-family:var(--font-display);font-size:28px;font-weight:700;line-height:1;}
 .pr-timeline-delta{font-size:11px;font-weight:600;margin-top:4px;}
 
 /* RPE INFO */
-.rpe-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--orange-dim);border:1px solid rgba(240,90,40,0.4);color:var(--orange);font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;transition:background .15s;-webkit-touch-callout:none;user-select:none;}
-.rpe-btn:active{background:var(--orange);color:white;}
+.rpe-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:var(--orange-dim);border:1px solid rgba(var(--orange-rgb),0.4);color:var(--orange);font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;transition:background .15s;-webkit-touch-callout:none;user-select:none;}
+.rpe-btn:active{background:var(--orange);color:var(--on-accent);}
 .rpe-popup-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300;display:flex;align-items:flex-end;justify-content:center;padding:0;animation:fadeIn .2s ease;}
 .rpe-popup{background:var(--surface);border:1px solid var(--border2);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:20px 20px 36px;animation:slideUp .25s ease;}
 @keyframes slideUp{from{transform:translateY(100%);}to{transform:none;}}
 .rpe-popup-handle{width:40px;height:4px;background:var(--border2);border-radius:2px;margin:0 auto 18px;}
-.rpe-popup-title{font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;letter-spacing:1.5px;color:var(--orange);margin-bottom:16px;}
+.rpe-popup-title{font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:1.5px;color:var(--orange);margin-bottom:16px;}
 .rpe-popup-item{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;font-size:14px;color:var(--text2);line-height:1.5;}
 .rpe-popup-item::before{content:'›';color:var(--orange);font-size:18px;line-height:1.2;flex-shrink:0;}
-.rpe-popup-close{width:100%;margin-top:20px;padding:14px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text2);font-family:'Oswald',sans-serif;font-size:15px;font-weight:600;letter-spacing:1px;cursor:pointer;}
+.rpe-popup-close{width:100%;margin-top:20px;padding:14px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text2);font-family:var(--font-display);font-size:15px;font-weight:600;letter-spacing:1px;cursor:pointer;}
 
 .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:10px 20px;border-radius:30px;font-size:13px;font-weight:500;opacity:0;transition:opacity .3s,transform .3s;z-index:9999;pointer-events:none;white-space:nowrap;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
@@ -1311,8 +1328,8 @@ function renderClubSelect(){
       <div class="club-pick-sub">Plan de fuerza</div>
     </div>
     <div class="club-pick" onclick="selectClub('hybrid')">
-      <div class="auth-logo" style="width:64px;height:64px;margin:0 0 12px;background-image:url('${LOGO_HYBRID_URL}')" oncontextmenu="return false" ondragstart="return false"></div>
-      <div class="club-pick-title">FUSIÓN<span>HYBRID CLUB</span></div>
+      <div class="auth-logo" style="width:64px;height:64px;margin:0 0 12px;background-image:url('${LOGO_HYBRID_URL}');border-color:#FFEC03;box-shadow:0 0 40px rgba(255,236,3,0.3)" oncontextmenu="return false" ondragstart="return false"></div>
+      <div class="club-pick-title">FUSIÓN<span style="color:#FFEC03">HYBRID CLUB</span></div>
       <div class="club-pick-sub">Entrenamiento híbrido (HYROX)</div>
     </div>
   </div>`;
@@ -1819,7 +1836,7 @@ function hcTabBarHTML(){
   const item=(tab,icon,label,onclick)=>{
     const on=hcState.tab===tab;
     return `<div class="tab-bar-item ${on?'active':''}" style="position:relative" onclick="${onclick}">
-      <div class="tab-bar-icon" style="display:flex;justify-content:center">${hcIcon(icon,20,on?'#f05a28':'#5a5a5f')}</div>${label}
+      <div class="tab-bar-icon" style="display:flex;justify-content:center">${hcIcon(icon,20,on?'#FFEC03':'#5a5a5f')}</div>${label}
       ${tab==='chat'&&unread?'<div style="position:absolute;top:4px;right:calc(50% - 22px);width:8px;height:8px;border-radius:50%;background:var(--red)"></div>':''}
     </div>`;
   };
@@ -1837,7 +1854,7 @@ function hcCountdownRingSVG(d){
   const label = d<=0 ? '¡Hoy!' : d;
   return `<svg width="52" height="52" viewBox="0 0 52 52" style="flex-shrink:0">
     <circle cx="26" cy="26" r="${r}" fill="none" stroke="#242220" stroke-width="4"/>
-    <circle cx="26" cy="26" r="${r}" fill="none" stroke="#f05a28" stroke-width="4" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-pct)}" transform="rotate(-90 26 26)"/>
+    <circle cx="26" cy="26" r="${r}" fill="none" stroke="#FFEC03" stroke-width="4" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-pct)}" transform="rotate(-90 26 26)"/>
     <text x="26" y="30" text-anchor="middle" font-size="${d<=0?'11':'14'}" font-weight="700" fill="#fff" font-family="Oswald,sans-serif">${label}</text>
   </svg>`;
 }
@@ -1850,14 +1867,14 @@ function hcGoalHeroHTML(){
   const d=hcDaysUntil(nearest.date);
   const dLabel = d>1 ? `Faltan ${d} días` : d===1 ? 'Falta 1 día' : d===0 ? '¡Es hoy!' : 'Ya pasó';
   const heroHTML=`<div style="background:linear-gradient(155deg,#171310,#0e0d0c 60%);border:1px solid #2a1f16;border-radius:16px;padding:18px;margin-bottom:${rest.length?'10px':'16px'};position:relative;overflow:hidden">
-    <div style="position:absolute;top:-30px;right:-30px;width:100px;height:100px;border-radius:50%;background:radial-gradient(circle,rgba(240,90,40,0.18),transparent 70%)"></div>
+    <div style="position:absolute;top:-30px;right:-30px;width:100px;height:100px;border-radius:50%;background:radial-gradient(circle,rgba(var(--orange-rgb),0.18),transparent 70%)"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
       <div>
         <div style="font-size:10px;color:#c9784f;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px">Tu próximo objetivo</div>
-        <div style="font-family:'Oswald',sans-serif;font-size:17px;font-weight:700">${escH(nearest.name)}</div>
+        <div style="font-family:var(--font-display);font-size:17px;font-weight:700">${escH(nearest.name)}</div>
         <div style="font-size:12px;color:var(--text2);margin-top:2px">${escH(nearest.location||'')} · ${hcFmtDate(nearest.date)}</div>
       </div>
-      ${d>=0?hcCountdownRingSVG(d):`<div style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;color:var(--text3);flex-shrink:0">Pasó</div>`}
+      ${d>=0?hcCountdownRingSVG(d):`<div style="font-family:var(--font-display);font-size:13px;font-weight:700;color:var(--text3);flex-shrink:0">Pasó</div>`}
     </div>
   </div>`;
   const restHTML = rest.length ? `<div style="margin-bottom:16px">
@@ -1882,7 +1899,7 @@ function renderHcCarrerasBody(){
       <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
         <div>
           <div style="font-size:9px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:2px">${escH(r.series||'')}</div>
-          <div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700">${escH(r.name)}</div>
+          <div style="font-family:var(--font-display);font-size:14px;font-weight:700">${escH(r.name)}</div>
           <div style="font-size:11px;color:var(--text2);margin-top:2px">${escH(r.location||'')} · ${hcFmtDate(r.date)}</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
@@ -1903,7 +1920,7 @@ function hcOwnCallHTML(){
     <div style="width:38px;height:38px;border-radius:10px;background:rgba(59,130,246,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0">${hcIcon('phone',18,'#3b82f6')}</div>
     <div>
       <div style="font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase">Tu videollamada</div>
-      <div style="font-family:'Oswald',sans-serif;font-size:15px;font-weight:700">${hcFmtDate(own.date)} · ${escH(own.time)} <span style="font-family:'Inter',sans-serif;font-size:11px;font-weight:400;color:var(--text2)">con ${escH(own.profesor||'el profe')}</span></div>
+      <div style="font-family:var(--font-display);font-size:15px;font-weight:700">${hcFmtDate(own.date)} · ${escH(own.time)} <span style="font-family:'Inter',sans-serif;font-size:11px;font-weight:400;color:var(--text2)">con ${escH(own.profesor||'el profe')}</span></div>
     </div>
   </div>`;
 }
@@ -1912,14 +1929,14 @@ function renderHcLlamadasBody(){
   const own=(hcCalls||[]).find(c=>c.uid===session.uid && !hcCallIsPast(c));
   const ownHTML = own ? `<div style="background:var(--surface2);border:1px solid var(--blue);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px">
     <div style="font-size:9px;color:var(--blue);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">TU RESERVA</div>
-    <div style="font-family:'Oswald',sans-serif;font-size:15px;font-weight:700">${hcFmtDate(own.date)} · ${escH(own.time)}</div>
+    <div style="font-family:var(--font-display);font-size:15px;font-weight:700">${hcFmtDate(own.date)} · ${escH(own.time)}</div>
     <div style="font-size:12px;color:var(--text2);margin-top:2px">Con ${escH(own.profesor||'el profe')}</div>
     <button class="adm-btn adm-btn-red" style="width:100%;justify-content:center;margin-top:10px;padding:8px" onclick="hcCancelCall('${own.id}')">Cancelar reserva</button>
   </div>` : '';
 
   const available=(hcCalls||[]).filter(c=>!c.uid && !hcCallIsPast(c)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
   const listHTML = available.length ? available.map(c=>`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px">
-      <div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700">${hcFmtDate(c.date)} · ${escH(c.time)}</div>
+      <div style="font-family:var(--font-display);font-size:14px;font-weight:700">${hcFmtDate(c.date)} · ${escH(c.time)}</div>
       <div style="font-size:11px;color:var(--text2);margin-top:2px">Con ${escH(c.profesor||'el profe')}</div>
       <button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;margin-top:10px;padding:8px" onclick="hcBookCall('${c.id}')" ${own?'disabled':''}>Reservar</button>
     </div>`).join('') : `<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="font-size:32px;margin-bottom:10px">📞</div>No hay horarios disponibles por ahora</div>`;
@@ -1942,7 +1959,7 @@ function hcExDisplayHTML(wi,di,ei,ex){
 function hcDayCardHTML(wi,di,day){
   const exList = day.exercises.length ? day.exercises.map((ex,ei)=>hcExDisplayHTML(wi,di,ei,ex)).join('') : `<div style="font-size:11px;color:var(--text3);padding:4px 0 12px">Sin ejercicios cargados</div>`;
   return `<div style="margin-bottom:16px">
-    <div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:1px;color:var(--orange);text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">${escH(day.name)}</div>
+    <div style="font-family:var(--font-display);font-size:14px;font-weight:700;letter-spacing:1px;color:var(--orange);text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">${escH(day.name)}</div>
     ${exList}
   </div>`;
 }
@@ -1960,7 +1977,7 @@ function hcExReadOnlyHTML(ex){
 function hcDayCardReadOnlyHTML(day){
   const exList = day.exercises.length ? day.exercises.map(ex=>hcExReadOnlyHTML(ex)).join('') : `<div style="font-size:11px;color:var(--text3);padding:4px 0 12px">Sin ejercicios cargados</div>`;
   return `<div style="margin-bottom:16px">
-    <div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;letter-spacing:1px;color:var(--orange);text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">${escH(day.name)}</div>
+    <div style="font-family:var(--font-display);font-size:14px;font-weight:700;letter-spacing:1px;color:var(--orange);text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">${escH(day.name)}</div>
     ${exList}
   </div>`;
 }
@@ -1982,7 +1999,7 @@ function renderHcArchivedBrowser(){
   const week=blk.plan[wi];
   const weekTabs = blk.plan.length>1 ? `<div class="prog-week-tabs" style="margin-bottom:12px">${blk.plan.map((w,i)=>`<div class="prog-week-tab ${wi===i?'active':''}" onclick="hcSetArchWeek(${i})">S${i+1}</div>`).join('')}</div>` : '';
   return `<button class="adm-btn adm-btn-ghost" style="margin-bottom:14px;gap:8px" onclick="hcBackToArchivedList()">${IC.back} Volver a bloques archivados</button>
-    <div style="font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;margin-bottom:4px">${escH(blk.name)}</div>
+    <div style="font-family:var(--font-display);font-size:16px;font-weight:700;margin-bottom:4px">${escH(blk.name)}</div>
     <div style="font-size:11px;color:var(--text3);margin-bottom:16px">Archivado el ${new Date(blk.archivedAt).toLocaleDateString('es-AR')}</div>
     ${weekTabs}
     ${week ? week.days.map(d=>hcDayCardReadOnlyHTML(d)).join('') : ''}`;
@@ -2016,7 +2033,7 @@ function renderHcPlanBody(){
     content = weekTabs + dayTabs + (week ? hcDayCardHTML(wi,di,week.days[di]) : '');
   }
 
-  return `${hcOwnBlockName?`<div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">BLOQUE ACTUAL</div><div style="font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;margin-bottom:16px">${escH(hcOwnBlockName)}</div>`:''}
+  return `${hcOwnBlockName?`<div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">BLOQUE ACTUAL</div><div style="font-family:var(--font-display);font-size:16px;font-weight:700;margin-bottom:16px">${escH(hcOwnBlockName)}</div>`:''}
   ${modeToggle}${content}
   <div style="margin-top:20px">${archButton}</div>`;
 }
@@ -2026,16 +2043,16 @@ function renderHybridHome(){
   const hasCall = (hcCalls||[]).some(c=>c.uid===session.uid && !hcCallIsPast(c));
   const showAnn = hcAnnouncement && hcAnnouncement.id!==hcAnnDismissedId;
   const hasTop = hasGoal||hasCall||showAnn;
-  const annHTML = showAnn ? `<div style="background:#131315;border:1px solid #2a2a2e;border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 0 1px rgba(240,90,40,0.12)">
+  const annHTML = showAnn ? `<div style="background:#131315;border:1px solid #2a2a2e;border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 0 1px rgba(var(--orange-rgb),0.12)">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
-        <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--orange2);letter-spacing:1px;text-transform:uppercase">${hcIcon('megaphone',13,'#f05a28')} Aviso</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--orange2);letter-spacing:1px;text-transform:uppercase">${hcIcon('megaphone',13,'#FFEC03')} Aviso</div>
         <div style="font-size:11px;color:var(--text3);cursor:pointer;flex-shrink:0" onclick="hcDismissAnnouncement()">Cerrar</div>
       </div>
       <div style="font-size:13px;white-space:pre-line;line-height:1.5;margin-top:4px">${escH(hcAnnouncement.text)}</div>
     </div>` : '';
   const welcomeHTML = `<div style="background:#131315;border:1px solid #232326;border-radius:16px;padding:26px 20px;text-align:center;margin-top:${hasTop?'0':'8px'}">
-      <div style="width:44px;height:44px;border-radius:12px;background:rgba(240,90,40,0.12);display:flex;align-items:center;justify-content:center;margin:0 auto 14px">${hcIcon('home',22,'#f05a28')}</div>
-      <div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;letter-spacing:1px;margin-bottom:8px">¡Bienvenido, ${escH(session.name.split(' ')[0])}!</div>
+      <div style="width:44px;height:44px;border-radius:12px;background:rgba(var(--orange-rgb),0.12);display:flex;align-items:center;justify-content:center;margin:0 auto 14px">${hcIcon('home',22,'#FFEC03')}</div>
+      <div style="font-family:var(--font-display);font-size:18px;font-weight:700;letter-spacing:1px;margin-bottom:8px">¡Bienvenido, ${escH(session.name.split(' ')[0])}!</div>
       <p style="font-size:13px;color:var(--text2);line-height:1.5">Completá tu ficha de alumno, marcá tu carrera objetivo y reservá tu videollamada desde las pestañas de abajo. Tu planificación semanal la vas a encontrar en la pestaña "Plan".</p>
     </div>`;
   const body = hcState.tab==='ficha'
@@ -2183,7 +2200,7 @@ function renderFichaForm(profile, uid, opts){
         <div style="position:absolute;bottom:-2px;right:-2px;background:var(--orange);border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;border:2px solid var(--bg)">📷</div>
       </label>
       <div>
-        <div style="font-family:'Oswald',sans-serif;font-size:15px;font-weight:700">${escH(opts.ownerLabel||'')}</div>
+        <div style="font-family:var(--font-display);font-size:15px;font-weight:700">${escH(opts.ownerLabel||'')}</div>
         <div style="font-size:11px;color:var(--text3)">Tocá la foto para cambiarla</div>
       </div>
     </div>
@@ -2220,11 +2237,11 @@ function renderHome(){
     return `<div style="width:${Math.floor(100/plan.length)-1}%;max-width:26px;height:6px;border-radius:3px;background:${done?'var(--green)':'var(--surface3)'}"></div>`;
   }).join('');
 
-  const streakHTML=streak>0?`<div style="background:linear-gradient(135deg,rgba(245,158,11,0.18),rgba(240,90,40,0.08));border:1px solid rgba(245,158,11,0.4);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:14px">
+  const streakHTML=streak>0?`<div style="background:linear-gradient(135deg,rgba(245,158,11,0.18),rgba(var(--orange-rgb),0.08));border:1px solid rgba(245,158,11,0.4);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:14px">
     <div style="font-size:32px;line-height:1;flex-shrink:0">🔥</div>
     <div style="flex:1;min-width:0">
       <div style="font-size:10px;color:var(--gold);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">RACHA ACTIVA</div>
-      <div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:var(--text);line-height:1">${streak} <span style="font-size:14px;color:var(--text2);font-weight:400">${streak===1?'semana':'semanas'} seguidas</span></div>
+      <div style="font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--text);line-height:1">${streak} <span style="font-size:14px;color:var(--text2);font-weight:400">${streak===1?'semana':'semanas'} seguidas</span></div>
       <div style="display:flex;gap:3px;margin-top:8px;flex-wrap:wrap">${weekBars}</div>
       <div style="font-size:10px;color:var(--text3);margin-top:4px">${streak} de ${plan.length} semanas del bloque</div>
     </div>
@@ -2235,7 +2252,7 @@ function renderHome(){
   const activePct=calcWeekPct(activeWd);
   // Coach message for active week
   const activeMsg = weekMessages[activeIdx] ? weekMessages[activeIdx].trim() : '';
-  const msgHTML = activeMsg ? `<div style="background:var(--orange-dim);border:1px solid rgba(240,90,40,0.25);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px;display:flex;align-items:flex-start;gap:10px">
+  const msgHTML = activeMsg ? `<div style="background:var(--orange-dim);border:1px solid rgba(var(--orange-rgb),0.25);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px;display:flex;align-items:flex-start;gap:10px">
     <div style="flex-shrink:0;width:28px;height:28px;border-radius:50%;background:var(--orange);display:flex;align-items:center;justify-content:center;font-size:12px">💬</div>
     <div>
       <div style="font-size:9px;color:var(--orange);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Mensaje del profe · Semana ${activeWd.week}</div>
@@ -2243,14 +2260,14 @@ function renderHome(){
     </div>
   </div>` : '';
 
-  const activeBanner=`<div onclick="nav('week',{week:${activeIdx}})" style="background:linear-gradient(135deg,var(--orange-dim),rgba(240,90,40,0.05));border:1px solid rgba(240,90,40,0.4);border-radius:var(--radius);padding:14px 16px;margin-bottom:${activeMsg?'8px':'16px'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px">
+  const activeBanner=`<div onclick="nav('week',{week:${activeIdx}})" style="background:linear-gradient(135deg,var(--orange-dim),rgba(var(--orange-rgb),0.05));border:1px solid rgba(var(--orange-rgb),0.4);border-radius:var(--radius);padding:14px 16px;margin-bottom:${activeMsg?'8px':'16px'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px">
     <div>
       <div style="font-size:10px;color:var(--orange);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px">📍 SEMANA ACTIVA</div>
-      <div style="font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;color:var(--text)">SEMANA ${activeWd.week}</div>
+      <div style="font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--text)">SEMANA ${activeWd.week}</div>
       <div style="font-size:12px;color:var(--text2);margin-top:2px">${activePct===100?'✓ Completada':'En progreso · '+activePct+'%'}</div>
     </div>
     <div style="text-align:right;flex-shrink:0">
-      <div style="font-family:'Oswald',sans-serif;font-size:32px;font-weight:700;color:${activePct===100?'var(--green)':'var(--orange)'};line-height:1">${activePct}%</div>
+      <div style="font-family:var(--font-display);font-size:32px;font-weight:700;color:${activePct===100?'var(--green)':'var(--orange)'};line-height:1">${activePct}%</div>
       <div style="font-size:10px;color:var(--text3);margin-top:3px">COMPLETADO</div>
     </div>
   </div>${msgHTML}`;
@@ -2259,7 +2276,7 @@ function renderHome(){
     const pct=calcWeekPct(wd);
     const complete=pct===100;
     const isActive=i===activeIdx;
-    return `<div class="week-card ${isActive?'active-week':''}" onclick="setActiveWeek(${i});nav('week',{week:${i}})" style="${isActive?'border-color:var(--orange);box-shadow:0 0 0 1px rgba(240,90,40,0.3)':''}">
+    return `<div class="week-card ${isActive?'active-week':''}" onclick="setActiveWeek(${i});nav('week',{week:${i}})" style="${isActive?'border-color:var(--orange);box-shadow:0 0 0 1px rgba(var(--orange-rgb),0.3)':''}">
       <div class="week-card-header">
         <div class="week-icon">${isActive?'<span style="font-size:16px">📍</span>':'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f05a28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>'}</div>
         <div>
@@ -2288,7 +2305,7 @@ function renderHome(){
         ${archivedBlocks.map(b=>`
           <div onclick="openArchivedBlock('${b.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;transition:border-color .2s" onmouseover="this.style.borderColor='var(--orange)'" onmouseout="this.style.borderColor='var(--border)'">
             <div>
-              <div style="font-family:'Oswald',sans-serif;font-size:15px;font-weight:600;color:var(--text)">${escH(b.name)}</div>
+              <div style="font-family:var(--font-display);font-size:15px;font-weight:600;color:var(--text)">${escH(b.name)}</div>
               <div style="font-size:11px;color:var(--text3);margin-top:2px">${b.weekCount} semanas · Archivado ${new Date(b.archivedAt).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'})}</div>
             </div>
             <div style="color:var(--text3)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></div>
@@ -2875,7 +2892,7 @@ function renderUserProgress(){
     <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:16px">
       <div class="user-row-avatar" style="width:46px;height:46px;font-size:17px;flex-shrink:0">${ini}</div>
       <div>
-        <div style="font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;letter-spacing:1px">${escH(u.name)}</div>
+        <div style="font-family:var(--font-display);font-size:16px;font-weight:700;letter-spacing:1px">${escH(u.name)}</div>
         <div style="font-size:11px;color:var(--text3);margin-top:2px">${escH(u.email)}</div>
       </div>
     </div>
@@ -3021,7 +3038,7 @@ function renderAdminChat(){
   if(!u) return '';
   return `<div>
     <button class="adm-btn adm-btn-ghost" style="margin-bottom:14px;gap:8px" onclick="goBackFromChat()">${IC.back} Volver a usuarios</button>
-    <div style="font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;margin-bottom:12px">${escH(u.name)}</div>
+    <div style="font-family:var(--font-display);font-size:16px;font-weight:700;margin-bottom:12px">${escH(u.name)}</div>
     <div id="hc-chat-scroll" style="max-height:50vh;overflow-y:auto;margin-bottom:10px">${hcChatBubblesHTML(hcAdmChat,'coach')}</div>
     <div style="display:flex;gap:8px">
       <input class="adm-inp" id="hc-chat-inp" style="margin:0;flex:1" placeholder="Escribile al alumno..." onkeydown="if(event.key==='Enter')hcAdmSendChatMsg()">
@@ -3314,7 +3331,7 @@ function renderAdminPlan(){
     <button class="adm-btn adm-btn-ghost" style="margin-bottom:14px;gap:8px" onclick="goBackFromPlan()">${IC.back} Volver a usuarios</button>
     <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:12px">
       <div class="user-row-avatar" style="width:46px;height:46px;font-size:17px;flex-shrink:0">${ini}</div>
-      <div><div style="font-family:'Oswald',sans-serif;font-size:16px;font-weight:700">${escH(u.name)}</div></div>
+      <div><div style="font-family:var(--font-display);font-size:16px;font-weight:700">${escH(u.name)}</div></div>
     </div>
 
     <div style="display:flex;gap:8px;margin-bottom:16px">
@@ -3386,7 +3403,7 @@ function renderArchivedBlock(){
     <div class="page-tabbed">
       <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:16px">
         <div style="font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px">Bloque archivado</div>
-        <div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;margin-bottom:2px">${escH(block.name)}</div>
+        <div style="font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:2px">${escH(block.name)}</div>
         <div style="font-size:11px;color:var(--text3);margin-bottom:14px">Archivado el ${new Date(block.archivedAt).toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'})} · ${blockPlan.length} semanas</div>
         <div style="margin-bottom:8px">
           <button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;padding:10px" onclick="openBlockSummary('${block.id}','${block.name}',blockPlan)">
@@ -4053,19 +4070,19 @@ function renderTabDashboard(){
   const statCards=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
     <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;text-align:center">
       <div style="font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Alumnos activos</div>
-      <div style="font-family:'Oswald',sans-serif;font-size:32px;font-weight:700;color:var(--text)">${active.length}</div>
+      <div style="font-family:var(--font-display);font-size:32px;font-weight:700;color:var(--text)">${active.length}</div>
     </div>
     <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;text-align:center">
       <div style="font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Solicitudes</div>
-      <div style="font-family:'Oswald',sans-serif;font-size:32px;font-weight:700;color:${pending.length?'var(--yellow)':'var(--text)'}">${pending.length}</div>
+      <div style="font-family:var(--font-display);font-size:32px;font-weight:700;color:${pending.length?'var(--yellow)':'var(--text)'}">${pending.length}</div>
     </div>
     <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:var(--radius-sm);padding:14px;text-align:center">
       <div style="font-size:10px;color:var(--green);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">📝 Anotando</div>
-      <div style="font-family:'Oswald',sans-serif;font-size:32px;font-weight:700;color:var(--green)">${recording.length}</div>
+      <div style="font-family:var(--font-display);font-size:32px;font-weight:700;color:var(--green)">${recording.length}</div>
     </div>
     <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:var(--radius-sm);padding:14px;text-align:center">
       <div style="font-size:10px;color:var(--red);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">😴 Sin registros</div>
-      <div style="font-family:'Oswald',sans-serif;font-size:32px;font-weight:700;color:var(--red)">${silent.length}</div>
+      <div style="font-family:var(--font-display);font-size:32px;font-weight:700;color:var(--red)">${silent.length}</div>
     </div>
   </div>`;
 
@@ -4125,7 +4142,7 @@ function renderTabDashboard(){
       </div>
     </div>`).join('');
 
-  const archiveBtn=`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:20px">
+  const archiveBtn=getClub()==='fuerza' ? `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:20px">
     <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">GESTIÓN DE BLOQUES</div>
     <div style="margin-bottom:12px">
       <div style="font-size:11px;color:var(--text3);margin-bottom:5px">Nombre del bloque activo</div>
@@ -4142,7 +4159,7 @@ function renderTabDashboard(){
       <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">BLOQUES ARCHIVADOS</div>
       ${archivedBlocksRows}
     `:''}
-  </div>`;
+  </div>` : '';
 
   return `<div>
     ${archiveBtn}
@@ -4272,19 +4289,19 @@ function renderTabDiag(){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
         <div style="text-align:center;padding:10px;background:var(--surface3);border-radius:var(--radius-sm)">
           <div style="font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Claves en el plan</div>
-          <div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:var(--text)">${planKeyCount}</div>
+          <div style="font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--text)">${planKeyCount}</div>
         </div>
         <div style="text-align:center;padding:10px;background:var(--surface3);border-radius:var(--radius-sm)">
           <div style="font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Mi progreso c/peso</div>
-          <div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:var(--text)">${myProgKeys.length}</div>
+          <div style="font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--text)">${myProgKeys.length}</div>
         </div>
         <div style="text-align:center;padding:10px;background:var(--surface3);border-radius:var(--radius-sm)">
           <div style="font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Claves que coinciden</div>
-          <div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:${matched.length>0?'var(--green)':'var(--red)'}">${matched.length}</div>
+          <div style="font-family:var(--font-display);font-size:22px;font-weight:700;color:${matched.length>0?'var(--green)':'var(--red)'}">${matched.length}</div>
         </div>
         <div style="text-align:center;padding:10px;background:var(--surface3);border-radius:var(--radius-sm)">
           <div style="font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Detectados como PR</div>
-          <div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:var(--orange)">${trackedHits.length}</div>
+          <div style="font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--orange)">${trackedHits.length}</div>
         </div>
       </div>
 
@@ -4384,7 +4401,7 @@ function renderTabRpe(){
       </div>`).join('');
     return `<div class="ex-edit-card">
       <div class="ex-edit-card-header">
-        <span style="font-family:'Oswald',sans-serif;font-size:16px;font-weight:700;color:var(--orange)">${rpe}</span>
+        <span style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--orange)">${rpe}</span>
       </div>
       <input class="adm-inp" value="${escH(info.title)}" placeholder="Título del popup"
         oninput="updateRpeTitle('${rpe}',this.value)">
@@ -4467,7 +4484,7 @@ async function renderTabComparative(){
         <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(d.name)}</div>
         <div style="font-size:10px;color:var(--text3)">${d.range?d.range.label:''}</div>
       </div>
-      <div style="font-family:'Oswald',sans-serif;font-size:18px;font-weight:700;color:var(--text)">${d.weight}<span style="font-size:11px;color:var(--text3)">kg</span></div>
+      <div style="font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--text)">${d.weight}<span style="font-size:11px;color:var(--text3)">kg</span></div>
     </div>`;
   }).join('');
   return `<div>
@@ -4483,15 +4500,15 @@ async function renderTabComparative(){
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
       <div class="ex-edit-card" style="text-align:center;padding:10px;margin-bottom:0">
-        <div style="font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;color:var(--orange)">${avg}kg</div>
+        <div style="font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--orange)">${avg}kg</div>
         <div style="font-size:9px;color:var(--text3)">PROMEDIO</div>
       </div>
       <div class="ex-edit-card" style="text-align:center;padding:10px;margin-bottom:0">
-        <div style="font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;color:var(--green)">${max}kg</div>
+        <div style="font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--green)">${max}kg</div>
         <div style="font-size:9px;color:var(--text3)">MÁXIMO</div>
       </div>
       <div class="ex-edit-card" style="text-align:center;padding:10px;margin-bottom:0">
-        <div style="font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;color:var(--text)">${withData.length}</div>
+        <div style="font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--text)">${withData.length}</div>
         <div style="font-size:9px;color:var(--text3)">CON DATOS</div>
       </div>
     </div>
@@ -4576,12 +4593,12 @@ function renderPrs(){
     });
     const icons={'Banco Plano':'🏋️','Back Squat':'🦵','Peso Muerto':'⚡'};
     const icon=icons[t.name]||'💪';
-    return `<div onclick="openPrDetail('${t.name}')" style="flex:1;background:${hasNew?'linear-gradient(135deg,rgba(245,158,11,0.12),rgba(240,90,40,0.08))':'var(--surface2)'};border:1px solid ${hasNew?'rgba(245,158,11,0.4)':'var(--border)'};border-radius:var(--radius-sm);padding:12px 10px;text-align:center;position:relative;overflow:hidden;min-width:0;cursor:pointer;">
+    return `<div onclick="openPrDetail('${t.name}')" style="flex:1;background:${hasNew?'linear-gradient(135deg,rgba(245,158,11,0.12),rgba(var(--orange-rgb),0.08))':'var(--surface2)'};border:1px solid ${hasNew?'rgba(245,158,11,0.4)':'var(--border)'};border-radius:var(--radius-sm);padding:12px 10px;text-align:center;position:relative;overflow:hidden;min-width:0;cursor:pointer;">
       ${hasNew?`<div style="position:absolute;top:0;right:0;background:var(--gold);color:#000;font-size:7px;font-weight:800;padding:2px 6px;border-radius:0 0 0 5px;letter-spacing:.5px">NUEVO</div>`:''}
       <div style="font-size:22px;margin-bottom:6px">${icon}</div>
       <div style="font-size:9px;color:var(--text3);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px;line-height:1.2">${escH(t.name)}</div>
       ${bestW!==null
-        ? `<div style="font-family:'Oswald',sans-serif;font-size:24px;font-weight:700;color:${hasNew?'var(--gold)':'var(--orange)'};line-height:1">${bestW}<span style="font-size:12px;color:var(--text3)"> kg</span></div>
+        ? `<div style="font-family:var(--font-display);font-size:24px;font-weight:700;color:${hasNew?'var(--gold)':'var(--orange)'};line-height:1">${bestW}<span style="font-size:12px;color:var(--text3)"> kg</span></div>
            <div style="font-size:9px;color:var(--text3);margin-top:3px">${bestLabel} · S${bestWeek}</div>`
         : `<div style="font-size:18px;color:var(--text3);margin-top:4px">—</div>
            <div style="font-size:9px;color:var(--text3);margin-top:3px">sin registro</div>`
@@ -4658,7 +4675,7 @@ function renderBlockSummarySheet(){
   const {completedWeeks,totalWeeks,adherence,weekStatus,prs:prData}=calcBlockSummary(blockPlan,blockProgress);
   const dotColor=s=>s==='done'?'wdot-done':s==='partial'?'wdot-partial':'wdot-skip';
   const dots=weekStatus.map((s,i)=>`<div class="wdot ${dotColor(s)}">S${i+1}</div>`).join('');
-  const prRows=DEFAULT_TRACKED.map(t=>{ const found=prData.find(p=>p.name===t.name); if(!found)return `<div class="summary-pr-row"><div style="font-size:13px;font-weight:600;color:var(--text)">${escH(t.name)}</div><div style="font-size:12px;color:var(--text3)">Sin registro</div></div>`; return `<div class="summary-pr-row"><div><div style="font-size:13px;font-weight:600;color:var(--text)">${escH(t.name)}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">${found.range.label} · Semana ${found.week}</div></div><div style="text-align:right"><div style="font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;color:var(--orange)">${found.weight} <span style="font-size:13px;color:var(--text3)">kg</span></div><div style="font-size:9px;color:var(--gold);font-weight:700">🏆 PR EN ESTE BLOQUE</div></div></div>`; }).join('');
+  const prRows=DEFAULT_TRACKED.map(t=>{ const found=prData.find(p=>p.name===t.name); if(!found)return `<div class="summary-pr-row"><div style="font-size:13px;font-weight:600;color:var(--text)">${escH(t.name)}</div><div style="font-size:12px;color:var(--text3)">Sin registro</div></div>`; return `<div class="summary-pr-row"><div><div style="font-size:13px;font-weight:600;color:var(--text)">${escH(t.name)}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">${found.range.label} · Semana ${found.week}</div></div><div style="text-align:right"><div style="font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--orange)">${found.weight} <span style="font-size:13px;color:var(--text3)">kg</span></div><div style="font-size:9px;color:var(--gold);font-weight:700">🏆 PR EN ESTE BLOQUE</div></div></div>`; }).join('');
   const ac=adherence>=80?'var(--green)':adherence>=50?'var(--orange)':'var(--red)';
   return `<div class="summary-overlay" onclick="closeBlockSummary()"><div class="summary-sheet" onclick="event.stopPropagation()"><div class="summary-handle"></div><div class="summary-hero"><div class="summary-block-tag">📦 RESUMEN DEL BLOQUE</div><div class="summary-block-title">${escH(blockName)}</div><div class="summary-stats-grid"><div class="summary-stat"><div class="summary-stat-val">${completedWeeks}<span style="font-size:14px;color:var(--text3)">/${totalWeeks}</span></div><div class="summary-stat-label">SEMANAS COMPLETAS</div></div><div class="summary-stat"><div class="summary-stat-val" style="color:${ac}">${adherence}%</div><div class="summary-stat-label">ADHERENCIA</div></div><div class="summary-stat"><div class="summary-stat-val" style="color:var(--gold)">${prData.length}</div><div class="summary-stat-label">PRs LOGRADOS</div></div></div></div><div style="padding:16px 20px 0"><div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">SEMANA A SEMANA</div><div class="week-dots">${dots}</div><div style="display:flex;gap:12px;font-size:10px;color:var(--text3);margin-bottom:16px"><span>🟢 Completa</span><span>🟡 Parcial</span><span>⬜ Sin registro</span></div><div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase">RÉCORDS DEL BLOQUE</div></div><div style="margin-top:8px">${prRows}</div><button class="summary-close-btn" onclick="closeBlockSummary()">CERRAR</button></div></div>`;
 }
@@ -4799,7 +4816,7 @@ function renderPrDetailSheet(){
       <div class="pr-detail-handle"></div>
       <div style="padding:0 20px;margin-bottom:6px">
         <div style="font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px">Historial de récords</div>
-        <div style="font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;letter-spacing:1px">${escH(exName.toUpperCase())}</div>
+        <div style="font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:1px">${escH(exName.toUpperCase())}</div>
       </div>
       <div class="pr-range-tabs">${rangeTabs||'<span style="color:var(--text3);font-size:12px;padding:4px 0">Sin datos aún</span>'}</div>
       ${timelineHTML}
@@ -5010,6 +5027,7 @@ function renderImpBanner(){
 
 
 function render(){
+  document.body.classList.toggle('hc-theme', getClub()==='hybrid');
   const app=document.getElementById('app');
   if(!session){
     if(!currentClub){ app.innerHTML=renderClubSelect(); renderImpBanner(); return; }
