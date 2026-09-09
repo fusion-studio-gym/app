@@ -1675,50 +1675,46 @@ function hcHrZonesHTML(hrMax,hrRest){
   </div>`;
 }
 
-let hcCalcState=null;
+let hcCalcSelected=new Set(); // 'carrera'|'row'|'ski'|'fc' — qué zonas mostrar
 async function hcOpenCalc(){
-  if(!hcCalcState){
-    if(hcOwnMetricsUid!==session.uid){
-      hcOwnMetrics = await personalGet(K.HC_METRICS(session.uid)) || {fuerza:{}};
-      hcOwnMetricsUid = session.uid;
-    }
-    hcCalcState = {
-      vamMetros: hcOwnMetrics.vam5Metros || '',
-      row2km: hcOwnMetrics.row2km || '',
-      ski2km: hcOwnMetrics.ski2km || '',
-      hrMax: hcOwnMetrics.pulsacionesMax || '',
-      hrRest: hcOwnMetrics.pulsacionesReposo || '',
-    };
-  }
+  // Siempre trae los datos más frescos de Métricas — antes quedaban cacheados de la primera visita y no se actualizaban.
+  hcOwnMetrics = await personalGet(K.HC_METRICS(session.uid)) || {fuerza:{}};
+  hcOwnMetricsUid = session.uid;
   hcState.tab='calc';
   render();
 }
-function hcCalcSetField(key,val){
-  hcCalcState[key]=val;
-  const el=document.getElementById('hc-calc-results');
-  if(el) el.innerHTML=hcCalcResultsHTML();
+function hcCalcToggle(key){
+  if(hcCalcSelected.has(key)) hcCalcSelected.delete(key); else hcCalcSelected.add(key);
+  render();
 }
-function hcCalcResultsHTML(){
-  const s=hcCalcState||{};
-  const results = hcRunZonesHTML(s.vamMetros) + hcErgZonesHTML('🚣 REMO (ROW)', s.row2km) + hcErgZonesHTML('⛷️ SKI ERG', s.ski2km) + hcHrZonesHTML(s.hrMax,s.hrRest);
-  return results || `<div style="text-align:center;padding:24px 0;color:var(--text3)">Completá al menos un test arriba para ver tus zonas</div>`;
+function hcCalcMissingHTML(label){
+  return `<div style="text-align:center;padding:18px 0;color:var(--text3);font-size:12px">Todavía no cargaste ${label} en Métricas. <span style="color:var(--orange);text-decoration:underline;cursor:pointer" onclick="hcOpenMetrics()">Cargarlo ahora</span></div>`;
 }
 function renderHcCalcBody(){
-  const s=hcCalcState||{};
-  const inputsHTML=`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:20px">
-    <div style="font-size:11px;color:var(--text);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">Test VAM 5' (metros)</div>
-    <input class="auth-inp" type="number" placeholder="ej: 1400" value="${escH(String(s.vamMetros||''))}" oninput="hcCalcSetField('vamMetros',this.value)">
-    <div style="font-size:11px;color:var(--text);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">2 Km Row (tiempo)</div>
-    <input class="auth-inp" placeholder="ej: 7:45" value="${escH(s.row2km||'')}" oninput="hcCalcSetField('row2km',this.value)">
-    <div style="font-size:11px;color:var(--text);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">2 Km Sky (tiempo)</div>
-    <input class="auth-inp" placeholder="ej: 8:10" value="${escH(s.ski2km||'')}" oninput="hcCalcSetField('ski2km',this.value)">
-    <div style="font-size:11px;color:var(--text);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">Frecuencia Cardíaca de Reserva (FCR)</div>
-    <input class="auth-inp" type="number" placeholder="Pulsaciones máximas (ej: 190)" value="${escH(String(s.hrMax||''))}" oninput="hcCalcSetField('hrMax',this.value)">
-    <input class="auth-inp" type="number" placeholder="Pulsaciones en reposo (ej: 60)" style="margin-bottom:0" value="${escH(String(s.hrRest||''))}" oninput="hcCalcSetField('hrRest',this.value)">
+  const m=hcOwnMetrics||{};
+  const chips=[
+    {key:'carrera',label:'🏃 Carrera'},
+    {key:'row',label:'🚣 Remo'},
+    {key:'ski',label:'⛷️ Ski Erg'},
+    {key:'fc',label:'❤️ FC'},
+  ];
+  const chipsHTML=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px">
+    ${chips.map(c=>`<div class="admin-tab ${hcCalcSelected.has(c.key)?'active':''}" onclick="hcCalcToggle('${c.key}')">${c.label}</div>`).join('')}
   </div>`;
 
-  return `${inputsHTML}<div id="hc-calc-results">${hcCalcResultsHTML()}</div>
-    <div style="font-size:11px;color:var(--text3);line-height:1.5;margin-top:8px">Estimación con fórmulas estándar de VAM, remo/ski erg y frecuencia cardíaca de reserva (Karvonen). Tu profe puede ajustar los porcentajes si hace falta afinarla.</div>`;
+  let body='';
+  if(!hcCalcSelected.size){
+    body=`<div style="text-align:center;padding:24px 0;color:var(--text3)">Elegí arriba qué zonas querés ver</div>`;
+  } else {
+    if(hcCalcSelected.has('carrera')) body+= m.vam5Metros ? hcRunZonesHTML(m.vam5Metros) : hcCalcMissingHTML("tu Test de VAM 5'");
+    if(hcCalcSelected.has('row')) body+= m.row2km ? hcErgZonesHTML('🚣 REMO (ROW)', m.row2km) : hcCalcMissingHTML('tu tiempo de 2 Km Row');
+    if(hcCalcSelected.has('ski')) body+= m.ski2km ? hcErgZonesHTML('⛷️ SKI ERG', m.ski2km) : hcCalcMissingHTML('tu tiempo de 2 Km Sky');
+    if(hcCalcSelected.has('fc')) body+= (m.pulsacionesMax&&m.pulsacionesReposo) ? hcHrZonesHTML(m.pulsacionesMax,m.pulsacionesReposo) : hcCalcMissingHTML('tus Pulsaciones Máximas y en Reposo');
+  }
+
+  return `<button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;margin-bottom:16px" onclick="hcOpenMetrics()">📊 Ver / editar mis métricas</button>
+    ${chipsHTML}${body}
+    <div style="font-size:11px;color:var(--text3);line-height:1.5;margin-top:8px">Los valores se toman directo de tus Métricas — si los actualizás ahí, se reflejan acá solos. Fórmulas estándar de VAM, remo/ski erg y frecuencia cardíaca de reserva (Karvonen).</div>`;
 }
 async function hcSetGoal(raceId){
   try{
