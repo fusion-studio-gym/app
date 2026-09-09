@@ -1168,7 +1168,11 @@ const HC_ICONS={
   chart:'<path d="M12 20V10M18 20V4M6 20v-4"/>',
   file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
   megaphone:'<path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
-  calc:'<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="10" x2="16" y2="18"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/>'
+  calc:'<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="10" x2="16" y2="18"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/>',
+  activity:'<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
+  waves:'<path d="M2 6c1.5 0 1.5 1.8 3 1.8S6.5 6 8 6s1.5 1.8 3 1.8S12.5 6 14 6s1.5 1.8 3 1.8S18.5 6 20 6"/><path d="M2 12c1.5 0 1.5 1.8 3 1.8s1.5-1.8 3-1.8 1.5 1.8 3 1.8 1.5-1.8 3-1.8 1.5 1.8 3 1.8 1.5-1.8 3-1.8"/><path d="M2 18c1.5 0 1.5 1.8 3 1.8s1.5-1.8 3-1.8 1.5 1.8 3 1.8 1.5-1.8 3-1.8 1.5 1.8 3 1.8 1.5-1.8 3-1.8"/>',
+  mountain:'<path d="M3 20l5-9 4 5 3-7 6 11H3z"/>',
+  heart:'<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>'
 };
 function hcIcon(name,size,color){
   size=size||18; color=color||'currentColor';
@@ -1631,7 +1635,7 @@ function hcRunZonesHTML(metros){
     </div>`;
   }).join('');
   return `<div style="margin-bottom:20px">
-    <div class="admin-section-title" style="margin-bottom:4px;color:var(--text);font-weight:700">🏃 CARRERA — VAM ${vam.toFixed(1)} km/h</div>
+    <div class="admin-section-title" style="margin-bottom:4px;color:var(--text);font-weight:700;display:flex;align-items:center;gap:6px">${hcIcon('activity',14)} CARRERA — VAM ${vam.toFixed(1)} km/h</div>
     ${rows}
   </div>`;
 }
@@ -1670,12 +1674,12 @@ function hcHrZonesHTML(hrMax,hrRest){
     </div>`;
   }).join('');
   return `<div style="margin-bottom:20px">
-    <div class="admin-section-title" style="margin-bottom:4px;color:var(--text);font-weight:700">❤️ FRECUENCIA CARDÍACA DE RESERVA (FCR) — ${hrr} lpm</div>
+    <div class="admin-section-title" style="margin-bottom:4px;color:var(--text);font-weight:700;display:flex;align-items:center;gap:6px">${hcIcon('heart',14)} FRECUENCIA CARDÍACA DE RESERVA (FCR) — ${hrr} lpm</div>
     ${rows}
   </div>`;
 }
 
-let hcCalcSelected=new Set(); // 'carrera'|'row'|'ski'|'fc' — qué zonas mostrar
+let hcCalcSelected=null; // 'carrera'|'row'|'ski'|'fc'|null — solo una zona a la vez
 async function hcOpenCalc(){
   // Siempre trae los datos más frescos de Métricas — antes quedaban cacheados de la primera visita y no se actualizaban.
   hcOwnMetrics = await personalGet(K.HC_METRICS(session.uid)) || {fuerza:{}};
@@ -1684,7 +1688,7 @@ async function hcOpenCalc(){
   render();
 }
 function hcCalcToggle(key){
-  if(hcCalcSelected.has(key)) hcCalcSelected.delete(key); else hcCalcSelected.add(key);
+  hcCalcSelected = (hcCalcSelected===key) ? null : key;
   render();
 }
 function hcCalcMissingHTML(label){
@@ -1693,26 +1697,29 @@ function hcCalcMissingHTML(label){
 function renderHcCalcBody(){
   const m=hcOwnMetrics||{};
   const chips=[
-    {key:'carrera',label:'🏃 Carrera'},
-    {key:'row',label:'🚣 Remo'},
-    {key:'ski',label:'⛷️ Ski Erg'},
-    {key:'fc',label:'❤️ FC'},
+    {key:'carrera',label:'Carrera',icon:'activity'},
+    {key:'row',label:'Remo',icon:'waves'},
+    {key:'ski',label:'Ski Erg',icon:'mountain'},
+    {key:'fc',label:'FC',icon:'heart'},
   ];
   const chipsHTML=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px">
-    ${chips.map(c=>`<div class="admin-tab ${hcCalcSelected.has(c.key)?'active':''}" onclick="hcCalcToggle('${c.key}')">${c.label}</div>`).join('')}
+    ${chips.map(c=>`<div class="admin-tab ${hcCalcSelected===c.key?'active':''}" style="display:flex;align-items:center;gap:6px" onclick="hcCalcToggle('${c.key}')">${hcIcon(c.icon,14)} ${c.label}</div>`).join('')}
   </div>`;
 
   let body='';
-  if(!hcCalcSelected.size){
-    body=`<div style="text-align:center;padding:24px 0;color:var(--text3)">Elegí arriba qué zonas querés ver</div>`;
-  } else {
-    if(hcCalcSelected.has('carrera')) body+= m.vam5Metros ? hcRunZonesHTML(m.vam5Metros) : hcCalcMissingHTML("tu Test de VAM 5'");
-    if(hcCalcSelected.has('row')) body+= m.row2km ? hcErgZonesHTML('🚣 REMO (ROW)', m.row2km) : hcCalcMissingHTML('tu tiempo de 2 Km Row');
-    if(hcCalcSelected.has('ski')) body+= m.ski2km ? hcErgZonesHTML('⛷️ SKI ERG', m.ski2km) : hcCalcMissingHTML('tu tiempo de 2 Km Sky');
-    if(hcCalcSelected.has('fc')) body+= (m.pulsacionesMax&&m.pulsacionesReposo) ? hcHrZonesHTML(m.pulsacionesMax,m.pulsacionesReposo) : hcCalcMissingHTML('tus Pulsaciones Máximas y en Reposo');
+  if(!hcCalcSelected){
+    body=`<div style="text-align:center;padding:24px 0;color:var(--text3)">Elegí arriba qué zona querés ver</div>`;
+  } else if(hcCalcSelected==='carrera'){
+    body = m.vam5Metros ? hcRunZonesHTML(m.vam5Metros) : hcCalcMissingHTML("tu Test de VAM 5'");
+  } else if(hcCalcSelected==='row'){
+    body = m.row2km ? hcErgZonesHTML(`${hcIcon('waves',14)} REMO (ROW)`, m.row2km) : hcCalcMissingHTML('tu tiempo de 2 Km Row');
+  } else if(hcCalcSelected==='ski'){
+    body = m.ski2km ? hcErgZonesHTML(`${hcIcon('mountain',14)} SKI ERG`, m.ski2km) : hcCalcMissingHTML('tu tiempo de 2 Km Sky');
+  } else if(hcCalcSelected==='fc'){
+    body = (m.pulsacionesMax&&m.pulsacionesReposo) ? hcHrZonesHTML(m.pulsacionesMax,m.pulsacionesReposo) : hcCalcMissingHTML('tus Pulsaciones Máximas y en Reposo');
   }
 
-  return `<button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;margin-bottom:16px" onclick="hcOpenMetrics()">📊 Ver / editar mis métricas</button>
+  return `<button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;gap:8px;margin-bottom:16px" onclick="hcOpenMetrics()">${hcIcon('chart',15)} Ver / editar mis métricas</button>
     ${chipsHTML}${body}
     <div style="font-size:11px;color:var(--text3);line-height:1.5;margin-top:8px">Los valores se toman directo de tus Métricas — si los actualizás ahí, se reflejan acá solos. Fórmulas estándar de VAM, remo/ski erg y frecuencia cardíaca de reserva (Karvonen).</div>`;
 }
@@ -2136,7 +2143,7 @@ function renderMetricsForm(metrics, uid, opts){
     ${fuerzaHTML}
     <div style="font-size:11px;color:var(--text);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin:16px 0 4px">Test de movilidad</div>
     <textarea class="auth-inp" style="height:70px;padding:10px 14px;resize:vertical;margin-bottom:16px" oninput="metrics_setField('${uid}','movilidad',this.value)">${escH((m.movilidad||'').toString())}</textarea>
-    <button class="auth-btn" onclick="${opts.onSave}('${uid}')">GUARDAR MÉTRICAS</button>
+    <button class="auth-btn" onclick="${opts.onSave}('${uid}')">GUARDAR METRICAS</button>
   </div>`;
 }
 function hcCalcAge(dob){
