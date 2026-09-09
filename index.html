@@ -1580,11 +1580,11 @@ function renderHcDocsBody(){
 // - Zonas de remo/ski como ajuste % sobre el ritmo/500m del test de 2 km (esquema UT2/UT1/AT/test/anaeróbico).
 // - Zonas de FC como % de la frecuencia cardíaca máxima.
 const HC_RUN_ZONES = [
-  { label:'Fase I · Recuperación', pctMin:55, pctMax:65 },
-  { label:'Primer Umbral Aeróbico · VT1', pctMin:65, pctMax:75 },
-  { label:'Fase II · Transición entre Umbrales', pctMin:75, pctMax:85 },
-  { label:'Segundo Umbral Anaeróbico · VT2', pctMin:85, pctMax:100 },
-  { label:'Fase III · VO2 Máx', pctMin:100, pctMax:120 },
+  { label:'Recuperación (Z1)', pctMin:50, pctMax:60 },
+  { label:'Primer Umbral Aeróbico (Z2)', pctMin:60, pctMax:70 },
+  { label:'Transición entre Umbrales (Z3)', pctMin:70, pctMax:75 },
+  { label:'Segundo Umbral Anaeróbico (Z4)', pctMin:75, pctMax:80 },
+  { label:'VO2 Máx (Z5)', pctMin:80, pctMax:90 },
 ];
 const HC_ERG_ZONES = [
   { label:'Z1 · Recuperación (UT2)', adj:22 },
@@ -1641,9 +1641,14 @@ function hcErgZonesHTML(title, timeStr){
   const base500=totalSec/4;
   const rows=HC_ERG_ZONES.map(z=>{
     const sec500=base500*(1+z.adj/100);
+    const delta=Math.round(sec500-base500);
+    const deltaLabel = delta===0 ? 'ritmo del test' : (delta>0?`+${delta}s`:`${delta}s`);
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
       <div style="font-size:12px;font-weight:600">${z.label}</div>
-      <div style="font-size:13px;color:var(--orange2);font-weight:700">${hcFmtMinSec(sec500)} /500m</div>
+      <div style="text-align:right">
+        <div style="font-size:13px;color:var(--orange2);font-weight:700">${hcFmtMinSec(sec500)} /500m</div>
+        <div style="font-size:10px;color:var(--text3)">${deltaLabel}</div>
+      </div>
     </div>`;
   }).join('');
   return `<div style="margin-bottom:20px">
@@ -1651,18 +1656,21 @@ function hcErgZonesHTML(title, timeStr){
     ${rows}
   </div>`;
 }
-function hcHrZonesHTML(hrMax){
-  const hr=parseFloat(hrMax);
-  if(!hr||hr<=0) return '';
+function hcHrZonesHTML(hrMax,hrRest){
+  const hi_=parseFloat(hrMax), lo_=parseFloat(hrRest);
+  if(!hi_||hi_<=0) return '';
+  if(!lo_||lo_<=0) return '';
+  const hrr=hi_-lo_;
+  if(hrr<=0) return '';
   const rows=HC_HR_ZONES.map(z=>{
-    const lo=Math.round(hr*z.pctMin/100), hi=Math.round(hr*z.pctMax/100);
+    const lo=Math.round(hrr*z.pctMin/100+lo_), hi=Math.round(hrr*z.pctMax/100+lo_);
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
       <div style="font-size:12px;font-weight:600">${z.label}</div>
       <div style="font-size:13px;color:var(--orange2);font-weight:700">${lo} – ${hi} lpm</div>
     </div>`;
   }).join('');
   return `<div style="margin-bottom:20px">
-    <div class="admin-section-title" style="margin-bottom:4px;color:var(--text);font-weight:700">❤️ FRECUENCIA CARDÍACA — máx ${hr} lpm</div>
+    <div class="admin-section-title" style="margin-bottom:4px;color:var(--text);font-weight:700">❤️ FRECUENCIA CARDÍACA DE RESERVA (FCR) — ${hrr} lpm</div>
     ${rows}
   </div>`;
 }
@@ -1679,6 +1687,7 @@ async function hcOpenCalc(){
       row2km: hcOwnMetrics.row2km || '',
       ski2km: hcOwnMetrics.ski2km || '',
       hrMax: hcOwnMetrics.pulsacionesMax || '',
+      hrRest: hcOwnMetrics.pulsacionesReposo || '',
     };
   }
   hcState.tab='calc';
@@ -1691,7 +1700,7 @@ function hcCalcSetField(key,val){
 }
 function hcCalcResultsHTML(){
   const s=hcCalcState||{};
-  const results = hcRunZonesHTML(s.vamMetros) + hcErgZonesHTML('🚣 REMO (ROW)', s.row2km) + hcErgZonesHTML('⛷️ SKI ERG', s.ski2km) + hcHrZonesHTML(s.hrMax);
+  const results = hcRunZonesHTML(s.vamMetros) + hcErgZonesHTML('🚣 REMO (ROW)', s.row2km) + hcErgZonesHTML('⛷️ SKI ERG', s.ski2km) + hcHrZonesHTML(s.hrMax,s.hrRest);
   return results || `<div style="text-align:center;padding:24px 0;color:var(--text3)">Completá al menos un test arriba para ver tus zonas</div>`;
 }
 function renderHcCalcBody(){
@@ -1703,12 +1712,13 @@ function renderHcCalcBody(){
     <input class="auth-inp" placeholder="ej: 7:45" value="${escH(s.row2km||'')}" oninput="hcCalcSetField('row2km',this.value)">
     <div style="font-size:11px;color:var(--text);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">2 Km Sky (tiempo)</div>
     <input class="auth-inp" placeholder="ej: 8:10" value="${escH(s.ski2km||'')}" oninput="hcCalcSetField('ski2km',this.value)">
-    <div style="font-size:11px;color:var(--text);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">Pulsaciones máximas</div>
-    <input class="auth-inp" type="number" placeholder="ej: 190" style="margin-bottom:0" value="${escH(String(s.hrMax||''))}" oninput="hcCalcSetField('hrMax',this.value)">
+    <div style="font-size:11px;color:var(--text);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">Frecuencia Cardíaca de Reserva (FCR)</div>
+    <input class="auth-inp" type="number" placeholder="Pulsaciones máximas (ej: 190)" value="${escH(String(s.hrMax||''))}" oninput="hcCalcSetField('hrMax',this.value)">
+    <input class="auth-inp" type="number" placeholder="Pulsaciones en reposo (ej: 60)" style="margin-bottom:0" value="${escH(String(s.hrRest||''))}" oninput="hcCalcSetField('hrRest',this.value)">
   </div>`;
 
   return `${inputsHTML}<div id="hc-calc-results">${hcCalcResultsHTML()}</div>
-    <div style="font-size:11px;color:var(--text3);line-height:1.5;margin-top:8px">Estimación con fórmulas estándar de VAM, remo/ski erg y frecuencia cardíaca. Tu profe puede ajustar los porcentajes si hace falta afinarla.</div>`;
+    <div style="font-size:11px;color:var(--text3);line-height:1.5;margin-top:8px">Estimación con fórmulas estándar de VAM, remo/ski erg y frecuencia cardíaca de reserva (Karvonen). Tu profe puede ajustar los porcentajes si hace falta afinarla.</div>`;
 }
 async function hcSetGoal(raceId){
   try{
@@ -2123,6 +2133,7 @@ function renderMetricsForm(metrics, uid, opts){
   return `<div>
     ${field('vam5Metros',"Test de VAM 5' (distancia recorrida)",'number','metros')}
     ${field('pulsacionesMax','Test de Pulsaciones Máximas','number','lpm')}
+    ${field('pulsacionesReposo','Test de Pulsaciones en Reposo','number','lpm')}
     ${field('row2km','2 Km Row (tiempo)','text','', 'ej: 7:45')}
     ${field('ski2km','2 Km Sky (tiempo)','text','','ej: 8:10')}
     <div style="font-size:11px;color:var(--text);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin:16px 0 10px">Test de fuerza</div>
