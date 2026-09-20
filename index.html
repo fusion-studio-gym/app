@@ -2524,7 +2524,18 @@ function handleFinish(){ showToast('✅ ¡Bloque registrado!'); setTimeout(()=>n
 // ============================================================
 // ADMIN MODAL
 // ============================================================
-function openAdmin(){ adminState.open=true; renderModal(); }
+function openAdmin(){
+  adminState.open=true;
+  if(!adminState.pwOk){
+    const club=getClub();
+    const u=(session && session.uid) ? getUserById(session.uid) : null;
+    if(u && u.admin && (u.club||'fuerza')===club){
+      adminState.pwOk=true; adminState.pwErr='';
+      loadUsers().then(()=>{ renderModal(); loadUserActivityStatus().then(()=>renderModal()); });
+    }
+  }
+  renderModal();
+}
 function closeAdmin(){ adminState.open=false; document.getElementById('modal-root').innerHTML=''; }
 
 function renderModal(){
@@ -2749,14 +2760,16 @@ function renderUserRow(u){
       ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserFicha('${u.id}')" title="Ver ficha">📋</button>`:''}
       ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserMetrics('${u.id}')" title="Métricas">📊</button>`:''}
       ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserPlan('${u.id}')" title="Planificación">📅</button>`:''}
-      ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px;position:relative" onclick="viewUserChat('${u.id}')" title="Chat">💬${chatPending?'<span style="position:absolute;top:2px;right:2px;width:7px;height:7px;border-radius:50%;background:var(--red)"></span>':''}</button>`:''}`;
+      ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px;position:relative" onclick="viewUserChat('${u.id}')" title="Chat">💬${chatPending?'<span style="position:absolute;top:2px;right:2px;width:7px;height:7px;border-radius:50%;background:var(--red)"></span>':''}</button>`:''}
+      ${!isPending?`<button class="adm-btn ${u.admin?'adm-btn-orange':'adm-btn-ghost'}" style="padding:6px 8px" onclick="toggleUserAdmin('${u.id}')" title="${u.admin?'Quitar acceso de admin':'Dar acceso de admin'}">👑</button>`:''}`;
   const actionsFuerza=`
       ${isPending?`<button class="adm-btn adm-btn-green" style="padding:6px 12px;font-weight:700" onclick="approveUser('${u.id}')">✓ Aprobar</button>`:''}
       ${!isPending&&!isBlocked?`<button class="adm-btn adm-btn-red" style="padding:6px 8px" onclick="blockUser('${u.id}')" title="Bloquear">✕</button>`:''}
       ${isBlocked?`<button class="adm-btn adm-btn-blue" style="padding:6px 8px" onclick="unblockUser('${u.id}')" title="Reactivar">↩</button>`:''}
       ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="adminResetPassword('${u.id}')" title="Restablecer contraseña">🔑</button>`:''}
       ${!isPending?`<button class="adm-btn adm-btn-blue" style="padding:6px 8px" onclick="impersonateUser('${u.id}')" title="Entrar como alumno">👤</button>`:''}
-      ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserProgress('${u.id}')" title="Ver progreso">${IC.eye}</button>`:''}`;
+      ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserProgress('${u.id}')" title="Ver progreso">${IC.eye}</button>`:''}
+      ${!isPending?`<button class="adm-btn ${u.admin?'adm-btn-orange':'adm-btn-ghost'}" style="padding:6px 8px" onclick="toggleUserAdmin('${u.id}')" title="${u.admin?'Quitar acceso de admin':'Dar acceso de admin'}">👑</button>`:''}`;
   return `<div class="user-row">
     <div class="user-row-avatar">${ini}</div>
     <div class="user-row-info">
@@ -2784,6 +2797,15 @@ async function blockUser(id){
 async function unblockUser(id){
   await loadUsers(); users[id].status=STATUS.ACTIVE; await saveUsers();
   renderModal(); showToast('✅ Usuario reactivado');
+}
+async function toggleUserAdmin(id){
+  await loadUsers();
+  const u=users[id];
+  if(!u) return;
+  u.admin=!u.admin;
+  await saveUsers();
+  renderModal();
+  showToast(u.admin?'👑 Ahora tiene acceso de admin':'Ya no tiene acceso de admin');
 }
 async function adminResetPassword(id){
   const u=getUserById(id);
