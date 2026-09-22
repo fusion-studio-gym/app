@@ -461,6 +461,7 @@ const K = {
   HC_DOCS_INDEX: 'hc_docs_index_v1',  // shared: [{id,name,category,size,uploadedAt}] — metadata liviana de documentos
   HC_DOC_FILE: (id) => `hc_doc_file_${id}_v1`,  // shared: {dataUrl} — el archivo en sí, uno por doc (evita el límite de 1MB agregado)
   HC_METRICS: (uid) => `hc_metrics_${uid}_v1`,  // personal: métricas físicas del alumno (VAM, remo, ski, fuerza, movilidad)
+  HC_DONE: (uid) => `hc_done_${uid}_v1`,  // personal: {[dayId]: {ts, weekId}} — días de entrenamiento marcados como completados
 };
 const DEFAULT_ADMIN_PW = 'fusion2025';
 const DEFAULT_ADMIN_PW_HYBRID = 'hybrid2025';
@@ -1172,7 +1173,8 @@ const HC_ICONS={
   activity:'<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
   waves:'<path d="M2 6c1.5 0 1.5 1.8 3 1.8S6.5 6 8 6s1.5 1.8 3 1.8S12.5 6 14 6s1.5 1.8 3 1.8S18.5 6 20 6"/><path d="M2 12c1.5 0 1.5 1.8 3 1.8s1.5-1.8 3-1.8 1.5 1.8 3 1.8 1.5-1.8 3-1.8 1.5 1.8 3 1.8 1.5-1.8 3-1.8"/><path d="M2 18c1.5 0 1.5 1.8 3 1.8s1.5-1.8 3-1.8 1.5 1.8 3 1.8 1.5-1.8 3-1.8 1.5 1.8 3 1.8 1.5-1.8 3-1.8"/>',
   mountain:'<path d="M3 20l5-9 4 5 3-7 6 11H3z"/>',
-  heart:'<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>'
+  heart:'<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>',
+  flame:'<path d="M12 2c1 4-3 5-3 9a3 3 0 0 0 6 0c0-1-.5-2-1-3 2 1 4 3 4 6a6 6 0 0 1-12 0c0-5 3-7 6-12z"/>'
 };
 function hcIcon(name,size,color){
   size=size||18; color=color||'currentColor';
@@ -1501,6 +1503,7 @@ async function hcEnsureGoalData(){
   if(!hcRaces) await loadHcRaces();
   if(!hcCalls) await loadHcCalls();
   await loadHcAnnouncement();
+  await hcEnsurePlanData();
   if(hcGoalUid!==session.uid){
     hcGoal = hcNormalizeGoal(await personalGet(K.HC_GOAL(session.uid)));
     hcGoalUid = session.uid;
@@ -1761,20 +1764,37 @@ async function hcCancelCall(slotId){
 // ---- Plan del alumno (día/semana/mes) ----
 let hcOwnPlan=null, hcOwnBlockName='', hcOwnPlanUid=null;
 let hcOwnArchived=null;
+let hcOwnDone=null; // {[dayId]: {ts, weekId}}
 let hcPlanView={ mode:'semana', week:0, day:0 };
 let hcArchView={ open:false, blockId:null, week:0 };
 
-async function hcOpenPlan(){
+async function hcEnsurePlanData(){
   if(hcOwnPlanUid!==session.uid){
     hcOwnPlan = hcNormalizePlan(await personalGet(K.HC_PLAN(session.uid)) || []);
     hcOwnBlockName = await personalGet(K.HC_BLOCK_NAME(session.uid)) || '';
     hcOwnArchived = await personalGet(K.HC_BLOCKS(session.uid)) || [];
+    hcOwnDone = await personalGet(K.HC_DONE(session.uid)) || {};
     hcOwnPlanUid = session.uid;
     hcPlanView={ mode:'semana', week:0, day:0 };
     hcArchView={ open:false, blockId:null, week:0 };
+    return true;
   }
+  return false;
+}
+async function hcOpenPlan(){
+  await hcEnsurePlanData();
   hcState.tab='plan';
   render();
+}
+async function hcToggleDayDone(weekId,dayId){
+  try{
+    hcOwnDone=hcOwnDone||{};
+    if(hcOwnDone[dayId]) delete hcOwnDone[dayId];
+    else hcOwnDone[dayId]={ ts:Date.now(), weekId };
+    render();
+    const ok=await personalSet(K.HC_DONE(session.uid), hcOwnDone);
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+  }catch(e){ alert('No se pudo guardar: '+e.message); }
 }
 function hcToggleArchivedList(){ hcArchView.open=!hcArchView.open; hcArchView.blockId=null; render(); }
 function hcViewArchivedBlock(id){ hcArchView.blockId=id; hcArchView.week=0; render(); }
@@ -1959,6 +1979,45 @@ function renderHcLlamadasBody(){
 
 function hcHasAnyContent(plan){ return (plan||[]).some(w=>w.days.some(d=>d.exercises.length>0)); }
 
+// ---- Racha de sesiones completadas (Hybrid Club) ----
+function hcWeekDaysWithContent(week){ return (week&&week.days?week.days:[]).filter(d=>d.exercises.length>0); }
+function hcCalcWeekPct(week){
+  const withContent=hcWeekDaysWithContent(week);
+  if(!withContent.length) return 0;
+  const done=withContent.filter(d=>hcOwnDone && hcOwnDone[d.id]).length;
+  return Math.round(done/withContent.length*100);
+}
+function hcDetectActiveWeekIdx(){
+  if(!hcOwnPlan||!hcOwnPlan.length) return 0;
+  for(let i=0;i<hcOwnPlan.length;i++){ if(hcCalcWeekPct(hcOwnPlan[i])<100) return i; }
+  return hcOwnPlan.length-1;
+}
+// Racha = sesiones consecutivas completadas, contando hacia atrás desde la última sesión con contenido cargado.
+function hcCalcSessionStreak(){
+  const days=[];
+  (hcOwnPlan||[]).forEach(w=>hcWeekDaysWithContent(w).forEach(d=>days.push(d)));
+  let streak=0;
+  for(let i=days.length-1;i>=0;i--){
+    if(hcOwnDone && hcOwnDone[days[i].id]) streak++; else break;
+  }
+  return streak;
+}
+function hcStreakBannerHTML(){
+  const streak=hcCalcSessionStreak();
+  if(streak<=0) return '';
+  const aw=(hcOwnPlan||[])[hcDetectActiveWeekIdx()];
+  const withContent=hcWeekDaysWithContent(aw);
+  const doneActive=withContent.filter(d=>hcOwnDone && hcOwnDone[d.id]).length;
+  return `<div style="background:linear-gradient(135deg,rgba(255,236,3,0.18),rgba(255,236,3,0.05));border:1px solid rgba(255,236,3,0.4);border-radius:14px;padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;gap:14px">
+    <div style="width:40px;height:40px;border-radius:10px;background:rgba(255,236,3,0.18);display:flex;align-items:center;justify-content:center;flex-shrink:0">${hcIcon('flame',20,'#FFEC03')}</div>
+    <div style="flex:1">
+      <div style="font-size:10px;color:#FFEC03;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">Racha activa</div>
+      <div style="font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--text);line-height:1">${streak} <span style="font-size:13px;color:var(--text2);font-weight:400">${streak===1?'sesion seguida':'sesiones seguidas'}</span></div>
+      ${withContent.length?`<div style="font-size:10px;color:var(--text3);margin-top:3px">${doneActive} de ${withContent.length} sesiones esta semana</div>`:''}
+    </div>
+  </div>`;
+}
+
 function hcExDisplayHTML(wi,di,ei,ex){
   const rowsHTML=ex.rows.map(r=>`<div style="font-size:12px;color:var(--text2);margin-top:2px">• ${escH(String(r.series))} x ${escH(r.reps)} ${r.rpe?escH(r.rpe):''}</div>`).join('');
   return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px">
@@ -1969,11 +2028,17 @@ function hcExDisplayHTML(wi,di,ei,ex){
     <textarea class="auth-inp" style="height:44px;padding:8px 12px;resize:vertical;margin-bottom:0;font-size:12px" placeholder="¿Cómo te sentiste, qué pesos usaste...?" onchange="hcSetExNote(${wi},${di},${ei},this.value)">${escH(ex.studentNotes||'')}</textarea>
   </div>`;
 }
-function hcDayCardHTML(wi,di,day){
+function hcDayCardHTML(wi,di,day,weekId){
   const exList = day.exercises.length ? day.exercises.map((ex,ei)=>hcExDisplayHTML(wi,di,ei,ex)).join('') : `<div style="font-size:11px;color:var(--text3);padding:4px 0 12px">Sin ejercicios cargados</div>`;
+  const dayId = day.id || ('w'+wi+'_d'+di);
+  const done = !!(hcOwnDone && hcOwnDone[dayId]);
+  const checkBtn = day.exercises.length ? `<button class="adm-btn ${done?'adm-btn-orange':'adm-btn-ghost'}" style="width:100%;justify-content:center;padding:10px;margin-bottom:16px;gap:8px" onclick="hcToggleDayDone('${weekId||''}','${dayId}')">
+    ${IC.check(done)} ${done?'Día completado':'Marcar día como completado'}
+  </button>` : '';
   return `<div style="margin-bottom:16px">
     <div style="font-family:var(--font-display);font-size:14px;font-weight:700;letter-spacing:1px;color:var(--orange);text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">${escH(day.name)}</div>
     ${exList}
+    ${checkBtn}
   </div>`;
 }
 
@@ -2030,20 +2095,17 @@ function renderHcPlanBody(){
   const week=plan[wi];
 
   const modeToggle=`<div style="display:flex;gap:6px;margin-bottom:14px">
-    ${['dia','semana','mes'].map(m=>`<div class="admin-tab ${hcPlanView.mode===m?'active':''}" style="flex:1;text-align:center" onclick="hcSetPlanViewMode('${m}')">${m==='dia'?'Día':m==='semana'?'Semana':'Mes'}</div>`).join('')}
+    ${['dia','semana'].map(m=>`<div class="admin-tab ${hcPlanView.mode===m?'active':''}" style="flex:1;text-align:center" onclick="hcSetPlanViewMode('${m}')">${m==='dia'?'Día':'Semana'}</div>`).join('')}
   </div>`;
   const weekTabs = plan.length>1 ? `<div class="prog-week-tabs" style="margin-bottom:12px">${plan.map((w,i)=>`<div class="prog-week-tab ${wi===i?'active':''}" onclick="hcSetPlanViewWeek(${i})">S${i+1}</div>`).join('')}</div>` : '';
 
   let content='';
-  if(hcPlanView.mode==='mes'){
-    content = plan.map((w,wIdx)=>`<div class="admin-section-title" style="margin:16px 0 8px;color:var(--orange)">SEMANA ${wIdx+1}</div>
-      ${w.days.map((d,dIdx)=>hcDayCardHTML(wIdx,dIdx,d)).join('')}`).join('');
-  } else if(hcPlanView.mode==='semana'){
-    content = weekTabs + (week ? week.days.map((d,dIdx)=>hcDayCardHTML(wi,dIdx,d)).join('') : '');
+  if(hcPlanView.mode==='semana'){
+    content = weekTabs + (week ? week.days.map((d,dIdx)=>hcDayCardHTML(wi,dIdx,d,week.id)).join('') : '');
   } else {
     const di = week ? Math.min(hcPlanView.day, Math.max(0,week.days.length-1)) : 0;
     const dayTabs = week&&week.days.length>1 ? `<div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto">${week.days.map((d,i)=>`<div class="admin-tab ${di===i?'active':''}" style="font-size:11px;padding:4px 10px;flex-shrink:0" onclick="hcSetPlanViewDay(${i})">${escH(d.name)}</div>`).join('')}</div>` : '';
-    content = weekTabs + dayTabs + (week ? hcDayCardHTML(wi,di,week.days[di]) : '');
+    content = weekTabs + dayTabs + (week ? hcDayCardHTML(wi,di,week.days[di],week.id) : '');
   }
 
   return `${hcOwnBlockName?`<div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">BLOQUE ACTUAL</div><div style="font-family:var(--font-display);font-size:16px;font-weight:700;margin-bottom:16px">${escH(hcOwnBlockName)}</div>`:''}
@@ -2055,7 +2117,8 @@ function renderHybridHome(){
   const hasGoal = hcGoal&&hcGoal.raceIds&&hcGoal.raceIds.length>0;
   const hasCall = (hcCalls||[]).some(c=>c.uid===session.uid && !hcCallIsPast(c));
   const showAnn = hcAnnouncement && hcAnnouncement.id!==hcAnnDismissedId;
-  const hasTop = hasGoal||hasCall||showAnn;
+  const hasStreak = hcCalcSessionStreak()>0;
+  const hasTop = hasGoal||hasCall||showAnn||hasStreak;
   const annHTML = showAnn ? `<div style="background:#131315;border:1px solid #2a2a2e;border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 0 0 1px rgba(var(--orange-rgb),0.12)">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
         <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--orange2);letter-spacing:1px;text-transform:uppercase">${hcIcon('megaphone',13,'#FFEC03')} Aviso</div>
@@ -2084,7 +2147,7 @@ function renderHybridHome(){
     ? renderHcMetricsBody()
     : hcState.tab==='calc'
     ? renderHcCalcBody()
-    : annHTML+hcGoalHeroHTML()+hcOwnCallHTML()+welcomeHTML;
+    : annHTML+hcStreakBannerHTML()+hcGoalHeroHTML()+hcOwnCallHTML()+welcomeHTML;
   return `${navBarHTML(false,'')}
   <div class="page" style="padding:20px 16px ${hcState.tab==='chat'?'12px':'90px'}">${body}</div>
   ${hcTabBarHTML()}`;
@@ -3115,6 +3178,7 @@ function hcNormalizePlan(plan){
 let hcPlanEditing=null;     // [{id,days:[...]}] — plan del alumno que se está editando
 let hcPlanBlockName='';
 let hcPlanArchived=null;    // [{id,name,archivedAt,plan}]
+let hcPlanDone=null;        // {[dayId]: {ts, weekId}} — sesiones completadas por el alumno
 
 async function viewUserPlan(uid){
   const modal=document.querySelector('#modal-root .modal');
@@ -3124,11 +3188,12 @@ async function viewUserPlan(uid){
   hcPlanEditing = hcNormalizePlan(await personalGet(K.HC_PLAN(uid)) || [hcNewWeek()]);
   hcPlanBlockName = await personalGet(K.HC_BLOCK_NAME(uid)) || '';
   hcPlanArchived = await personalGet(K.HC_BLOCKS(uid)) || [];
+  hcPlanDone = await personalGet(K.HC_DONE(uid)) || {};
   renderModal();
 }
 function goBackFromPlan(){
   adminState.viewPlanUid=null;
-  hcPlanEditing=null; hcPlanArchived=null; adminState.planCopyPickerOpen=false;
+  hcPlanEditing=null; hcPlanArchived=null; hcPlanDone=null; adminState.planCopyPickerOpen=false;
   renderModal();
   requestAnimationFrame(()=>{
     const modal=document.querySelector('#modal-root .modal');
@@ -3330,6 +3395,30 @@ async function hcRestoreBlock(blkId){
   showToast('✅ Bloque restaurado');
   renderModal();
 }
+async function hcDeleteArchivedBlock(blkId){
+  const blk=(hcPlanArchived||[]).find(b=>b.id===blkId);
+  if(!blk) return;
+  if(!confirm('¿Eliminar el bloque archivado "'+blk.name+'" de forma definitiva? Esta acción no se puede deshacer.')) return;
+  try{
+    hcPlanArchived=(hcPlanArchived||[]).filter(b=>b.id!==blkId);
+    const ok=await personalSet(K.HC_BLOCKS(adminState.viewPlanUid), hcPlanArchived);
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+    showToast('🗑️ Bloque archivado eliminado');
+    renderModal();
+  }catch(e){ alert('Error al eliminar el bloque: '+e.message); }
+}
+async function hcDeleteAllArchivedBlocks(){
+  const list=hcPlanArchived||[];
+  if(!list.length) return;
+  if(!confirm('¿Eliminar los '+list.length+' bloques archivados de este alumno de forma definitiva? Esta acción no se puede deshacer.')) return;
+  try{
+    hcPlanArchived=[];
+    const ok=await personalSet(K.HC_BLOCKS(adminState.viewPlanUid), hcPlanArchived);
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+    showToast('🗑️ Bloques archivados eliminados');
+    renderModal();
+  }catch(e){ alert('Error al eliminar los bloques: '+e.message); }
+}
 
 function renderAdminPlan(){
   const u=getUserById(adminState.viewPlanUid);
@@ -3344,13 +3433,21 @@ function renderAdminPlan(){
   const dayTabs=week.days.map((d,i)=>`<div class="admin-tab ${di===i?'active':''}" style="font-size:11px;padding:4px 10px;flex-shrink:0" onclick="hcSetPlanDay(${i})">${escH(d.name)}</div>`).join('');
   const exercisesHTML=day.exercises.map((ex,ei)=>renderHcExCard(wi,di,ei,ex)).join('');
 
-  const archivedHTML=(hcPlanArchived&&hcPlanArchived.length) ? `<div class="admin-section-title" style="margin:20px 0 10px">BLOQUES ARCHIVADOS</div>
+  const daysWithContent=week.days.filter(d=>d.exercises.length>0);
+  const doneCount=daysWithContent.filter(d=>hcPlanDone && hcPlanDone[d.id||'']).length;
+  const doneSummaryHTML = daysWithContent.length ? `<div style="font-size:11px;color:var(--text3);margin-bottom:10px">✓ Semana ${wi+1}: ${doneCount}/${daysWithContent.length} sesiones completadas por el alumno</div>` : '';
+
+  const archivedHTML=(hcPlanArchived&&hcPlanArchived.length) ? `<div style="display:flex;align-items:center;justify-content:space-between;margin:20px 0 10px">
+      <div class="admin-section-title" style="margin:0">BLOQUES ARCHIVADOS (${hcPlanArchived.length})</div>
+      <button class="adm-btn adm-btn-red" style="padding:5px 10px;font-size:11px" onclick="hcDeleteAllArchivedBlocks()">${IC.trash} Borrar todos</button>
+    </div>
     ${hcPlanArchived.slice().reverse().map(b=>`<div class="user-row" style="margin-bottom:8px">
       <div class="user-row-info">
         <div class="user-row-name">${escH(b.name)}</div>
         <div class="user-row-email">${new Date(b.archivedAt).toLocaleDateString('es-AR')} · ${b.plan.length} semana(s)</div>
       </div>
       <button class="adm-btn adm-btn-ghost" style="padding:6px 10px" onclick="hcRestoreBlock('${b.id}')">Restaurar</button>
+      <button class="adm-btn adm-btn-red" style="padding:6px 8px" onclick="hcDeleteArchivedBlock('${b.id}')" title="Eliminar">${IC.trash}</button>
     </div>`).join('')}` : '';
 
   const pickerTabs=`<div style="display:flex;gap:6px;margin-bottom:10px">
@@ -3381,6 +3478,7 @@ function renderAdminPlan(){
 
     <div class="admin-section-title" style="margin-bottom:8px">SEMANAS</div>
     <div class="prog-week-tabs" style="margin-bottom:10px;display:flex;flex-wrap:wrap;gap:6px">${weekTabs}<button class="adm-btn adm-btn-ghost" style="padding:4px 10px" onclick="hcAddWeek()">${IC.plus}</button></div>
+    ${doneSummaryHTML}
     <div style="display:flex;gap:8px;margin-bottom:16px">
       <button class="adm-btn adm-btn-ghost" onclick="hcDuplicateWeek(${wi})">⧉ Duplicar semana</button>
       ${hcPlanEditing.length>1?`<button class="adm-btn adm-btn-red" onclick="hcRemoveWeek(${wi})">Eliminar semana</button>`:''}
