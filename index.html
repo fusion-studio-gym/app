@@ -1765,7 +1765,7 @@ async function hcCancelCall(slotId){
 let hcOwnPlan=null, hcOwnBlockName='', hcOwnPlanUid=null;
 let hcOwnArchived=null;
 let hcOwnDone=null; // {[dayId]: {ts, weekId}}
-let hcPlanView={ mode:'semana', week:0, day:0 };
+let hcPlanView={ mode:'proximos' };
 let hcArchView={ open:false, blockId:null, week:0 };
 
 async function hcEnsurePlanData(){
@@ -1775,7 +1775,7 @@ async function hcEnsurePlanData(){
     hcOwnArchived = await personalGet(K.HC_BLOCKS(session.uid)) || [];
     hcOwnDone = await personalGet(K.HC_DONE(session.uid)) || {};
     hcOwnPlanUid = session.uid;
-    hcPlanView={ mode:'semana', week:0, day:0 };
+    hcPlanView={ mode:'proximos' };
     hcArchView={ open:false, blockId:null, week:0 };
     return true;
   }
@@ -1801,8 +1801,6 @@ function hcViewArchivedBlock(id){ hcArchView.blockId=id; hcArchView.week=0; rend
 function hcBackToArchivedList(){ hcArchView.blockId=null; render(); }
 function hcSetArchWeek(i){ hcArchView.week=i; render(); }
 function hcSetPlanViewMode(m){ hcPlanView.mode=m; render(); }
-function hcSetPlanViewWeek(i){ hcPlanView.week=i; hcPlanView.day=0; render(); }
-function hcSetPlanViewDay(i){ hcPlanView.day=i; render(); }
 async function hcSetExNote(wi,di,ei,val){
   try{
     hcOwnPlan[wi].days[di].exercises[ei].studentNotes=val;
@@ -2094,34 +2092,41 @@ function renderHcArchivedBrowser(){
     ${week ? week.days.map(d=>hcDayCardReadOnlyHTML(d)).join('') : ''}`;
 }
 
-function hcProgresoBody(){
+function hcProximosBody(){
+  const awi=hcDetectActiveWeekIdx();
+  const week=(hcOwnPlan||[])[awi];
+  const days=week?hcWeekDaysWithContent(week):[];
+  if(!days.length) return `<div style="text-align:center;padding:20px 0;color:var(--text3);font-size:12px">Todavía no hay sesiones cargadas para esta semana</div>`;
+  const rows=days.map(d=>{
+    const idx=week.days.indexOf(d);
+    const doneFlag=!!(hcOwnDone && hcOwnDone[d.id]);
+    if(!doneFlag) return hcDayCardHTML(awi,idx,d,week.id);
+    return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;opacity:0.55;display:flex;justify-content:space-between;align-items:center">
+      <div style="font-size:13px;font-weight:700">${escH(d.name)}</div>${IC.check(true)}
+    </div>`;
+  }).join('');
+  return `<div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px">SEMANA ${awi+1}</div>${rows}`;
+}
+
+function hcCompletadosBody(){
   const flat=[];
   (hcOwnPlan||[]).forEach((w,wi)=>{
     w.days.forEach((d,di)=>{ if(d.exercises.length>0) flat.push({wi,di,day:d,week:w}); });
   });
-  const upcoming=flat.filter(f=>!(hcOwnDone && hcOwnDone[f.day.id]));
   const done=flat.filter(f=>hcOwnDone && hcOwnDone[f.day.id]);
   done.sort((a,b)=>((hcOwnDone[b.day.id]&&hcOwnDone[b.day.id].ts)||0)-((hcOwnDone[a.day.id]&&hcOwnDone[a.day.id].ts)||0));
-
-  const upcomingHTML = upcoming.length
-    ? upcoming.map(f=>`<div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">SEMANA ${f.wi+1}</div>${hcDayCardHTML(f.wi,f.di,f.day,f.week.id)}`).join('')
-    : `<div style="text-align:center;padding:20px 0;color:var(--text3);font-size:12px">No te quedan sesiones pendientes en este bloque 🎉</div>`;
-
-  const doneHTML = done.length
-    ? done.map(f=>{
-        const ts=(hcOwnDone[f.day.id]&&hcOwnDone[f.day.id].ts)||Date.now();
-        return `<div class="user-row" style="margin-bottom:8px">
-          <div class="user-row-info">
-            <div class="user-row-name">${escH(f.day.name)}</div>
-            <div class="user-row-email">Semana ${f.wi+1} · ${new Date(ts).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'})}</div>
-          </div>
-          <button class="adm-btn adm-btn-orange" style="padding:6px 8px" title="Completado" onclick="hcToggleDayDone('${f.week.id}','${f.day.id}')">${IC.check(true)}</button>
-        </div>`;
-      }).join('')
-    : `<div style="text-align:center;padding:20px 0;color:var(--text3);font-size:12px">Todavía no marcaste ninguna sesión como completada</div>`;
-
-  return `<div class="admin-section-title" style="margin-bottom:10px">PRÓXIMOS</div>${upcomingHTML}
-    <div class="admin-section-title" style="margin:20px 0 10px">COMPLETADOS (${done.length})</div>${doneHTML}`;
+  if(!done.length) return `<div style="text-align:center;padding:20px 0;color:var(--text3);font-size:12px">Todavía no marcaste ninguna sesión como completada</div>`;
+  const rows=done.map(f=>{
+    const ts=(hcOwnDone[f.day.id]&&hcOwnDone[f.day.id].ts)||Date.now();
+    return `<div class="user-row" style="margin-bottom:8px">
+      <div class="user-row-info">
+        <div class="user-row-name">${escH(f.day.name)}</div>
+        <div class="user-row-email">Semana ${f.wi+1} · ${new Date(ts).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'})}</div>
+      </div>
+      <button class="adm-btn adm-btn-orange" style="padding:6px 8px" title="Completado" onclick="hcToggleDayDone('${f.week.id}','${f.day.id}')">${IC.check(true)}</button>
+    </div>`;
+  }).join('');
+  return `<div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px">${done.length} sesion${done.length===1?'':'es'} completada${done.length===1?'':'s'} en este bloque</div>${rows}`;
 }
 
 function renderHcPlanBody(){
@@ -2132,24 +2137,11 @@ function renderHcPlanBody(){
   if(!hcHasAnyContent(plan)&&!hcOwnBlockName){
     return `<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="font-size:32px;margin-bottom:10px">📅</div>Tu profe todavía no cargó tu planificación</div>${archButton}`;
   }
-  const wi=Math.min(hcPlanView.week, Math.max(0,plan.length-1));
-  const week=plan[wi];
 
   const modeToggle=`<div style="display:flex;gap:6px;margin-bottom:14px">
-    ${['dia','semana','progreso'].map(m=>`<div class="admin-tab ${hcPlanView.mode===m?'active':''}" style="flex:1;text-align:center" onclick="hcSetPlanViewMode('${m}')">${m==='dia'?'Día':m==='semana'?'Semana':'Progreso'}</div>`).join('')}
+    ${['proximos','completados'].map(m=>`<div class="admin-tab ${hcPlanView.mode===m?'active':''}" style="flex:1;text-align:center" onclick="hcSetPlanViewMode('${m}')">${m==='proximos'?'Próximos':'Completados'}</div>`).join('')}
   </div>`;
-  const weekTabs = plan.length>1 ? `<div class="prog-week-tabs" style="margin-bottom:12px">${plan.map((w,i)=>`<div class="prog-week-tab ${wi===i?'active':''}" onclick="hcSetPlanViewWeek(${i})">S${i+1}</div>`).join('')}</div>` : '';
-
-  let content='';
-  if(hcPlanView.mode==='progreso'){
-    content = hcProgresoBody();
-  } else if(hcPlanView.mode==='semana'){
-    content = weekTabs + (week ? week.days.map((d,dIdx)=>hcDayCardHTML(wi,dIdx,d,week.id)).join('') : '');
-  } else {
-    const di = week ? Math.min(hcPlanView.day, Math.max(0,week.days.length-1)) : 0;
-    const dayTabs = week&&week.days.length>1 ? `<div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto">${week.days.map((d,i)=>`<div class="admin-tab ${di===i?'active':''}" style="font-size:11px;padding:4px 10px;flex-shrink:0" onclick="hcSetPlanViewDay(${i})">${escH(d.name)}</div>`).join('')}</div>` : '';
-    content = weekTabs + dayTabs + (week ? hcDayCardHTML(wi,di,week.days[di],week.id) : '');
-  }
+  const content = hcPlanView.mode==='completados' ? hcCompletadosBody() : hcProximosBody();
 
   return `${hcOwnBlockName?`<div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">BLOQUE ACTUAL</div><div style="font-family:var(--font-display);font-size:16px;font-weight:700;margin-bottom:16px">${escH(hcOwnBlockName)}</div>`:''}
   ${modeToggle}${content}
