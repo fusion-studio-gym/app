@@ -2094,6 +2094,36 @@ function renderHcArchivedBrowser(){
     ${week ? week.days.map(d=>hcDayCardReadOnlyHTML(d)).join('') : ''}`;
 }
 
+function hcProgresoBody(){
+  const flat=[];
+  (hcOwnPlan||[]).forEach((w,wi)=>{
+    w.days.forEach((d,di)=>{ if(d.exercises.length>0) flat.push({wi,di,day:d,week:w}); });
+  });
+  const upcoming=flat.filter(f=>!(hcOwnDone && hcOwnDone[f.day.id]));
+  const done=flat.filter(f=>hcOwnDone && hcOwnDone[f.day.id]);
+  done.sort((a,b)=>((hcOwnDone[b.day.id]&&hcOwnDone[b.day.id].ts)||0)-((hcOwnDone[a.day.id]&&hcOwnDone[a.day.id].ts)||0));
+
+  const upcomingHTML = upcoming.length
+    ? upcoming.map(f=>`<div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">SEMANA ${f.wi+1}</div>${hcDayCardHTML(f.wi,f.di,f.day,f.week.id)}`).join('')
+    : `<div style="text-align:center;padding:20px 0;color:var(--text3);font-size:12px">No te quedan sesiones pendientes en este bloque 🎉</div>`;
+
+  const doneHTML = done.length
+    ? done.map(f=>{
+        const ts=(hcOwnDone[f.day.id]&&hcOwnDone[f.day.id].ts)||Date.now();
+        return `<div class="user-row" style="margin-bottom:8px">
+          <div class="user-row-info">
+            <div class="user-row-name">${escH(f.day.name)}</div>
+            <div class="user-row-email">Semana ${f.wi+1} · ${new Date(ts).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'})}</div>
+          </div>
+          <button class="adm-btn adm-btn-orange" style="padding:6px 8px" title="Completado" onclick="hcToggleDayDone('${f.week.id}','${f.day.id}')">${IC.check(true)}</button>
+        </div>`;
+      }).join('')
+    : `<div style="text-align:center;padding:20px 0;color:var(--text3);font-size:12px">Todavía no marcaste ninguna sesión como completada</div>`;
+
+  return `<div class="admin-section-title" style="margin-bottom:10px">PRÓXIMOS</div>${upcomingHTML}
+    <div class="admin-section-title" style="margin:20px 0 10px">COMPLETADOS (${done.length})</div>${doneHTML}`;
+}
+
 function renderHcPlanBody(){
   if(hcArchView.open) return renderHcArchivedBrowser();
 
@@ -2106,12 +2136,14 @@ function renderHcPlanBody(){
   const week=plan[wi];
 
   const modeToggle=`<div style="display:flex;gap:6px;margin-bottom:14px">
-    ${['dia','semana'].map(m=>`<div class="admin-tab ${hcPlanView.mode===m?'active':''}" style="flex:1;text-align:center" onclick="hcSetPlanViewMode('${m}')">${m==='dia'?'Día':'Semana'}</div>`).join('')}
+    ${['dia','semana','progreso'].map(m=>`<div class="admin-tab ${hcPlanView.mode===m?'active':''}" style="flex:1;text-align:center" onclick="hcSetPlanViewMode('${m}')">${m==='dia'?'Día':m==='semana'?'Semana':'Progreso'}</div>`).join('')}
   </div>`;
   const weekTabs = plan.length>1 ? `<div class="prog-week-tabs" style="margin-bottom:12px">${plan.map((w,i)=>`<div class="prog-week-tab ${wi===i?'active':''}" onclick="hcSetPlanViewWeek(${i})">S${i+1}</div>`).join('')}</div>` : '';
 
   let content='';
-  if(hcPlanView.mode==='semana'){
+  if(hcPlanView.mode==='progreso'){
+    content = hcProgresoBody();
+  } else if(hcPlanView.mode==='semana'){
     content = weekTabs + (week ? week.days.map((d,dIdx)=>hcDayCardHTML(wi,dIdx,d,week.id)).join('') : '');
   } else {
     const di = week ? Math.min(hcPlanView.day, Math.max(0,week.days.length-1)) : 0;
@@ -3343,6 +3375,13 @@ function hcRemoveDay(wi,di){
 function hcUpdateDayName(wi,di,val){ hcPlanEditing[wi].days[di].name=val; }
 function hcAddExercise(wi,di){ hcPlanEditing[wi].days[di].exercises.push(hcNewExercise()); renderModal(); }
 function hcRemoveExercise(wi,di,ei){ hcPlanEditing[wi].days[di].exercises.splice(ei,1); renderModal(); }
+function hcMoveExercise(wi,di,ei,dir){
+  const list=hcPlanEditing[wi].days[di].exercises;
+  const target=ei+dir;
+  if(target<0||target>=list.length) return;
+  const tmp=list[ei]; list[ei]=list[target]; list[target]=tmp;
+  renderModal();
+}
 function hcUpdateEx(wi,di,ei,field,val){ hcPlanEditing[wi].days[di].exercises[ei][field]=val; }
 function hcAddExRow(wi,di,ei){
   const rows=hcPlanEditing[wi].days[di].exercises[ei].rows;
@@ -3364,10 +3403,15 @@ function renderHcExCard(wi,di,ei,ex){
     <input class="adm-inp" style="margin:0" value="${escH(r.rpe)}" placeholder="RPE (ej: @7)" oninput="hcUpdateExRow(${wi},${di},${ei},${ri},'rpe',this.value)">
     ${ex.rows.length>1?`<button class="adm-btn adm-btn-red" style="padding:6px 8px;flex-shrink:0" onclick="hcRemoveExRow(${wi},${di},${ei},${ri})">${IC.trash}</button>`:''}
   </div>`).join('');
+  const total=hcPlanEditing[wi].days[di].exercises.length;
   return `<div class="ex-edit-card">
     <div class="ex-edit-card-header">
       <span class="ex-edit-title">EJERCICIO ${ei+1}</span>
-      <button class="adm-btn adm-btn-red" onclick="hcRemoveExercise(${wi},${di},${ei})">${IC.trash}</button>
+      <div style="display:flex;gap:4px">
+        <button class="adm-btn adm-btn-ghost" style="padding:6px 8px" title="Subir" ${ei===0?'disabled':''} onclick="hcMoveExercise(${wi},${di},${ei},-1)"><span style="display:inline-block;transform:rotate(-90deg)">${IC.chevron}</span></button>
+        <button class="adm-btn adm-btn-ghost" style="padding:6px 8px" title="Bajar" ${ei===total-1?'disabled':''} onclick="hcMoveExercise(${wi},${di},${ei},1)"><span style="display:inline-block;transform:rotate(90deg)">${IC.chevron}</span></button>
+        <button class="adm-btn adm-btn-red" onclick="hcRemoveExercise(${wi},${di},${ei})">${IC.trash}</button>
+      </div>
     </div>
     <input class="adm-inp" style="margin-bottom:10px" value="${escH(ex.name)}" placeholder="Nombre del ejercicio" oninput="hcUpdateEx(${wi},${di},${ei},'name',this.value)">
     <div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">Series de este ejercicio</div>
