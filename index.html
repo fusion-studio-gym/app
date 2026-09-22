@@ -3385,9 +3385,20 @@ function hcRemoveExRow(wi,di,ei,ri){
   renderModal();
 }
 function hcUpdateExRow(wi,di,ei,ri,field,val){ hcPlanEditing[wi].days[di].exercises[ei].rows[ri][field]=val; }
+function hcMoveExRow(wi,di,ei,ri,dir){
+  const rows=hcPlanEditing[wi].days[di].exercises[ei].rows;
+  const target=ri+dir;
+  if(target<0||target>=rows.length) return;
+  const tmp=rows[ri]; rows[ri]=rows[target]; rows[target]=tmp;
+  renderModal();
+}
 
 function renderHcExCard(wi,di,ei,ex){
   const rowsHTML=ex.rows.map((r,ri)=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+    <div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0">
+      <button class="adm-btn adm-btn-ghost" style="padding:3px 6px" title="Subir" ${ri===0?'disabled':''} onclick="hcMoveExRow(${wi},${di},${ei},${ri},-1)"><span style="display:inline-block;transform:rotate(-90deg)">${IC.chevron}</span></button>
+      <button class="adm-btn adm-btn-ghost" style="padding:3px 6px" title="Bajar" ${ri===ex.rows.length-1?'disabled':''} onclick="hcMoveExRow(${wi},${di},${ei},${ri},1)"><span style="display:inline-block;transform:rotate(90deg)">${IC.chevron}</span></button>
+    </div>
     <input class="adm-inp" style="margin:0" type="number" min="1" value="${escH(String(r.series))}" placeholder="Series" oninput="hcUpdateExRow(${wi},${di},${ei},${ri},'series',this.value)">
     <input class="adm-inp" style="margin:0" value="${escH(r.reps)}" placeholder="Reps (ej: 8-10)" oninput="hcUpdateExRow(${wi},${di},${ei},${ri},'reps',this.value)">
     <input class="adm-inp" style="margin:0" value="${escH(r.rpe)}" placeholder="RPE (ej: @7)" oninput="hcUpdateExRow(${wi},${di},${ei},${ri},'rpe',this.value)">
