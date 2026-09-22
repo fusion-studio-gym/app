@@ -1987,18 +1987,15 @@ function hcCalcWeekPct(week){
 }
 function hcDetectActiveWeekIdx(){
   if(!hcOwnPlan||!hcOwnPlan.length) return 0;
-  // Preferimos la semana del último check que hizo el alumno — así el indicador
-  // siempre sigue a la sesión más reciente en vez de quedarse pegado en una
-  // semana ya completa o saltar a una semana futura todavía sin contenido.
-  if(hcOwnDone){
-    let lastTs=-1, lastWeekId=null;
-    Object.values(hcOwnDone).forEach(v=>{ if(v && typeof v.ts==='number' && v.ts>lastTs){ lastTs=v.ts; lastWeekId=v.weekId; } });
-    if(lastWeekId){
-      const idx=hcOwnPlan.findIndex(w=>w.id===lastWeekId);
-      if(idx>=0) return idx;
-    }
+  // Semana activa = la primera semana con contenido cargado que todavía no esté 100% completa.
+  // Las semanas sin contenido (el profe todavía no las cargó) se saltean, no cuentan como "pendientes".
+  for(let i=0;i<hcOwnPlan.length;i++){
+    if(hcWeekDaysWithContent(hcOwnPlan[i]).length && hcCalcWeekPct(hcOwnPlan[i])<100) return i;
   }
-  for(let i=0;i<hcOwnPlan.length;i++){ if(hcWeekDaysWithContent(hcOwnPlan[i]).length && hcCalcWeekPct(hcOwnPlan[i])<100) return i; }
+  // Si ya completaste todas las semanas con contenido, mostramos la última que tenga algo cargado.
+  for(let i=hcOwnPlan.length-1;i>=0;i--){
+    if(hcWeekDaysWithContent(hcOwnPlan[i]).length) return i;
+  }
   return 0;
 }
 // Racha = sesiones consecutivas completadas, contando hacia atrás desde la última sesión con contenido cargado.
@@ -2101,8 +2098,9 @@ function hcProximosBody(){
     const idx=week.days.indexOf(d);
     const doneFlag=!!(hcOwnDone && hcOwnDone[d.id]);
     if(!doneFlag) return hcDayCardHTML(awi,idx,d,week.id);
-    return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;opacity:0.55;display:flex;justify-content:space-between;align-items:center">
-      <div style="font-size:13px;font-weight:700">${escH(d.name)}</div>${IC.check(true)}
+    return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+      <div style="font-size:13px;font-weight:700;color:var(--text3)">${escH(d.name)}</div>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFEC03" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
     </div>`;
   }).join('');
   return `<div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px">SEMANA ${awi+1}</div>${rows}`;
@@ -2123,7 +2121,7 @@ function hcCompletadosBody(){
         <div class="user-row-name">${escH(f.day.name)}</div>
         <div class="user-row-email">Semana ${f.wi+1} · ${new Date(ts).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'})}</div>
       </div>
-      <button class="adm-btn adm-btn-orange" style="padding:6px 8px" title="Completado" onclick="hcToggleDayDone('${f.week.id}','${f.day.id}')">${IC.check(true)}</button>
+      <button class="adm-btn adm-btn-orange" style="padding:6px 8px" title="Completado" onclick="hcToggleDayDone('${f.week.id}','${f.day.id}')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--on-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></button>
     </div>`;
   }).join('');
   return `<div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px">${done.length} sesion${done.length===1?'':'es'} completada${done.length===1?'':'s'} en este bloque</div>${rows}`;
