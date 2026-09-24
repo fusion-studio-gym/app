@@ -1587,11 +1587,11 @@ function renderHcDocsBody(){
 // - Zonas de remo/ski como ajuste % sobre el ritmo/500m del test de 2 km (esquema UT2/UT1/AT/test/anaeróbico).
 // - Zonas de FC como % de la frecuencia cardíaca máxima.
 const HC_RUN_ZONES = [
-  { label:'Recuperación (Z1)', pctMin:50, pctMax:60 },
-  { label:'Primer Umbral Aeróbico (Z2)', pctMin:60, pctMax:70 },
+  { label:'Recuperación (Z1)', pctMin:45, pctMax:56 },
+  { label:'Primer Umbral Aeróbico (Z2)', pctMin:57, pctMax:69 },
   { label:'Transición entre Umbrales (Z3)', pctMin:70, pctMax:75 },
-  { label:'Segundo Umbral Anaeróbico (Z4)', pctMin:75, pctMax:80 },
-  { label:'VO2 Máx (Z5)', pctMin:80, pctMax:90 },
+  { label:'Segundo Umbral Anaeróbico (Z4)', pctMin:76, pctMax:85 },
+  { label:'VO2 Máx (Z5)', pctMin:86, pctMax:100 },
 ];
 const HC_ERG_ZONES = [
   { label:'Z1 · Recuperación (UT2)', adj:22 },
@@ -1609,8 +1609,11 @@ const HC_HR_ZONES = [
 ];
 function hcFmtMinSec(totalSeconds){
   if(totalSeconds==null||!isFinite(totalSeconds)||totalSeconds<=0) return '—';
-  const m=Math.floor(totalSeconds/60);
-  const s=Math.round(totalSeconds%60);
+  // Redondeamos el total de segundos primero, para que un resto de 59.6s no quede
+  // mostrado como ":60" — en cambio pasa correctamente al minuto siguiente (":00").
+  const total=Math.round(totalSeconds);
+  const m=Math.floor(total/60);
+  const s=total%60;
   return m+':'+String(s).padStart(2,'0');
 }
 function hcParseTimeToSec(str){
@@ -1765,7 +1768,7 @@ async function hcCancelCall(slotId){
 let hcOwnPlan=null, hcOwnBlockName='', hcOwnPlanUid=null;
 let hcOwnArchived=null;
 let hcOwnDone=null; // {[dayId]: {ts, weekId}}
-let hcPlanView={ mode:'proximos' };
+let hcPlanView={ mode:'proximos', week:null, day:null };
 let hcArchView={ open:false, blockId:null, week:0 };
 
 async function hcEnsurePlanData(){
@@ -1775,7 +1778,7 @@ async function hcEnsurePlanData(){
     hcOwnArchived = await personalGet(K.HC_BLOCKS(session.uid)) || [];
     hcOwnDone = await personalGet(K.HC_DONE(session.uid)) || {};
     hcOwnPlanUid = session.uid;
-    hcPlanView={ mode:'proximos' };
+    hcPlanView={ mode:'proximos', week:null, day:null };
     hcArchView={ open:false, blockId:null, week:0 };
     return true;
   }
@@ -1801,6 +1804,7 @@ function hcViewArchivedBlock(id){ hcArchView.blockId=id; hcArchView.week=0; rend
 function hcBackToArchivedList(){ hcArchView.blockId=null; render(); }
 function hcSetArchWeek(i){ hcArchView.week=i; render(); }
 function hcSetPlanViewMode(m){ hcPlanView.mode=m; render(); }
+function hcSetPlanViewDay(i){ hcPlanView.day=i; render(); }
 async function hcSetExNote(wi,di,ei,val){
   try{
     hcOwnPlan[wi].days[di].exercises[ei].studentNotes=val;
@@ -2094,16 +2098,24 @@ function hcProximosBody(){
   const week=(hcOwnPlan||[])[awi];
   const days=week?hcWeekDaysWithContent(week):[];
   if(!days.length) return `<div style="text-align:center;padding:20px 0;color:var(--text3);font-size:12px">Todavía no hay sesiones cargadas para esta semana</div>`;
-  const rows=days.map(d=>{
+
+  // Si cambiamos de semana activa (ej: terminaste la anterior), reseteamos el día seleccionado.
+  if(hcPlanView.week!==awi){ hcPlanView.week=awi; hcPlanView.day=null; }
+
+  let di=hcPlanView.day;
+  const validSel = di!=null && week.days[di] && week.days[di].exercises.length>0;
+  if(!validSel){
+    const firstPending=days.find(d=>!(hcOwnDone && hcOwnDone[d.id]));
+    di=week.days.indexOf(firstPending||days[days.length-1]);
+  }
+
+  const dayTabs = `<div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto">${days.map(d=>{
     const idx=week.days.indexOf(d);
     const doneFlag=!!(hcOwnDone && hcOwnDone[d.id]);
-    if(!doneFlag) return hcDayCardHTML(awi,idx,d,week.id);
-    return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
-      <div style="font-size:13px;font-weight:700;color:var(--text3)">${escH(d.name)}</div>
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFEC03" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-    </div>`;
-  }).join('');
-  return `<div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px">SEMANA ${awi+1}</div>${rows}`;
+    return `<div class="admin-tab ${di===idx?'active':''}" style="font-size:11px;padding:4px 10px;flex-shrink:0;display:flex;align-items:center;gap:5px" onclick="hcSetPlanViewDay(${idx})">${escH(d.name)}${doneFlag?`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFEC03" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`:''}</div>`;
+  }).join('')}</div>`;
+
+  return `<div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px">SEMANA ${awi+1}</div>${dayTabs}${hcDayCardHTML(awi,di,week.days[di],week.id)}`;
 }
 
 function hcCompletadosBody(){
