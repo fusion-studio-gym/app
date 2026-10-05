@@ -2028,8 +2028,16 @@ function hcStreakBannerHTML(){
   </div>`;
 }
 
+function hcFmtRowLine(r){
+  // La "x" sólo tiene sentido en el formato clásico "series x reps" (fuerza).
+  // Si no hay reps cargadas (ej: trabajos de running/erg donde todo va en el primer campo), no la mostramos.
+  let line=escH(String(r.series));
+  if(r.reps) line+=' x '+escH(r.reps);
+  if(r.rpe) line+=' '+escH(r.rpe);
+  return line;
+}
 function hcExDisplayHTML(wi,di,ei,ex){
-  const rowsHTML=ex.rows.map(r=>`<div style="font-size:12px;color:var(--text2);margin-top:2px">• ${escH(String(r.series))} x ${escH(r.reps)} ${r.rpe?escH(r.rpe):''}</div>`).join('');
+  const rowsHTML=ex.rows.map(r=>`<div style="font-size:12px;color:var(--text2);margin-top:2px">• ${hcFmtRowLine(r)}</div>`).join('');
   return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px">
     <div style="font-size:13px;font-weight:600">${escH(ex.name)}</div>
     ${rowsHTML}
@@ -2054,7 +2062,7 @@ function hcDayCardHTML(wi,di,day,weekId){
 
 // Versión de solo lectura (bloques archivados) — sin campo de anotación editable.
 function hcExReadOnlyHTML(ex){
-  const rowsHTML=ex.rows.map(r=>`<div style="font-size:12px;color:var(--text2);margin-top:2px">• ${escH(String(r.series))} x ${escH(r.reps)} ${r.rpe?escH(r.rpe):''}</div>`).join('');
+  const rowsHTML=ex.rows.map(r=>`<div style="font-size:12px;color:var(--text2);margin-top:2px">• ${hcFmtRowLine(r)}</div>`).join('');
   return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px">
     <div style="font-size:13px;font-weight:600">${escH(ex.name)}</div>
     ${rowsHTML}
@@ -2109,7 +2117,7 @@ function hcProximosBody(){
     di=week.days.indexOf(firstPending||days[days.length-1]);
   }
 
-  const dayTabs = `<div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto">${days.map(d=>{
+  const dayTabs = `<div id="hc-stu-daytabs" style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto">${days.map(d=>{
     const idx=week.days.indexOf(d);
     const doneFlag=!!(hcOwnDone && hcOwnDone[d.id]);
     return `<div class="admin-tab ${di===idx?'active':''}" style="font-size:11px;padding:4px 10px;flex-shrink:0;display:flex;align-items:center;gap:5px" onclick="hcSetPlanViewDay(${idx})">${escH(d.name)}${doneFlag?`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FFEC03" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`:''}</div>`;
@@ -2666,6 +2674,7 @@ function renderModal(){
     // After DOM update: scroll to top for detail views, restore position when returning
     requestAnimationFrame(()=>{
       existingModal.scrollTop = goingIntoDetail ? 0 : savedScroll;
+      hcKeepActiveTabVisible('hc-adm-daytabs');
     });
   } else {
     // First render — build full modal structure
@@ -2680,6 +2689,18 @@ function renderModal(){
 }
 
 function closeAdminBg(e){ if(e.target.classList.contains('modal-overlay')) closeAdmin(); }
+
+// Mantiene visible la pestaña (día/semana) activa dentro de una barra con scroll horizontal,
+// sin tocar el scroll vertical de la página/modal que la contiene.
+function hcKeepActiveTabVisible(containerId){
+  const c=document.getElementById(containerId);
+  if(!c) return;
+  const active=c.querySelector('.active');
+  if(!active) return;
+  const cRect=c.getBoundingClientRect(), aRect=active.getBoundingClientRect();
+  if(aRect.left<cRect.left) c.scrollLeft -= (cRect.left-aRect.left)+8;
+  else if(aRect.right>cRect.right) c.scrollLeft += (aRect.right-cRect.right)+8;
+}
 
 function renderAdminPw(){
   return `<div class="pw-wrap">
@@ -3502,7 +3523,7 @@ function renderAdminPlan(){
   const day=week.days[di];
 
   const weekTabs=hcPlanEditing.map((w,i)=>`<div class="prog-week-tab ${wi===i?'active':''}" onclick="hcSetPlanWeek(${i})">S${i+1}</div>`).join('');
-  const dayTabs=week.days.map((d,i)=>`<div class="admin-tab ${di===i?'active':''}" style="font-size:11px;padding:4px 10px;flex-shrink:0" onclick="hcSetPlanDay(${i})">${escH(d.name)}</div>`).join('');
+  const dayTabs=`<div id="hc-adm-daytabs" style="display:flex;gap:6px;overflow-x:auto;flex:1">${week.days.map((d,i)=>`<div class="admin-tab ${di===i?'active':''}" style="font-size:11px;padding:4px 10px;flex-shrink:0" onclick="hcSetPlanDay(${i})">${escH(d.name)}</div>`).join('')}</div>`;
   const exercisesHTML=day.exercises.map((ex,ei)=>renderHcExCard(wi,di,ei,ex)).join('');
 
   const daysWithContent=week.days.filter(d=>d.exercises.length>0);
@@ -3557,7 +3578,7 @@ function renderAdminPlan(){
     </div>
 
     <div class="admin-section-title" style="margin-bottom:8px">DÍAS — SEMANA ${wi+1}</div>
-    <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto">${dayTabs}<button class="adm-btn adm-btn-ghost" style="flex-shrink:0;padding:4px 10px" onclick="hcAddDay(${wi})">${IC.plus} Día</button></div>
+    <div style="display:flex;gap:6px;margin-bottom:12px;align-items:center">${dayTabs}<button class="adm-btn adm-btn-ghost" style="flex-shrink:0;padding:4px 10px" onclick="hcAddDay(${wi})">${IC.plus} Día</button></div>
     <input class="adm-inp" value="${escH(day.name)}" oninput="hcUpdateDayName(${wi},${di},this.value)" style="margin-bottom:12px">
 
     ${exercisesHTML}
@@ -5274,6 +5295,7 @@ function render(){
   const changedScreen = renderKey!==__lastRenderKey;
   __lastRenderKey=renderKey;
   scrollEl.scrollTop = changedScreen ? 0 : savedScroll;
+  hcKeepActiveTabVisible('hc-stu-daytabs');
 
   renderImpBanner();
 }
