@@ -1769,7 +1769,7 @@ async function hcCancelCall(slotId){
 let hcOwnPlan=null, hcOwnBlockName='', hcOwnPlanUid=null;
 let hcOwnArchived=null;
 let hcOwnDone=null; // {[dayId]: {ts, weekId}}
-let hcPlanView={ mode:'proximos', week:null, day:null };
+let hcPlanView={ mode:'proximos', week:null, day:null, viewWeek:'active', nextDay:null };
 let hcArchView={ open:false, blockId:null, week:0 };
 
 async function hcEnsurePlanData(){
@@ -1779,7 +1779,7 @@ async function hcEnsurePlanData(){
     hcOwnArchived = await personalGet(K.HC_BLOCKS(session.uid)) || [];
     hcOwnDone = await personalGet(K.HC_DONE(session.uid)) || {};
     hcOwnPlanUid = session.uid;
-    hcPlanView={ mode:'proximos', week:null, day:null };
+    hcPlanView={ mode:'proximos', week:null, day:null, viewWeek:'active', nextDay:null };
     hcArchView={ open:false, blockId:null, week:0 };
     return true;
   }
@@ -1810,6 +1810,8 @@ function hcBackToArchivedList(){ hcArchView.blockId=null; render(); }
 function hcSetArchWeek(i){ hcArchView.week=i; render(); }
 function hcSetPlanViewMode(m){ hcPlanView.mode=m; render(); }
 function hcSetPlanViewDay(i){ hcPlanView.day=i; render(); }
+function hcSetPlanViewWeek(w){ hcPlanView.viewWeek=w; render(); }
+function hcSetPlanViewNextDay(i){ hcPlanView.nextDay=i; render(); }
 async function hcSetExNote(wi,di,ei,val){
   try{
     hcOwnPlan[wi].days[di].exercises[ei].studentNotes=val;
@@ -2030,6 +2032,37 @@ function hcCalcSessionStreak(){
   }
   return streak;
 }
+// Días sin marcar que quedaron "atrás": el alumno ya marcó (completado o no) algo posterior,
+// así que ese hueco realmente se le pasó — a diferencia de un día futuro que todavía no toca.
+function hcPendingReminders(){
+  const flat=[];
+  (hcOwnPlan||[]).forEach((w,wi)=>hcWeekDaysWithContent(w).forEach(d=>flat.push({d,week:w,wi})));
+  let lastResolvedIdx=-1;
+  flat.forEach((f,i)=>{ if(hcDoneStatus(f.d.id)) lastResolvedIdx=i; });
+  const pending=[];
+  for(let i=0;i<lastResolvedIdx;i++){
+    if(!hcDoneStatus(flat[i].d.id)) pending.push(flat[i]);
+  }
+  return pending;
+}
+function hcReminderBannerHTML(){
+  const pending=hcPendingReminders();
+  if(!pending.length) return '';
+  const rows=pending.map(p=>`<div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border-radius:8px;padding:8px 10px;margin-bottom:6px">
+    <div style="font-size:11px;color:var(--text2)">${escH(p.d.name)} · Semana ${p.wi+1}</div>
+    <div style="display:flex;gap:4px">
+      <button style="width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:transparent;display:flex;align-items:center;justify-content:center" title="Marcar completado" onclick="hcSetDayStatus('${p.week.id}','${p.d.id}','done')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FFEC03" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></button>
+      <button style="width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:transparent;display:flex;align-items:center;justify-content:center" title="Marcar no completado" onclick="hcSetDayStatus('${p.week.id}','${p.d.id}','missed')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+  </div>`).join('');
+  return `<div style="background:rgba(255,236,3,0.08);border:1px solid rgba(255,236,3,0.35);border-radius:10px;padding:12px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      ${hcIcon('megaphone',15,'#FFEC03')}
+      <div style="font-size:12px;color:#FFEC03;font-weight:600">Te falta${pending.length===1?'':'n'} marcar ${pending.length} sesi${pending.length===1?'ón':'ones'}</div>
+    </div>
+    ${rows}
+  </div>`;
+}
 function hcStreakBannerHTML(){
   const streak=hcCalcSessionStreak();
   if(streak<=0) return '';
@@ -2124,23 +2157,10 @@ function renderHcArchivedBrowser(){
     ${week ? week.days.map(d=>hcDayCardReadOnlyHTML(d)).join('') : ''}`;
 }
 
-function hcProximosBody(){
-  const awi=hcDetectActiveWeekIdx();
-  const week=(hcOwnPlan||[])[awi];
-  const days=week?hcWeekDaysWithContent(week):[];
-  if(!days.length) return `<div style="text-align:center;padding:20px 0;color:var(--text3);font-size:12px">Todavía no hay sesiones cargadas para esta semana</div>`;
-
-  // Si cambiamos de semana activa (ej: terminaste la anterior), reseteamos el día seleccionado.
-  if(hcPlanView.week!==awi){ hcPlanView.week=awi; hcPlanView.day=null; }
-
-  let di=hcPlanView.day;
-  const validSel = di!=null && week.days[di] && week.days[di].exercises.length>0;
-  if(!validSel){
-    const firstPending=days.find(d=>!hcDoneStatus(d.id));
-    di=week.days.indexOf(firstPending||days[days.length-1]);
-  }
-
-  const dayTabs = `<div id="hc-stu-daytabs" style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto">${days.map(d=>{
+// Pestañas de día reutilizables entre la semana activa y la siguiente.
+function hcDayTabsHTML(containerId, week, selDi, onclickFn){
+  const days=hcWeekDaysWithContent(week);
+  return `<div id="${containerId}" style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto">${days.map(d=>{
     const idx=week.days.indexOf(d);
     const st=hcDoneStatus(d.id);
     const badge = st==='done'
@@ -2148,10 +2168,47 @@ function hcProximosBody(){
       : st==='missed'
       ? `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>`
       : '';
-    return `<div class="admin-tab ${di===idx?'active':''}" style="font-size:11px;padding:4px 10px;flex-shrink:0;display:flex;align-items:center;gap:5px" onclick="hcSetPlanViewDay(${idx})">${escH(d.name)}${badge}</div>`;
+    return `<div class="admin-tab ${selDi===idx?'active':''}" style="font-size:11px;padding:4px 10px;flex-shrink:0;display:flex;align-items:center;gap:5px" onclick="${onclickFn}(${idx})">${escH(d.name)}${badge}</div>`;
   }).join('')}</div>`;
+}
+function hcProximosBody(){
+  const awi=hcDetectActiveWeekIdx();
+  const nextWi=awi+1;
+  const nextWeek=(hcOwnPlan||[])[nextWi];
+  const hasNextWeek=!!(nextWeek && hcWeekDaysWithContent(nextWeek).length);
 
-  return `<div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px">SEMANA ${awi+1}</div>${dayTabs}${hcDayCardHTML(awi,di,week.days[di],week.id)}`;
+  // Si cambiamos de semana activa (ej: terminaste la anterior), reseteamos las selecciones.
+  if(hcPlanView.week!==awi){ hcPlanView.week=awi; hcPlanView.day=null; hcPlanView.nextDay=null; hcPlanView.viewWeek='active'; }
+
+  const viewingNext = hcPlanView.viewWeek==='next' && hasNextWeek;
+  const vwi = viewingNext ? nextWi : awi;
+  const week=(hcOwnPlan||[])[vwi];
+  const days=week?hcWeekDaysWithContent(week):[];
+  const reminderHTML=hcReminderBannerHTML();
+  if(!days.length) return `${reminderHTML}<div style="text-align:center;padding:20px 0;color:var(--text3);font-size:12px">Todavía no hay sesiones cargadas para esta semana</div>`;
+
+  const weekSelector = hasNextWeek ? `<div style="display:flex;gap:6px;margin-bottom:12px">
+    <div class="admin-tab ${!viewingNext?'active':''}" style="flex:1;text-align:center" onclick="hcSetPlanViewWeek('active')">Semana ${awi+1}</div>
+    <div class="admin-tab ${viewingNext?'active':''}" style="flex:1;text-align:center" onclick="hcSetPlanViewWeek('next')">Semana ${nextWi+1}</div>
+  </div>` : '';
+
+  let di;
+  if(viewingNext){
+    di=hcPlanView.nextDay;
+    const validSel = di!=null && week.days[di] && week.days[di].exercises.length>0;
+    if(!validSel) di=week.days.indexOf(days[0]);
+  } else {
+    di=hcPlanView.day;
+    const validSel = di!=null && week.days[di] && week.days[di].exercises.length>0;
+    if(!validSel){
+      const firstPending=days.find(d=>!hcDoneStatus(d.id));
+      di=week.days.indexOf(firstPending||days[days.length-1]);
+    }
+  }
+
+  const dayTabs=hcDayTabsHTML(viewingNext?'hc-stu-nextdaytabs':'hc-stu-daytabs', week, di, viewingNext?'hcSetPlanViewNextDay':'hcSetPlanViewDay');
+
+  return `${reminderHTML}${weekSelector}<div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px">SEMANA ${vwi+1}</div>${dayTabs}${hcDayCardHTML(vwi,di,week.days[di],week.id)}`;
 }
 
 function hcCompletadosBody(){
@@ -5337,6 +5394,7 @@ function render(){
   __lastRenderKey=renderKey;
   scrollEl.scrollTop = changedScreen ? 0 : savedScroll;
   hcKeepActiveTabVisible('hc-stu-daytabs');
+  hcKeepActiveTabVisible('hc-stu-nextdaytabs');
 
   renderImpBanner();
 }
