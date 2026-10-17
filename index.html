@@ -60,6 +60,8 @@ body{max-width:480px;margin:0 auto;}
 .nav-logo::after{content:'';position:absolute;inset:0;z-index:1;}
 .nav-title{font-family:var(--font-display);font-size:18px;font-weight:700;letter-spacing:2px;}
 .nav-title span{color:var(--orange);}
+.nav-title-sm{font-size:15px;letter-spacing:1.5px;line-height:1.1;}
+.nav-title-sm span{display:block;font-size:10px;letter-spacing:2px;margin-top:2px;}
 .nav-back{width:36px;height:36px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;color:var(--text);}
 .nav-back:active{background:var(--surface3);}
 .nav-spacer{width:36px;}
@@ -462,6 +464,9 @@ const K = {
   HC_DOC_FILE: (id) => `hc_doc_file_${id}_v1`,  // shared: {dataUrl} — el archivo en sí, uno por doc (evita el límite de 1MB agregado)
   HC_METRICS: (uid) => `hc_metrics_${uid}_v1`,  // personal: métricas físicas del alumno (VAM, remo, ski, fuerza, movilidad)
   HC_DONE: (uid) => `hc_done_${uid}_v1`,  // personal: {[dayId]: {ts, weekId}} — días de entrenamiento marcados como completados
+  HC_NOTIFS: (uid) => `hc_notifs_${uid}_v1`,  // personal: {weeks:{[weekId]:{ts,read}}} — notificaciones de semanas nuevas del alumno
+  HC_TRAC_QS: 'hc_trac_questions_v1',  // shared: {blocks:[{id,title,hint,bad,questions:[{id,type:'scale'|'text',title,desc}]}]} — preguntas editables del TRAC
+  HC_TRAC: (uid) => `hc_trac_${uid}_v1`,  // personal: [{id,ts,date,type:'semanal'|'bloque',soreness:{legs,push,pull},sistemic:{sleep,recovery,motivation},comments}] — cuestionarios TRAC
 };
 const DEFAULT_ADMIN_PW = 'fusion2025';
 const DEFAULT_ADMIN_PW_HYBRID = 'hybrid2025';
@@ -1166,6 +1171,7 @@ const HC_ICONS={
   flag:'<path d="M4 22V4a1 1 0 0 1 1-1h13l-2 5 2 5H6"/>',
   phone:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>',
   chat:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  bell:'<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
   clipboard:'<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/>',
   chart:'<path d="M12 20V10M18 20V4M6 20v-4"/>',
   file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
@@ -1204,7 +1210,7 @@ function toggleUserMenu(){ if(suppressNextClick){suppressNextClick=false;return;
 function closeUserMenu(){ if(userMenuOpen){userMenuOpen=false;render();} }
 
 // admin state
-let adminState={ open:false, pwOk:false, pwErr:'', tab:0, editWeekIdx:0, editDayIdx:0, editBlockIdx:0, viewUserIdx:null, viewFichaUid:null, viewPlanUid:null, viewChatUid:null, viewMetricsUid:null, planWeekIdx:0, planDayIdx:0, planCopyPickerOpen:false, viewUserWeek:0, userSubTab:'active', userSearch:'', savedScroll:0, userActivityFilter:'all', impersonating:null };
+let adminState={ open:false, pwOk:false, pwErr:'', tab:0, editWeekIdx:0, editDayIdx:0, editBlockIdx:0, viewUserIdx:null, viewFichaUid:null, viewPlanUid:null, viewChatUid:null, viewMetricsUid:null, planWeekIdx:0, planDayIdx:0, planCopyPickerOpen:false, viewUserWeek:0, userSubTab:'active', userSearch:'', savedScroll:0, userActivityFilter:'all', impersonating:null, tracHistoryOpen:false, tracEditOpen:false };
 
 // logo hold
 let logoTimer=null;
@@ -1272,6 +1278,31 @@ function navBarHTML(showBack=false,backFn=''){
         ontouchstart="handleLogoTouchStart(event)" ontouchend="handleLogoTouchEnd(event)" ontouchcancel="cancelLogoHold()" ontouchmove="cancelLogoHold()">
       </div>`;
   const navTitle = club==='hybrid' ? `FUSION<span>HYBRID CLUB</span>` : `FUSION<span>STUDIO</span>`;
+  const avatarHTML = session?`<div class="nav-user" onclick="toggleUserMenu()" oncontextmenu="return false"
+        onmousedown="handleAvatarMouseDown()" onmouseup="handleAvatarMouseUp()" onmouseleave="cancelAvatarHold()"
+        ontouchstart="handleAvatarTouchStart(event)" ontouchend="handleAvatarTouchEnd(event)" ontouchcancel="cancelAvatarHold()" ontouchmove="cancelAvatarHold()">
+        <div class="nav-avatar">${initials}</div>
+      </div>`:` <div class="nav-spacer"></div>`;
+
+  if(club==='hybrid' && session && session.club==='hybrid' && session.uid!=='__pending__'){
+    return `<nav class="nav">
+    <div style="display:flex;align-items:center;gap:10px;min-width:0">
+      ${showBack?`<button class="nav-back" onclick="${backFn}">${IC.back}</button>`:''}
+      <div class="nav-brand" onclick="hcOpenHome()">
+        ${navLogo}
+        <div class="nav-title nav-title-sm">${navTitle}</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px">
+      <div id="hc-bell" style="position:relative;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer" onclick="hcToggleNotif()" aria-label="Notificaciones">
+        ${hcIcon('bell',21,'#e8e8ea')}<span id="hc-bell-dot">${hcBellDotHTML()}</span>
+      </div>
+      ${avatarHTML}
+    </div>
+  </nav>
+  <div id="hc-notif-root">${hcNotifPanelHTML()}</div>
+  ${userMenuOpen?userMenuHTML():''}`;
+  }
 
   return `<nav class="nav">
     ${showBack?`<button class="nav-back" onclick="${backFn}">${IC.back}</button>`:`<div class="nav-spacer"></div>`}
@@ -1279,11 +1310,7 @@ function navBarHTML(showBack=false,backFn=''){
       ${navLogo}
       <div class="nav-title">${navTitle}</div>
     </div>
-    ${session?`<div class="nav-user" onclick="toggleUserMenu()" oncontextmenu="return false"
-        onmousedown="handleAvatarMouseDown()" onmouseup="handleAvatarMouseUp()" onmouseleave="cancelAvatarHold()"
-        ontouchstart="handleAvatarTouchStart(event)" ontouchend="handleAvatarTouchEnd(event)" ontouchcancel="cancelAvatarHold()" ontouchmove="cancelAvatarHold()">
-        <div class="nav-avatar">${initials}</div>
-      </div>`:` <div class="nav-spacer"></div>`}
+    ${avatarHTML}
   </nav>
   ${userMenuOpen?userMenuHTML():''}`;
 }
@@ -1769,6 +1796,7 @@ async function hcCancelCall(slotId){
 let hcOwnPlan=null, hcOwnBlockName='', hcOwnPlanUid=null;
 let hcOwnArchived=null;
 let hcOwnDone=null; // {[dayId]: {ts, weekId}}
+let hcOwnTrac=null; // [{id,ts,date,type,soreness,sistemic,comments}]
 let hcPlanView={ mode:'proximos', week:null, day:null, viewWeek:'active', nextDay:null };
 let hcArchView={ open:false, blockId:null, week:0 };
 
@@ -1778,7 +1806,10 @@ async function hcEnsurePlanData(){
     hcOwnBlockName = await personalGet(K.HC_BLOCK_NAME(session.uid)) || '';
     hcOwnArchived = await personalGet(K.HC_BLOCKS(session.uid)) || [];
     hcOwnDone = await personalGet(K.HC_DONE(session.uid)) || {};
+    hcOwnTrac = await personalGet(K.HC_TRAC(session.uid)) || [];
     hcOwnPlanUid = session.uid;
+    hcNotifs = await personalGet(K.HC_NOTIFS(session.uid)) || null;
+    if(hcSyncPlanNotifs()) hcSaveNotifs();
     hcPlanView={ mode:'proximos', week:null, day:null, viewWeek:'active', nextDay:null };
     hcArchView={ open:false, blockId:null, week:0 };
     return true;
@@ -1787,6 +1818,7 @@ async function hcEnsurePlanData(){
 }
 async function hcOpenPlan(){
   await hcEnsurePlanData();
+  hcMarkPlanNotifsRead();
   hcState.tab='plan';
   render();
 }
@@ -1818,6 +1850,137 @@ async function hcSetExNote(wi,di,ei,val){
     const ok=await personalSet(K.HC_PLAN(session.uid), hcOwnPlan);
     if(!ok) throw new Error('no se pudo sincronizar con el servidor');
   }catch(e){ alert('No se pudo guardar la anotación: '+e.message); }
+}
+
+// ---- Notificaciones del alumno (campanita + badge del chat) ----
+let hcNotifs=null;          // {weeks:{[weekId]:{ts,read}}} — semanas con contenido ya "vistas" por el alumno
+let hcNotifOpen=false;
+let hcNotifPollTimer=null;
+
+function hcWeekSig(plan){ return (plan||[]).filter(w=>hcWeekDaysWithContent(w).length).map(w=>w.id).join(','); }
+// Registra semanas nuevas con contenido. La primera vez que el alumno entra, todo lo existente queda como leído.
+function hcSyncPlanNotifs(){
+  const weeks=(hcOwnPlan||[]).filter(w=>hcWeekDaysWithContent(w).length);
+  let changed=false;
+  if(!hcNotifs){
+    hcNotifs={ weeks:{} };
+    weeks.forEach(w=>{ hcNotifs.weeks[w.id]={ ts:Date.now(), read:true }; });
+    return true;
+  }
+  weeks.forEach(w=>{ if(!hcNotifs.weeks[w.id]){ hcNotifs.weeks[w.id]={ ts:Date.now(), read:false }; changed=true; } });
+  return changed;
+}
+function hcSaveNotifs(){ try{ personalSet(K.HC_NOTIFS(session.uid), hcNotifs); }catch(e){} }
+function hcUnreadChatMsgs(){ return (hcOwnChat||[]).filter(m=>m.from==='coach'&&!m.read); }
+function hcNotifList(){
+  const list=[];
+  const plan=hcOwnPlan||[];
+  plan.forEach((w,wi)=>{
+    const n=hcNotifs&&hcNotifs.weeks[w.id];
+    if(n && hcWeekDaysWithContent(w).length) list.push({ type:'plan', id:w.id, ts:n.ts, read:!!n.read, title:'Nueva semana cargada', sub:'Semana '+(wi+1)+' ya está disponible' });
+  });
+  const unread=hcUnreadChatMsgs();
+  if(unread.length){
+    const last=unread[unread.length-1];
+    list.push({ type:'chat', id:'chat', ts:last.ts, read:false, title:unread.length>1?unread.length+' mensajes de tu coach':'Mensaje de tu coach', sub:(last.text||'').slice(0,60) });
+  }
+  list.sort((a,b)=>b.ts-a.ts);
+  return list.slice(0,10);
+}
+function hcUnreadNotifCount(){ return hcNotifList().filter(n=>!n.read).length; }
+function hcBellDotHTML(){
+  return hcUnreadNotifCount()>0 ? `<span style="position:absolute;top:-1px;right:-1px;width:9px;height:9px;border-radius:50%;background:#FFEC03;border:2px solid #0a0a0b"></span>` : '';
+}
+function hcChatBadgeHTML(){
+  const n=hcUnreadChatMsgs().length;
+  return n>0 ? `<span style="position:absolute;top:-6px;right:-10px;background:var(--red);color:#fff;font-size:9px;font-weight:700;min-width:15px;height:15px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 4px;letter-spacing:0">${n>9?'9+':n}</span>` : '';
+}
+function hcNotifPanelHTML(){
+  if(!hcNotifOpen) return '';
+  const list=hcNotifList();
+  const anyUnread=list.some(n=>!n.read);
+  const rows=list.length ? list.map(n=>{
+    const isChat=n.type==='chat';
+    const ic=isChat?hcIcon('chat',16,'#5a9fe0'):hcIcon('calendar',16,'#FFEC03');
+    const bg=isChat?'rgba(55,138,221,0.14)':'rgba(255,236,3,0.12)';
+    return `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:10px;cursor:pointer;opacity:${n.read?0.55:1}" onclick="hcNotifClick('${n.type}','${n.id}')">
+      <div style="width:30px;height:30px;border-radius:8px;background:${bg};display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;color:var(--text)">${escH(n.title)}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escH(n.sub)}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:3px;opacity:.7">${new Date(n.ts).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
+      </div>
+      ${n.read?'':'<div style="width:7px;height:7px;border-radius:50%;background:#FFEC03;margin-top:5px;flex-shrink:0"></div>'}
+    </div>`;
+  }).join('') : `<div style="text-align:center;padding:22px 10px;font-size:12px;color:var(--text3)">No tenés notificaciones</div>`;
+  return `<div class="user-menu-overlay" onclick="hcCloseNotif()"></div>
+  <div style="position:fixed;top:60px;left:12px;right:12px;margin:0 auto;max-width:360px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:8px;z-index:151;box-shadow:0 8px 32px rgba(0,0,0,0.4);animation:fadeIn .15s ease;max-height:70vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px 8px">
+      <div style="font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);font-weight:700">Notificaciones</div>
+      ${anyUnread?'<div style="font-size:11px;color:#FFEC03;cursor:pointer" onclick="hcNotifMarkAll()">Marcar todas como leídas</div>':''}
+    </div>
+    ${rows}
+  </div>`;
+}
+function hcToggleNotif(){ hcNotifOpen=!hcNotifOpen; userMenuOpen=false; render(); }
+function hcCloseNotif(){ if(hcNotifOpen){ hcNotifOpen=false; render(); } }
+function hcMarkPlanNotifsRead(){
+  if(!hcNotifs) return false;
+  let ch=false;
+  Object.values(hcNotifs.weeks).forEach(n=>{ if(!n.read){ n.read=true; ch=true; } });
+  if(ch) hcSaveNotifs();
+  return ch;
+}
+async function hcNotifClick(type,id){
+  hcNotifOpen=false;
+  if(type==='chat'){ await hcOpenChat(); return; }
+  if(hcNotifs && hcNotifs.weeks[id]){ hcNotifs.weeks[id].read=true; hcSaveNotifs(); }
+  await hcOpenPlan();
+}
+function hcNotifMarkAll(){
+  hcMarkPlanNotifsRead();
+  let changed=false;
+  (hcOwnChat||[]).forEach(m=>{ if(m.from==='coach'&&!m.read){ m.read=true; changed=true; } });
+  if(changed) personalSet(K.HC_CHAT(session.uid), hcOwnChat);
+  render();
+}
+// Actualiza solo campanita, badge y panel, sin re-renderizar toda la pantalla (no pisa lo que el alumno esté escribiendo)
+function hcRefreshNotifUI(){
+  const dot=document.getElementById('hc-bell-dot'); if(dot) dot.innerHTML=hcBellDotHTML();
+  const cb=document.getElementById('hc-chat-badge'); if(cb) cb.innerHTML=hcChatBadgeHTML();
+  const pr=document.getElementById('hc-notif-root'); if(pr) pr.innerHTML=hcNotifPanelHTML();
+}
+function hcStartNotifPoll(){
+  if(hcNotifPollTimer) return;
+  hcNotifPollTimer=setInterval(hcPollNotifs,45000);
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) hcPollNotifs(); });
+}
+async function hcPollNotifs(){
+  if(!session || session.club!=='hybrid' || session.uid==='__pending__' || hcOwnPlanUid!==session.uid) return;
+  try{
+    const uid=session.uid;
+    const [chat,plan]=await Promise.all([ personalGet(K.HC_CHAT(uid)), personalGet(K.HC_PLAN(uid)) ]);
+    if(!session || session.uid!==uid) return;
+    let chatChanged=false;
+    if(chat && chat.length>(hcOwnChat||[]).length){ hcOwnChat=chat; chatChanged=true; }
+    if(plan){
+      const norm=hcNormalizePlan(plan);
+      if(hcWeekSig(norm)!==hcWeekSig(hcOwnPlan)){ hcOwnPlan=norm; }
+    }
+    if(hcSyncPlanNotifs()) hcSaveNotifs();
+    if(chatChanged && hcState.tab==='chat'){
+      // chat abierto: marcar como leído y refrescar conservando lo que se esté escribiendo
+      let changed=false;
+      hcOwnChat.forEach(m=>{ if(m.from==='coach'&&!m.read){ m.read=true; changed=true; } });
+      if(changed) personalSet(K.HC_CHAT(uid), hcOwnChat);
+      const inp=document.getElementById('hc-chat-inp'); const keep=inp?inp.value:'';
+      render();
+      const inp2=document.getElementById('hc-chat-inp'); if(inp2) inp2.value=keep;
+      requestAnimationFrame(hcScrollChatBottom);
+    } else {
+      hcRefreshNotifUI();
+    }
+  }catch(e){}
 }
 
 // ---- Chat alumno ↔ profe ----
@@ -1874,12 +2037,10 @@ function renderHcChatBody(){
 }
 
 function hcTabBarHTML(){
-  const unread=(hcOwnChat||[]).some(m=>m.from==='coach'&&!m.read);
   const item=(tab,icon,label,onclick)=>{
     const on=hcState.tab===tab;
     return `<div class="tab-bar-item ${on?'active':''}" style="position:relative" onclick="${onclick}">
-      <div class="tab-bar-icon" style="display:flex;justify-content:center">${hcIcon(icon,20,on?'#FFEC03':'#5a5a5f')}</div>${label}
-      ${tab==='chat'&&unread?'<div style="position:absolute;top:4px;right:calc(50% - 22px);width:8px;height:8px;border-radius:50%;background:var(--red)"></div>':''}
+      <div class="tab-bar-icon" style="display:flex;justify-content:center;position:relative">${hcIcon(icon,20,on?'#FFEC03':'#5a5a5f')}${tab==='chat'?`<span id="hc-chat-badge">${hcChatBadgeHTML()}</span>`:''}</div>${label}
     </div>`;
   };
   return `<div class="tab-bar">
@@ -2239,13 +2400,150 @@ function hcCompletadosBody(){
   return `<div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px">${summary}</div>${rows}`;
 }
 
+// ---- Cuestionario de Recuperación (TRAC) ----
+// Preguntas editables por el admin (compartidas para todos los alumnos del Hybrid Club)
+function hcTracDefaultConfig(){
+  return { blocks:[
+    { id:'soreness', title:'Bloque 1: Dolores locales', hint:'Escala: 1 (Sin dolor/Perfecto) a 5 (Dolor invalidante / incapacidad para entrenar).', bad:true, questions:[
+      { id:'legs', type:'scale', title:'Dolor en Tren Inferior (Legs)', desc:'¿Cómo sentís los cuádriceps, glúteos y aductores al agacharte o subir una escalera hoy?' },
+      { id:'push', type:'scale', title:'Dolor en Empujes (Push)', desc:'¿Hay molestia o fatiga residual en pectorales, hombros o tríceps al mover los brazos?' },
+      { id:'pull', type:'scale', title:'Dolor en Tirones / Cadena Posterior (Pull)', desc:'¿Cómo se siente la espalda alta, los dorsales y los isquiotibiales al flexionarte hacia adelante?' }
+    ]},
+    { id:'sistemic', title:'Bloque 2: Recuperación sistémica y contexto', hint:'Escala: 1 (Muy mal/Pésimo) a 5 (Excelente/Óptimo).', bad:false, questions:[
+      { id:'sleep', type:'scale', title:'Descanso y Nutrición', desc:'¿Cuántas horas dormiste, fue un sueño reparador y cumpliste con tus requerimientos nutricionales ayer?' },
+      { id:'recovery', type:'scale', title:'Recuperación Percibida', desc:'A nivel general, ¿sentís que tu cuerpo asimiló el trabajo previo o te levantaste sintiéndote "apaleado"?' },
+      { id:'motivation', type:'scale', title:'Motivación', desc:'¿Qué tantas ganas tenés de afrontar la barra y meterle intensidad a la sesión de hoy?' }
+    ]}
+  ]};
+}
+let hcTracCfg=null;
+function hcTracConfig(){ return hcTracCfg || hcTracDefaultConfig(); }
+async function hcLoadTracCfg(){
+  const remote = await sharedGet(K.HC_TRAC_QS);
+  if(remote && remote.blocks){ hcTracCfg=remote; lsSet(K.HC_TRAC_QS,remote); }
+  else { hcTracCfg = lsGet(K.HC_TRAC_QS) || hcTracDefaultConfig(); }
+  return hcTracCfg;
+}
+function hcTracNewId(){ return 'q_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
+
+let hcTracState={ open:false, type:'semanal', date:'', answers:{}, comments:'' };
+let hcTracInfoOpen=false;
+
+function hcTracInitAnswers(){
+  const a={};
+  hcTracConfig().blocks.forEach(b=>b.questions.forEach(q=>{ if(q.type!=='text') a[q.id]=b.bad?1:5; }));
+  return a;
+}
+async function hcOpenTrac(){
+  try{ await hcLoadTracCfg(); }catch(e){}
+  hcTracState={ open:true, type:'semanal', date:new Date().toISOString().slice(0,10), answers:hcTracInitAnswers(), comments:'' };
+  render();
+}
+function hcCloseTrac(){ hcTracState.open=false; render(); }
+function hcSetTracType(t){ hcTracState.type=t; render(); }
+function hcSetTracDate(v){ hcTracState.date=v; }
+function hcSetTracAnswer(qid,val){ hcTracState.answers[qid]=val; render(); }
+function hcSetTracText(qid,val){ hcTracState.answers[qid]=val; }
+function hcSetTracComments(v){ hcTracState.comments=v; }
+function hcToggleTracInfo(){ hcTracInfoOpen=!hcTracInfoOpen; render(); }
+
+async function hcSaveTrac(){
+  try{
+    const snap=[];
+    hcTracConfig().blocks.forEach(b=>b.questions.forEach(q=>snap.push({ id:q.id, type:q.type, title:q.title, block:b.title, bad:!!b.bad })));
+    const entry={
+      id:'trac_'+Date.now()+'_'+Math.random().toString(36).slice(2,5),
+      ts:Date.now(),
+      date:hcTracState.date||new Date().toISOString().slice(0,10),
+      type:hcTracState.type,
+      answers:{...hcTracState.answers},
+      snap,
+      comments:hcTracState.comments||''
+    };
+    hcOwnTrac=hcOwnTrac||[];
+    hcOwnTrac.push(entry);
+    hcTracState.open=false;
+    render();
+    const ok=await personalSet(K.HC_TRAC(session.uid), hcOwnTrac);
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+    showToast('✅ Cuestionario guardado');
+  }catch(e){ alert('No se pudo guardar: '+e.message); }
+}
+
+function hcTracScaleRow(qid,val){
+  return `<div style="display:flex;gap:8px">${[1,2,3,4,5].map(n=>`<button type="button" style="flex:1;padding:10px 0;border-radius:8px;border:1px solid ${val===n?'#FFEC03':'var(--border)'};background:${val===n?'#FFEC03':'transparent'};color:${val===n?'#1a1a00':'var(--text2)'};font-weight:700;font-size:13px" onclick="hcSetTracAnswer('${qid}',${n})">${n}</button>`).join('')}</div>`;
+}
+function hcTracQuestionHTML(num,q){
+  const val=hcTracState.answers[q.id];
+  const input = q.type==='text'
+    ? `<textarea class="auth-inp" style="height:60px;padding:10px 12px;resize:vertical;margin-bottom:0" onchange="hcSetTracText('${q.id}',this.value)">${escH(val||'')}</textarea>`
+    : hcTracScaleRow(q.id,val);
+  return `<div style="margin-bottom:16px">
+    <div style="font-size:13px;font-weight:600;margin-bottom:4px">${num}. ${escH(q.title)}</div>
+    ${q.desc?`<div style="font-size:11px;color:var(--text3);margin-bottom:8px;line-height:1.4">${escH(q.desc)}</div>`:''}
+    ${input}
+  </div>`;
+}
+function renderHcTracSheet(){
+  if(!hcTracState.open) return '';
+  let n=0;
+  const blocksHTML=hcTracConfig().blocks.filter(b=>b.questions.length).map((b,bi)=>`<div style="padding:${bi===0?'20px 20px 0':'16px 20px 0'};${bi>0?'border-top:1px solid var(--border);margin-top:4px':''}">
+      <div style="font-size:13px;font-weight:700;margin-bottom:4px">${escH(b.title)}</div>
+      ${b.hint?`<div style="font-size:11px;color:var(--text3);font-style:italic;margin-bottom:14px">${escH(b.hint)}</div>`:''}
+      ${b.questions.map(q=>hcTracQuestionHTML(++n,q)).join('')}
+    </div>`).join('');
+  return `<div class="summary-overlay" onclick="hcCloseTrac()"><div class="summary-sheet" onclick="event.stopPropagation()" style="padding:0 0 24px">
+    <div class="summary-handle"></div>
+    <div style="padding:16px 20px 0;display:flex;justify-content:space-between;align-items:flex-start">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        ${hcIcon('activity',20,'#FFEC03')}
+        <div>
+          <div style="font-family:var(--font-display);font-size:16px;font-weight:700">Cuestionario de Recuperación (TRAC)</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px">Evaluá cómo venís esta semana</div>
+        </div>
+      </div>
+      <div style="font-size:18px;color:var(--text3);cursor:pointer;padding:0 4px" onclick="hcCloseTrac()">✕</div>
+    </div>
+    <div style="padding:16px 20px 0;display:flex;gap:10px">
+      <div style="flex:1">
+        <div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">Fecha</div>
+        <input class="auth-inp" type="date" style="margin-bottom:0" value="${escH(hcTracState.date)}" onchange="hcSetTracDate(this.value)">
+      </div>
+      <div style="flex:1">
+        <div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">Tipo de registro</div>
+        <select class="auth-inp" style="margin-bottom:0" onchange="hcSetTracType(this.value)">
+          <option value="semanal" ${hcTracState.type==='semanal'?'selected':''}>Semanal</option>
+          <option value="bloque" ${hcTracState.type==='bloque'?'selected':''}>Fin de Bloque</option>
+        </select>
+      </div>
+    </div>
+    ${blocksHTML}
+    <div style="padding:4px 20px 0">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px">Comentarios / Observaciones para tu Coach</div>
+      <textarea class="auth-inp" style="height:70px;padding:10px 12px;resize:vertical;margin-bottom:0" placeholder="Ej. molestias específicas en articulaciones, dolores no contemplados, estrés laboral, etc." onchange="hcSetTracComments(this.value)">${escH(hcTracState.comments)}</textarea>
+    </div>
+    <div style="padding:20px 20px 0;display:flex;gap:10px">
+      <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;padding:12px" onclick="hcCloseTrac()">Cancelar</button>
+      <button class="adm-btn adm-btn-orange" style="flex:1;justify-content:center;padding:12px;gap:6px" onclick="hcSaveTrac()">${IC.check(true)} Guardar cuestionario</button>
+    </div>
+  </div></div>`;
+}
+
 function renderHcPlanBody(){
   if(hcArchView.open) return renderHcArchivedBrowser();
 
   const plan=hcOwnPlan||[];
   const archButton = `<button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;margin-bottom:16px" onclick="hcToggleArchivedList()">📦 Bloques anteriores${hcOwnArchived&&hcOwnArchived.length?' ('+hcOwnArchived.length+')':''}</button>`;
+  const tracBtns = `<div style="display:flex;gap:6px;flex-shrink:0">
+    <button class="adm-btn adm-btn-ghost" style="padding:8px" title="Cuestionario de Recuperación (TRAC)" onclick="hcOpenTrac()">${hcIcon('activity',16,'#FFEC03')}</button>
+    <button class="adm-btn adm-btn-ghost" style="padding:8px;width:34px;justify-content:center;font-weight:700;font-size:12px" title="¿Qué es TRAC?" onclick="hcToggleTracInfo()">?</button>
+  </div>`;
+  const tracInfoBox = hcTracInfoOpen ? `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px;font-size:11px;color:var(--text2);line-height:1.5">
+    <b style="color:var(--text)">¿Qué es TRAC?</b><br>
+    Un cuestionario corto para contarle a tu coach cómo llega tu cuerpo: dolores puntuales y tu estado general de descanso, recuperación y motivación — así se puede ajustar la carga de entrenamiento si hace falta.
+  </div>` : '';
   if(!hcHasAnyContent(plan)&&!hcOwnBlockName){
-    return `<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="font-size:32px;margin-bottom:10px">📅</div>Tu profe todavía no cargó tu planificación</div>${archButton}`;
+    return `<div style="display:flex;justify-content:flex-end;margin-bottom:12px">${tracBtns}</div>${tracInfoBox}<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="font-size:32px;margin-bottom:10px">📅</div>Tu profe todavía no cargó tu planificación</div>${archButton}`;
   }
 
   const modeToggle=`<div style="display:flex;gap:6px;margin-bottom:14px">
@@ -2253,7 +2551,12 @@ function renderHcPlanBody(){
   </div>`;
   const content = hcPlanView.mode==='completados' ? hcCompletadosBody() : hcProximosBody();
 
-  return `${hcOwnBlockName?`<div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">BLOQUE ACTUAL</div><div style="font-family:var(--font-display);font-size:16px;font-weight:700;margin-bottom:16px">${escH(hcOwnBlockName)}</div>`:''}
+  const headerRow = `<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+    <div>${hcOwnBlockName?`<div style="font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px">BLOQUE ACTUAL</div><div style="font-family:var(--font-display);font-size:16px;font-weight:700">${escH(hcOwnBlockName)}</div>`:''}</div>
+    ${tracBtns}
+  </div>`;
+
+  return `${headerRow}${tracInfoBox}
   ${modeToggle}${content}
   <div style="margin-top:20px">${archButton}</div>`;
 }
@@ -3341,6 +3644,7 @@ let hcPlanEditing=null;     // [{id,days:[...]}] — plan del alumno que se est�
 let hcPlanBlockName='';
 let hcPlanArchived=null;    // [{id,name,archivedAt,plan}]
 let hcPlanDone=null;        // {[dayId]: {ts, weekId, status}} — estado de cada sesión marcado por el alumno
+let hcPlanTrac=null;        // [{id,ts,date,type,soreness,sistemic,comments}] — cuestionarios TRAC del alumno
 function hcPlanDoneStatus(dayId){
   const d=hcPlanDone && hcPlanDone[dayId];
   if(!d) return null;
@@ -3356,11 +3660,12 @@ async function viewUserPlan(uid){
   hcPlanBlockName = await personalGet(K.HC_BLOCK_NAME(uid)) || '';
   hcPlanArchived = await personalGet(K.HC_BLOCKS(uid)) || [];
   hcPlanDone = await personalGet(K.HC_DONE(uid)) || {};
+  hcPlanTrac = await personalGet(K.HC_TRAC(uid)) || [];
   renderModal();
 }
 function goBackFromPlan(){
   adminState.viewPlanUid=null;
-  hcPlanEditing=null; hcPlanArchived=null; hcPlanDone=null; adminState.planCopyPickerOpen=false;
+  hcPlanEditing=null; hcPlanArchived=null; hcPlanDone=null; hcPlanTrac=null; adminState.planCopyPickerOpen=false; adminState.tracHistoryOpen=false; adminState.tracEditOpen=false; hcTracDraft=null;
   renderModal();
   requestAnimationFrame(()=>{
     const modal=document.querySelector('#modal-root .modal');
@@ -3610,6 +3915,135 @@ async function hcDeleteAllArchivedBlocks(){
   }catch(e){ alert('Error al eliminar los bloques: '+e.message); }
 }
 
+function hcToggleTracHistory(){ adminState.tracHistoryOpen=!adminState.tracHistoryOpen; renderModal(); }
+
+// ── Editor de preguntas TRAC (admin) ──
+let hcTracDraft=null;
+async function hcOpenTracEditor(){
+  await hcLoadTracCfg();
+  hcTracDraft=JSON.parse(JSON.stringify(hcTracConfig()));
+  adminState.tracEditOpen=true;
+  renderModal();
+}
+function hcCancelTracEditor(){ adminState.tracEditOpen=false; hcTracDraft=null; renderModal(); }
+function hcTracEdBlock(bi,field,val){ hcTracDraft.blocks[bi][field]=val; }
+function hcTracEdBlockBad(bi,val){ hcTracDraft.blocks[bi].bad=(val==='bad'); }
+function hcTracEdQ(bi,qi,field,val){ hcTracDraft.blocks[bi].questions[qi][field]=val; }
+function hcTracEdQType(bi,qi,val){ hcTracDraft.blocks[bi].questions[qi].type=val; renderModal(); }
+function hcTracAddQ(bi){ hcTracDraft.blocks[bi].questions.push({ id:hcTracNewId(), type:'scale', title:'Nueva pregunta', desc:'' }); renderModal(); }
+function hcTracDelQ(bi,qi){
+  if(!confirm('¿Eliminar esta pregunta? Las respuestas ya guardadas por los alumnos se conservan en su historial.')) return;
+  hcTracDraft.blocks[bi].questions.splice(qi,1); renderModal();
+}
+function hcTracMoveQ(bi,qi,dir){
+  const qs=hcTracDraft.blocks[bi].questions, j=qi+dir;
+  if(j<0||j>=qs.length) return;
+  [qs[qi],qs[j]]=[qs[j],qs[qi]]; renderModal();
+}
+function hcTracAddBlock(){ hcTracDraft.blocks.push({ id:hcTracNewId(), title:'Nuevo bloque', hint:'Escala: 1 (Muy mal) a 5 (Excelente).', bad:false, questions:[{ id:hcTracNewId(), type:'scale', title:'Nueva pregunta', desc:'' }] }); renderModal(); }
+function hcTracDelBlock(bi){
+  if(!confirm('¿Eliminar este bloque con todas sus preguntas? Las respuestas ya guardadas se conservan en el historial.')) return;
+  hcTracDraft.blocks.splice(bi,1); renderModal();
+}
+async function hcSaveTracEditor(){
+  const cfg=hcTracDraft;
+  cfg.blocks=cfg.blocks.filter(b=>b.questions.length);
+  if(!cfg.blocks.length){ alert('El cuestionario necesita al menos una pregunta.'); return; }
+  cfg.blocks.forEach(b=>b.questions.forEach(q=>{ q.title=(q.title||'').trim()||'Pregunta'; }));
+  const ok=await sharedSet(K.HC_TRAC_QS,cfg);
+  lsSet(K.HC_TRAC_QS,cfg);
+  hcTracCfg=cfg;
+  adminState.tracEditOpen=false; hcTracDraft=null;
+  renderModal();
+  if(ok) showToast('✅ Preguntas TRAC guardadas'); else alert('Se guardó localmente pero no se pudo sincronizar con el servidor.');
+}
+function renderHcTracEditor(){
+  const d=hcTracDraft; if(!d) return '';
+  const blocks=d.blocks.map((b,bi)=>`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px">
+    <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
+      <input class="adm-inp" style="margin:0;flex:1;font-weight:600" value="${escH(b.title)}" placeholder="Título del bloque" oninput="hcTracEdBlock(${bi},'title',this.value)">
+      <button class="adm-btn adm-btn-red" style="padding:6px 8px;flex-shrink:0" title="Eliminar bloque" onclick="hcTracDelBlock(${bi})">${IC.trash}</button>
+    </div>
+    <input class="adm-inp" style="margin-bottom:8px" value="${escH(b.hint||'')}" placeholder="Texto de ayuda de la escala" oninput="hcTracEdBlock(${bi},'hint',this.value)">
+    <select class="adm-inp" style="margin-bottom:10px" onchange="hcTracEdBlockBad(${bi},this.value)">
+      <option value="bad" ${b.bad?'selected':''}>Puntaje alto = malo (ej. dolor) → se marca en rojo</option>
+      <option value="good" ${!b.bad?'selected':''}>Puntaje alto = bueno (ej. recuperación)</option>
+    </select>
+    ${b.questions.map((q,qi)=>`<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px">
+      <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+        <input class="adm-inp" style="margin:0;flex:1" value="${escH(q.title)}" placeholder="Pregunta" oninput="hcTracEdQ(${bi},${qi},'title',this.value)">
+        <button class="adm-btn adm-btn-ghost" style="padding:4px 8px;flex-shrink:0" onclick="hcTracMoveQ(${bi},${qi},-1)">▲</button>
+        <button class="adm-btn adm-btn-ghost" style="padding:4px 8px;flex-shrink:0" onclick="hcTracMoveQ(${bi},${qi},1)">▼</button>
+        <button class="adm-btn adm-btn-red" style="padding:4px 8px;flex-shrink:0" onclick="hcTracDelQ(${bi},${qi})">${IC.trash}</button>
+      </div>
+      <input class="adm-inp" style="margin-bottom:6px" value="${escH(q.desc||'')}" placeholder="Descripción / aclaración (opcional)" oninput="hcTracEdQ(${bi},${qi},'desc',this.value)">
+      <select class="adm-inp" style="margin:0" onchange="hcTracEdQType(${bi},${qi},this.value)">
+        <option value="scale" ${q.type!=='text'?'selected':''}>Escala 1 a 5</option>
+        <option value="text" ${q.type==='text'?'selected':''}>Texto libre</option>
+      </select>
+    </div>`).join('')}
+    <button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center" onclick="hcTracAddQ(${bi})">${IC.plus} Pregunta</button>
+  </div>`).join('');
+  return `<div style="border:1px dashed var(--border2);border-radius:var(--radius-sm);padding:12px;margin-bottom:16px">
+    <div class="admin-section-title" style="margin-bottom:4px">EDITAR PREGUNTAS TRAC</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:12px;line-height:1.4">Los cambios aplican a todos los alumnos del Hybrid Club a partir del próximo cuestionario. Los registros ya enviados no cambian.</div>
+    ${blocks}
+    <button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;margin-bottom:12px" onclick="hcTracAddBlock()">${IC.plus} Bloque</button>
+    <div style="display:flex;gap:8px">
+      <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;padding:10px" onclick="hcCancelTracEditor()">Cancelar</button>
+      <button class="adm-btn adm-btn-orange" style="flex:1;justify-content:center;padding:10px" onclick="hcSaveTracEditor()">💾 Guardar preguntas</button>
+    </div>
+  </div>`;
+}
+
+// Normaliza un registro (nuevo o viejo) a [{title,type,bad,val}] para mostrarlo
+function hcTracEntryItems(e){
+  if(e.snap && e.answers) return e.snap.map(s=>({ title:s.title, type:s.type, bad:s.bad, val:e.answers[s.id] }));
+  const items=[];
+  hcTracDefaultConfig().blocks.forEach(b=>b.questions.forEach(q=>{
+    const src=(e.soreness&&e.soreness[q.id]!=null)?e.soreness[q.id]:(e.sistemic?e.sistemic[q.id]:null);
+    if(src!=null) items.push({ title:q.title, type:'scale', bad:b.bad, val:src });
+  }));
+  return items;
+}
+function renderHcAdminTracHistory(){
+  const entries=(hcPlanTrac||[]).slice().sort((a,b)=>b.ts-a.ts);
+  const editBtn=`<button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;margin-bottom:10px;font-size:12px" onclick="${adminState.tracEditOpen?'hcCancelTracEditor()':'hcOpenTracEditor()'}">✏️ ${adminState.tracEditOpen?'Cerrar editor de preguntas':'Editar preguntas del TRAC'}</button>`;
+  const editor=adminState.tracEditOpen?renderHcTracEditor():'';
+  const header=`<div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:${adminState.tracHistoryOpen&&entries.length?'0':'10px'};cursor:pointer" onclick="hcToggleTracHistory()">
+    <div style="display:flex;align-items:center;gap:8px">
+      ${hcIcon('activity',16,'#FFEC03')}
+      <div style="font-size:13px;font-weight:600">Cuestionarios TRAC${entries.length?` (${entries.length})`:''}</div>
+    </div>
+    <div style="font-size:12px;color:var(--text3)">${entries.length?(adminState.tracHistoryOpen?'Ocultar ▲':'Ver ▼'):'Sin registros'}</div>
+  </div>`;
+  if(!adminState.tracHistoryOpen || !entries.length) return header+editBtn+editor+'<div style="margin-bottom:6px"></div>';
+  const rows=entries.map(e=>{
+    const d=new Date(e.ts);
+    const fecha=e.date?new Date(e.date+'T00:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'}):d.toLocaleDateString('es-AR');
+    const tipoLbl=e.type==='bloque'?'Fin de Bloque':'Semanal';
+    const items=hcTracEntryItems(e);
+    const scoreChip=(label,val,bad)=>{
+      const col = bad ? (val>=4?'var(--red)':val>=3?'#FFEC03':'var(--text)') : (val<=2?'var(--red)':val<=3?'#FFEC03':'var(--text)');
+      return `<div style="flex:1 1 30%;min-width:80px;text-align:center;background:var(--surface3);border-radius:6px;padding:6px 4px">
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escH(label)}</div>
+        <div style="font-size:14px;font-weight:700;color:${col}">${val}</div>
+      </div>`;
+    };
+    const scales=items.filter(i=>i.type!=='text' && i.val!=null);
+    const texts=items.filter(i=>i.type==='text' && i.val);
+    return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:12px;font-weight:600">${escH(fecha)}</div>
+        <div style="font-size:10px;color:var(--text3);background:var(--surface3);border-radius:4px;padding:2px 8px;text-transform:uppercase;letter-spacing:.3px">${tipoLbl}</div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:${texts.length||e.comments?'10px':'0'}">${scales.map(i=>scoreChip(i.title,i.val,i.bad)).join('')}</div>
+      ${texts.map(i=>`<div style="font-size:11px;color:var(--text2);line-height:1.4;background:var(--surface3);border-radius:6px;padding:8px 10px;margin-bottom:6px"><b style="color:var(--text3);font-size:10px">${escH(i.title)}</b><br>${escH(i.val)}</div>`).join('')}
+      ${e.comments?`<div style="font-size:11px;color:var(--text2);line-height:1.4;background:var(--surface3);border-radius:6px;padding:8px 10px">💬 ${escH(e.comments)}</div>`:''}
+    </div>`;
+  }).join('');
+  return `${header}<div style="margin-top:10px;margin-bottom:10px">${rows}</div>${editBtn}${editor}<div style="margin-bottom:6px"></div>`;
+}
 function renderAdminPlan(){
   const u=getUserById(adminState.viewPlanUid);
   if(!u||!hcPlanEditing) return '';
@@ -3641,6 +4075,8 @@ function renderAdminPlan(){
       <button class="adm-btn adm-btn-red" style="padding:6px 8px" onclick="hcDeleteArchivedBlock('${b.id}')" title="Eliminar">${IC.trash}</button>
     </div>`).join('')}` : '';
 
+  const tracHistoryHTML = renderHcAdminTracHistory();
+
   const pickerTabs=`<div style="display:flex;gap:6px;margin-bottom:10px">
     <div class="admin-tab ${hcPlanCopyTab==='alumnos'?'active':''}" style="flex:1;text-align:center" onclick="hcSetPlanCopyTab('alumnos')">👤 Alumnos</div>
     <div class="admin-tab ${hcPlanCopyTab==='plantillas'?'active':''}" style="flex:1;text-align:center" onclick="hcSetPlanCopyTab('plantillas')">📐 Plantillas</div>
@@ -3657,6 +4093,8 @@ function renderAdminPlan(){
       <div class="user-row-avatar" style="width:46px;height:46px;font-size:17px;flex-shrink:0">${ini}</div>
       <div><div style="font-family:var(--font-display);font-size:16px;font-weight:700">${escH(u.name)}</div></div>
     </div>
+
+    ${tracHistoryHTML}
 
     <div style="display:flex;gap:8px;margin-bottom:16px">
       <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center" onclick="hcTogglePlanCopyPicker()">📋 ${adminState.planCopyPickerOpen?'Cancelar':'Usar plan existente como base'}</button>
@@ -5395,6 +5833,17 @@ function render(){
   scrollEl.scrollTop = changedScreen ? 0 : savedScroll;
   hcKeepActiveTabVisible('hc-stu-daytabs');
   hcKeepActiveTabVisible('hc-stu-nextdaytabs');
+
+  // Overlay del cuestionario TRAC — funciona en cualquier vista, se cierra solo.
+  if(hcTracState.open){
+    let tr=document.getElementById('hc-trac-root');
+    if(!tr){ tr=document.createElement('div'); tr.id='hc-trac-root'; document.body.appendChild(tr); }
+    tr.innerHTML=renderHcTracSheet();
+  } else {
+    const tr=document.getElementById('hc-trac-root'); if(tr) tr.remove();
+  }
+
+  if(session && session.club==='hybrid' && session.uid!=='__pending__') hcStartNotifPoll();
 
   renderImpBanner();
 }
