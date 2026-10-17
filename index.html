@@ -1151,7 +1151,7 @@ function loadActiveWeek(){
 // ============================================================
 const IC={
   back:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>`,
-  check:(on)=>on?`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#68686f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>`,
+  check:(on,color)=>on?`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color||'white'}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#68686f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>`,
   x:(on,color)=>on?`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color||'white'}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>`:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#68686f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>`,
   chevron:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>`,
   trophy:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>`,
@@ -2264,7 +2264,7 @@ function hcDayCardHTML(wi,di,day,weekId){
   const status = hcDoneStatus(dayId);
   const statusBtns = day.exercises.length ? `<div style="display:flex;gap:8px;margin-bottom:16px">
     <button class="adm-btn ${status==='done'?'adm-btn-orange':'adm-btn-ghost'}" style="flex:1;justify-content:center;padding:10px;gap:6px" onclick="hcSetDayStatus('${weekId||''}','${dayId}','done')">
-      ${IC.check(status==='done')} ${status==='done'?'Completado':'Marcar completado'}
+      ${IC.check(status==='done','#1a1a00')} ${status==='done'?'Completado':'Marcar completado'}
     </button>
     <button class="adm-btn ${status==='missed'?'adm-btn-red':'adm-btn-ghost'}" style="flex:1;justify-content:center;padding:10px;gap:6px" onclick="hcSetDayStatus('${weekId||''}','${dayId}','missed')">
       ${IC.x(status==='missed','var(--red)')} ${status==='missed'?'No completado':'No lo hice'}
@@ -2400,7 +2400,7 @@ function hcCompletadosBody(){
   return `<div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px">${summary}</div>${rows}`;
 }
 
-// ---- Cuestionario de Recuperación (TRAC) ----
+// ---- Cuestionario de Recuperacion (TRAC) ----
 // Preguntas editables por el admin (compartidas para todos los alumnos del Hybrid Club)
 function hcTracDefaultConfig(){
   return { blocks:[
@@ -2409,9 +2409,9 @@ function hcTracDefaultConfig(){
       { id:'push', type:'scale', title:'Dolor en Empujes (Push)', desc:'¿Hay molestia o fatiga residual en pectorales, hombros o tríceps al mover los brazos?' },
       { id:'pull', type:'scale', title:'Dolor en Tirones / Cadena Posterior (Pull)', desc:'¿Cómo se siente la espalda alta, los dorsales y los isquiotibiales al flexionarte hacia adelante?' }
     ]},
-    { id:'sistemic', title:'Bloque 2: Recuperación sistémica y contexto', hint:'Escala: 1 (Muy mal/Pésimo) a 5 (Excelente/Óptimo).', bad:false, questions:[
+    { id:'sistemic', title:'Bloque 2: Recuperacion sistémica y contexto', hint:'Escala: 1 (Muy mal/Pésimo) a 5 (Excelente/Óptimo).', bad:false, questions:[
       { id:'sleep', type:'scale', title:'Descanso y Nutrición', desc:'¿Cuántas horas dormiste, fue un sueño reparador y cumpliste con tus requerimientos nutricionales ayer?' },
-      { id:'recovery', type:'scale', title:'Recuperación Percibida', desc:'A nivel general, ¿sentís que tu cuerpo asimiló el trabajo previo o te levantaste sintiéndote "apaleado"?' },
+      { id:'recovery', type:'scale', title:'Recuperacion Percibida', desc:'A nivel general, ¿sentís que tu cuerpo asimiló el trabajo previo o te levantaste sintiéndote "apaleado"?' },
       { id:'motivation', type:'scale', title:'Motivación', desc:'¿Qué tantas ganas tenés de afrontar la barra y meterle intensidad a la sesión de hoy?' }
     ]}
   ]};
@@ -2476,7 +2476,7 @@ function hcTracScaleRow(qid,val){
 function hcTracQuestionHTML(num,q){
   const val=hcTracState.answers[q.id];
   const input = q.type==='text'
-    ? `<textarea class="auth-inp" style="height:60px;padding:10px 12px;resize:vertical;margin-bottom:0" onchange="hcSetTracText('${q.id}',this.value)">${escH(val||'')}</textarea>`
+    ? `<textarea class="auth-inp" style="height:60px;padding:10px 12px;resize:vertical;margin-bottom:0" oninput="hcSetTracText('${q.id}',this.value)">${escH(val||'')}</textarea>`
     : hcTracScaleRow(q.id,val);
   return `<div style="margin-bottom:16px">
     <div style="font-size:13px;font-weight:600;margin-bottom:4px">${num}. ${escH(q.title)}</div>
@@ -2498,7 +2498,7 @@ function renderHcTracSheet(){
       <div style="display:flex;gap:10px;align-items:flex-start">
         ${hcIcon('activity',20,'#FFEC03')}
         <div>
-          <div style="font-family:var(--font-display);font-size:16px;font-weight:700">Cuestionario de Recuperación (TRAC)</div>
+          <div style="font-family:var(--font-display);font-size:16px;font-weight:700">Cuestionario de Recuperacion (TRAC)</div>
           <div style="font-size:12px;color:var(--text3);margin-top:2px">Evaluá cómo venís esta semana</div>
         </div>
       </div>
@@ -2520,11 +2520,11 @@ function renderHcTracSheet(){
     ${blocksHTML}
     <div style="padding:4px 20px 0">
       <div style="font-size:13px;font-weight:600;margin-bottom:8px">Comentarios / Observaciones para tu Coach</div>
-      <textarea class="auth-inp" style="height:70px;padding:10px 12px;resize:vertical;margin-bottom:0" placeholder="Ej. molestias específicas en articulaciones, dolores no contemplados, estrés laboral, etc." onchange="hcSetTracComments(this.value)">${escH(hcTracState.comments)}</textarea>
+      <textarea class="auth-inp" style="height:70px;padding:10px 12px;resize:vertical;margin-bottom:0" placeholder="Ej. molestias específicas en articulaciones, dolores no contemplados, estrés laboral, etc." oninput="hcSetTracComments(this.value)">${escH(hcTracState.comments)}</textarea>
     </div>
     <div style="padding:20px 20px 0;display:flex;gap:10px">
       <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;padding:12px" onclick="hcCloseTrac()">Cancelar</button>
-      <button class="adm-btn adm-btn-orange" style="flex:1;justify-content:center;padding:12px;gap:6px" onclick="hcSaveTrac()">${IC.check(true)} Guardar cuestionario</button>
+      <button class="adm-btn adm-btn-orange" style="flex:1;justify-content:center;padding:12px;gap:6px" onclick="hcSaveTrac()">${IC.check(true,'#1a1a00')} Guardar cuestionario</button>
     </div>
   </div></div>`;
 }
@@ -2535,12 +2535,12 @@ function renderHcPlanBody(){
   const plan=hcOwnPlan||[];
   const archButton = `<button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;margin-bottom:16px" onclick="hcToggleArchivedList()">📦 Bloques anteriores${hcOwnArchived&&hcOwnArchived.length?' ('+hcOwnArchived.length+')':''}</button>`;
   const tracBtns = `<div style="display:flex;gap:6px;flex-shrink:0">
-    <button class="adm-btn adm-btn-ghost" style="padding:8px" title="Cuestionario de Recuperación (TRAC)" onclick="hcOpenTrac()">${hcIcon('activity',16,'#FFEC03')}</button>
+    <button class="adm-btn adm-btn-ghost" style="padding:8px" title="Cuestionario de Recuperacion (TRAC)" onclick="hcOpenTrac()">${hcIcon('activity',16,'#FFEC03')}</button>
     <button class="adm-btn adm-btn-ghost" style="padding:8px;width:34px;justify-content:center;font-weight:700;font-size:12px" title="¿Qué es TRAC?" onclick="hcToggleTracInfo()">?</button>
   </div>`;
   const tracInfoBox = hcTracInfoOpen ? `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px;font-size:11px;color:var(--text2);line-height:1.5">
     <b style="color:var(--text)">¿Qué es TRAC?</b><br>
-    Un cuestionario corto para contarle a tu coach cómo llega tu cuerpo: dolores puntuales y tu estado general de descanso, recuperación y motivación — así se puede ajustar la carga de entrenamiento si hace falta.
+    Un cuestionario corto para contarle a tu coach cómo llega tu cuerpo: dolores puntuales y tu estado general de descanso, recuperacion y motivación — así se puede ajustar la carga de entrenamiento si hace falta.
   </div>` : '';
   if(!hcHasAnyContent(plan)&&!hcOwnBlockName){
     return `<div style="display:flex;justify-content:flex-end;margin-bottom:12px">${tracBtns}</div>${tracInfoBox}<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="font-size:32px;margin-bottom:10px">📅</div>Tu profe todavía no cargó tu planificación</div>${archButton}`;
@@ -3967,7 +3967,7 @@ function renderHcTracEditor(){
     <input class="adm-inp" style="margin-bottom:8px" value="${escH(b.hint||'')}" placeholder="Texto de ayuda de la escala" oninput="hcTracEdBlock(${bi},'hint',this.value)">
     <select class="adm-inp" style="margin-bottom:10px" onchange="hcTracEdBlockBad(${bi},this.value)">
       <option value="bad" ${b.bad?'selected':''}>Puntaje alto = malo (ej. dolor) → se marca en rojo</option>
-      <option value="good" ${!b.bad?'selected':''}>Puntaje alto = bueno (ej. recuperación)</option>
+      <option value="good" ${!b.bad?'selected':''}>Puntaje alto = bueno (ej. recuperacion)</option>
     </select>
     ${b.questions.map((q,qi)=>`<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px">
       <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
@@ -5838,7 +5838,11 @@ function render(){
   if(hcTracState.open){
     let tr=document.getElementById('hc-trac-root');
     if(!tr){ tr=document.createElement('div'); tr.id='hc-trac-root'; document.body.appendChild(tr); }
+    const oldSheet=tr.querySelector('.summary-sheet');
+    const keepScroll=oldSheet?oldSheet.scrollTop:0;
     tr.innerHTML=renderHcTracSheet();
+    const newSheet=tr.querySelector('.summary-sheet');
+    if(newSheet && oldSheet) newSheet.scrollTop=keepScroll;
   } else {
     const tr=document.getElementById('hc-trac-root'); if(tr) tr.remove();
   }
