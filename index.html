@@ -99,7 +99,7 @@ body{max-width:480px;margin:0 auto;}
 
 /* PENDING SCREEN */
 .pending-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;gap:16px;}
-.pending-icon{font-size:64px;line-height:1;}
+.pending-icon{font-size:64px;line-height:1;display:flex;justify-content:center;}
 .pending-title{font-family:var(--font-display);font-size:22px;font-weight:700;letter-spacing:2px;color:var(--yellow);}
 .pending-text{font-size:14px;color:var(--text2);line-height:1.6;max-width:300px;}
 .pending-btn{background:var(--surface2);border:1px solid var(--border2);color:var(--text2);font-family:'Inter',sans-serif;font-size:13px;font-weight:600;padding:10px 20px;border-radius:30px;cursor:pointer;margin-top:8px;}
@@ -130,14 +130,14 @@ body{max-width:480px;margin:0 auto;}
 .day-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 16px;cursor:pointer;transition:border-color .2s,transform .1s;margin-bottom:12px;display:flex;align-items:center;gap:14px;}
 .day-card:active{transform:scale(0.98);}
 .day-card:hover{border-color:var(--orange);}
-.day-icon-wrap{width:48px;height:48px;border-radius:12px;background:var(--orange-dim);border:1px solid rgba(var(--orange-rgb),0.25);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:22px;}
+.day-icon-wrap{width:48px;height:48px;border-radius:12px;background:var(--orange-dim);border:1px solid rgba(var(--orange-rgb),0.25);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:22px;color:var(--orange);}
 .day-info{flex:1;}
 .day-name{font-family:var(--font-display);font-size:16px;font-weight:600;letter-spacing:1px;}
 .day-days{font-size:12px;color:var(--text2);margin-top:2px;}
 .block-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 16px;cursor:pointer;transition:border-color .2s,transform .1s;display:flex;align-items:center;gap:16px;margin-bottom:12px;}
 .block-card:active{transform:scale(0.98);}
 .block-card:hover{border-color:var(--orange);}
-.block-icon-wrap{width:56px;height:56px;border-radius:14px;background:var(--orange-dim);border:1px solid rgba(var(--orange-rgb),0.3);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;transition:transform .2s;}
+.block-icon-wrap{width:56px;height:56px;border-radius:14px;background:var(--orange-dim);border:1px solid rgba(var(--orange-rgb),0.3);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;transition:transform .2s;color:var(--orange);}
 .block-card:hover .block-icon-wrap{transform:scale(1.08);}
 .block-name{font-family:var(--font-display);font-size:20px;font-weight:700;letter-spacing:2px;}
 .block-detail{font-size:12px;color:var(--text2);margin-top:4px;}
@@ -326,7 +326,7 @@ body{max-width:480px;margin:0 auto;}
 .tab-bar{display:flex;border-top:1px solid var(--border);background:rgba(10,10,11,0.97);position:sticky;bottom:0;z-index:50;}
 .tab-bar-item{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 0 8px;gap:3px;cursor:pointer;font-size:9px;font-weight:700;letter-spacing:.5px;color:var(--text3);text-transform:uppercase;transition:color .15s;}
 .tab-bar-item.active{color:var(--orange);}
-.tab-bar-icon{font-size:20px;line-height:1;}
+.tab-bar-icon{font-size:20px;line-height:1;display:flex;justify-content:center;}
 /* Pages with tab bar need bottom padding */
 .page-tabbed{padding:20px 16px 80px;}
 
@@ -348,6 +348,7 @@ body{max-width:480px;margin:0 auto;}
 .pr-range-val{font-family:var(--font-display);font-size:18px;font-weight:700;color:var(--text);}
 .pr-range-val span{font-size:11px;color:var(--text3);}
 .pr-range-week{font-size:10px;color:var(--text3);}
+.legend-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:0;}
 .pr-range-new{font-size:9px;font-weight:800;color:var(--gold);background:rgba(245,158,11,0.12);border-radius:3px;padding:1px 5px;}
 .pr-empty{text-align:center;padding:28px 0;color:var(--text3);font-size:13px;}
 
@@ -1263,8 +1264,44 @@ const HC_ICONS={
   ban:'<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
   undo:'<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>',
   search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
-  arrowRight:'<path d="M5 12h14M12 5l7 7-7 7"/>'
+  arrowRight:'<path d="M5 12h14M12 5l7 7-7 7"/>',
+  plus:'<path d="M5 12h14M12 5v14"/>',
+  copy:'<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+  save:'<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>',
+  sparkles:'<path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.13-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.13a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.13 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.13a.5.5 0 0 1-.96 0z"/><path d="M20 3v4M22 5h-4M4 17v2M5 18H3"/>',
+  bookmark:'<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>',
+  pencil:'<path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/><path d="m15 5 4 4"/>',
+  user:'<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  userPlus:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>',
+  send:'<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+  refresh:'<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+  archive:'<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
+  wrench:'<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+  alert:'<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/>',
+  checkCircle:'<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  trophy:'<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>',
+  dumbbell:'<path d="M14.4 14.4 9.6 9.6"/><path d="M18.66 21.49a2 2 0 1 1-2.83-2.83l-1.77 1.77a2 2 0 1 1-2.83-2.83l6.36-6.36a2 2 0 1 1 2.83 2.83l-1.77 1.77a2 2 0 1 1 2.83 2.83z"/><path d="m21.5 21.5-1.4-1.4M3.9 3.9 2.5 2.5"/><path d="M6.4 12.77a2 2 0 1 1-2.83-2.83l1.77-1.77a2 2 0 1 1-2.83-2.83l2.83-2.83a2 2 0 1 1 2.83 2.83l1.77-1.77a2 2 0 1 1 2.83 2.83z"/>',
+  footprints:'<path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z"/><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z"/><path d="M16 17h4M4 13h4"/>',
+  zap:'<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>',
+  mapPin:'<path d="M20 10c0 5-5.54 10.19-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.19 4 15 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+  folder:'<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+  inbox:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  camera:'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
+  moon:'<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  target:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  bookOpen:'<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+  trendingUp:'<path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/>',
+  list:'<path d="M3 6h.01M3 12h.01M3 18h.01M8 6h13M8 12h13M8 18h13"/>'
 };
+// Íconos que quedaron guardados como emoji dentro del plan de Fuerza (campo "icon" de días y bloques).
+// No se tocan los datos: solo se dibujan como ícono de línea al mostrarlos.
+const EMOJI_ICON_MAP={'🏋️':'dumbbell','🏋':'dumbbell','💪':'dumbbell','🦵':'footprints','⚡':'zap','🔥':'flame','📌':'mapPin','📅':'calendar'};
+function iconFromData(v,size){
+  const k=(v||'').trim();
+  if(EMOJI_ICON_MAP[k]) return hcIcon(EMOJI_ICON_MAP[k],size||22);
+  if(HC_ICONS[k]) return hcIcon(k,size||22);
+  return escH(k);
+}
 function hcIcon(name,size,color){
   size=size||18; color=color||'currentColor';
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${HC_ICONS[name]||''}</svg>`;
@@ -1555,7 +1592,7 @@ async function doRegister(){
   authState.loading=false;
   if(!res.ok){ authState.err=res.err; render(); return; }
   authState.err=''; authState.mode='login';
-  showToast('✅ ¡Cuenta creada! Esperá la aprobación del profe.');
+  showToast('¡Cuenta creada! Esperá la aprobación del profe.');
   render();
 }
 
@@ -1566,18 +1603,18 @@ function doLogout(){ clearSession(); progress={}; userMenuOpen=false; authState=
 // ============================================================
 function renderPending(){
   return `<div class="pending-wrap">
-    <div class="pending-icon">⏳</div>
+    <div class="pending-icon">${hcIcon('hourglass',56,'var(--orange)')}</div>
     <div class="pending-title">CUENTA PENDIENTE</div>
     <p class="pending-text">Tu cuenta fue creada correctamente. El profe debe aprobarla antes de que puedas ingresar a la app.<br><br>Volvé a intentar una vez que te avisen que está habilitada.</p>
     <button class="pending-btn" onclick="doLogout()">Volver al inicio</button>
-    <button class="pending-btn" onclick="recheckApproval()">🔄 Verificar aprobación</button>
+    <button class="pending-btn" onclick="recheckApproval()" style="display:inline-flex;align-items:center;gap:8px">${hcIcon('refresh',14)} Verificar aprobación</button>
   </div>`;
 }
 
 async function recheckApproval(){
   await loadUsers();
   const u=getUserByEmail(authState.email||session.email, session.club||getClub());
-  if(u&&u.status===STATUS.ACTIVE){ saveSession(u); await loadProgress(); if(session.club==='hybrid') await hcEnsureGoalData(); render(); showToast('✅ ¡Cuenta aprobada!'); }
+  if(u&&u.status===STATUS.ACTIVE){ saveSession(u); await loadProgress(); if(session.club==='hybrid') await hcEnsureGoalData(); render(); showToast('¡Cuenta aprobada!'); }
   else showToast('Todavía pendiente de aprobación.');
 }
 
@@ -1658,7 +1695,7 @@ async function hcSaveOwnMetrics(){
   try{
     const ok=await personalSet(K.HC_METRICS(session.uid), hcOwnMetrics);
     if(!ok) throw new Error('no se pudo sincronizar con el servidor');
-    showToast('✅ Métricas guardadas');
+    showToast('Métricas guardadas');
   }catch(e){ alert('No se pudieron guardar las métricas: '+e.message); }
 }
 function renderHcMetricsBody(){
@@ -1674,14 +1711,14 @@ let hcDocsFilter='Todas';
 function hcSetDocsFilter(c){ hcDocsFilter=c; render(); }
 function renderHcDocsBody(){
   const docs=(hcDocsIndex||[]).slice().sort((a,b)=>b.uploadedAt-a.uploadedAt);
-  if(!docs.length) return `<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="font-size:32px;margin-bottom:10px">📄</div>Tu profe todavía no subió documentos</div>`;
+  if(!docs.length) return `<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="margin-bottom:10px;display:flex;justify-content:center;opacity:.6">${hcIcon('file',32)}</div>Tu profe todavía no subió documentos</div>`;
   const cats=['Todas',...new Set(docs.map(d=>d.category))];
   const filterHTML=`<div style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto">
     ${cats.map(c=>`<div class="admin-tab ${hcDocsFilter===c?'active':''}" style="flex-shrink:0" onclick="hcSetDocsFilter('${escH(c)}')">${escH(c)}</div>`).join('')}
   </div>`;
   const shown=hcDocsFilter==='Todas'?docs:docs.filter(d=>d.category===hcDocsFilter);
   const listHTML=shown.map(d=>`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="hcOpenDocFile('${d.id}')">
-      <div style="font-size:26px;flex-shrink:0">📄</div>
+      <div style="flex-shrink:0;color:var(--orange);display:flex">${hcIcon('file',24)}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600">${escH(d.name)}</div>
         <div style="font-size:11px;color:var(--text3)">${escH(d.category)} · ${hcFmtBytes(d.size)}</div>
@@ -1844,7 +1881,7 @@ async function hcSetGoal(raceId){
     const i=hcGoal.raceIds.indexOf(raceId);
     if(i>=0) hcGoal.raceIds.splice(i,1); else hcGoal.raceIds.push(raceId);
     await personalSet(K.HC_GOAL(session.uid), hcGoal);
-    showToast(i>=0 ? 'Objetivo quitado' : '🎯 Objetivo marcado');
+    showToast(i>=0 ? 'Objetivo quitado' : 'Objetivo marcado');
     render();
   }catch(e){ alert('No se pudo guardar el objetivo: '+e.message); }
 }
@@ -1858,7 +1895,7 @@ async function hcBookCall(slotId){
     slot.uid=session.uid; slot.studentName=session.name;
     const ok=await saveHcCalls();
     if(!ok) throw new Error('no se pudo sincronizar con el servidor');
-    showToast('✅ Videollamada reservada');
+    showToast('Videollamada reservada');
     render();
   }catch(e){ alert('No se pudo reservar: '+e.message); }
 }
@@ -2097,7 +2134,7 @@ async function hcSendChatMsg(){
   }catch(e){ alert('No se pudo enviar el mensaje: '+e.message); }
 }
 function hcChatBubblesHTML(msgs, selfSide){
-  if(!msgs||!msgs.length) return `<div style="text-align:center;color:var(--text3);font-size:12px;padding:24px 0">Todavía no hay mensajes. Escribí el primero 👋</div>`;
+  if(!msgs||!msgs.length) return `<div style="text-align:center;color:var(--text3);font-size:12px;padding:24px 0">Todavía no hay mensajes. Escribí el primero</div>`;
   return msgs.map(m=>{
     const mine=m.from===selfSide;
     return `<div style="display:flex;justify-content:${mine?'flex-end':'flex-start'};margin-bottom:8px">
@@ -2113,7 +2150,7 @@ function renderHcChatBody(){
     <div id="hc-chat-scroll" style="flex:1;overflow-y:auto;padding-bottom:8px">${hcChatBubblesHTML(hcOwnChat,'student')}</div>
     <div style="display:flex;gap:8px;padding-top:8px;border-top:1px solid var(--border)">
       <input class="auth-inp" id="hc-chat-inp" style="margin:0;flex:1" placeholder="Escribile a tu profe..." onkeydown="if(event.key==='Enter')hcSendChatMsg()">
-      <button class="adm-btn adm-btn-orange" style="padding:0 16px" onclick="hcSendChatMsg()">➤</button>
+      <button class="adm-btn adm-btn-orange" style="padding:0 16px" onclick="hcSendChatMsg()">${hcIcon('send',16)}</button>
     </div>
   </div>`;
 }
@@ -2193,7 +2230,7 @@ function renderHcCarrerasBody(){
       </div>
       <button class="adm-btn ${isGoal?'adm-btn-orange':'adm-btn-ghost'}" style="width:100%;justify-content:center;margin-top:10px;padding:8px" onclick="hcSetGoal('${r.id}')">${isGoal?'✓ Es uno de tus objetivos':'Marcar como objetivo'}</button>
     </div>`;
-  }).join('') : `<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="font-size:32px;margin-bottom:10px">🏁</div>Todavía no hay carreras cargadas</div>`;
+  }).join('') : `<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="margin-bottom:10px;display:flex;justify-content:center;opacity:.6">${hcIcon('flag',32)}</div>Todavía no hay carreras cargadas</div>`;
 
   return `<div class="admin-section-title" style="margin-bottom:10px">CALENDARIO DE CARRERAS</div>${listHTML}`;
 }
@@ -2224,7 +2261,7 @@ function renderHcLlamadasBody(){
       <div style="font-family:var(--font-display);font-size:14px;font-weight:700">${hcFmtDate(c.date)} · ${escH(c.time)}</div>
       <div style="font-size:11px;color:var(--text2);margin-top:2px">Con ${escH(c.profesor||'el profe')}</div>
       <button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;margin-top:10px;padding:8px" onclick="hcBookCall('${c.id}')" ${own?'disabled':''}>Reservar</button>
-    </div>`).join('') : `<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="font-size:32px;margin-bottom:10px">📞</div>No hay horarios disponibles por ahora</div>`;
+    </div>`).join('') : `<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="margin-bottom:10px;display:flex;justify-content:center;opacity:.6">${hcIcon('phone',32)}</div>No hay horarios disponibles por ahora</div>`;
 
   return `${ownHTML}<div class="admin-section-title" style="margin-bottom:10px">HORARIOS DISPONIBLES</div>${listHTML}`;
 }
@@ -2338,7 +2375,7 @@ function hcExDisplayHTML(wi,di,ei,ex){
   return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px">
     <div style="font-size:13px;font-weight:600">${escH(ex.name)}</div>
     ${rowsHTML}
-    ${ex.notes?`<div style="font-size:11px;color:var(--orange2);background:var(--orange-dim2);border-radius:var(--radius-sm);padding:8px 10px;margin-top:8px;white-space:pre-line;line-height:1.5">🗣️ ${escH(ex.notes)}</div>`:''}
+    ${ex.notes?`<div style="font-size:11px;color:var(--orange2);background:var(--orange-dim2);border-radius:var(--radius-sm);padding:8px 10px;margin-top:8px;white-space:pre-line;line-height:1.5"><span style="display:inline-flex;vertical-align:-2px;margin-right:4px">${hcIcon('megaphone',13)}</span>${escH(ex.notes)}</div>`:''}
     <div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-top:10px;margin-bottom:4px">Tu anotación</div>
     <textarea class="auth-inp" style="height:44px;padding:8px 12px;resize:vertical;margin-bottom:0;font-size:12px" placeholder="¿Cómo te sentiste, qué pesos usaste...?" onchange="hcSetExNote(${wi},${di},${ei},this.value)">${escH(ex.studentNotes||'')}</textarea>
   </div>`;
@@ -2368,8 +2405,8 @@ function hcExReadOnlyHTML(ex){
   return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px">
     <div style="font-size:13px;font-weight:600">${escH(ex.name)}</div>
     ${rowsHTML}
-    ${ex.notes?`<div style="font-size:11px;color:var(--orange2);background:var(--orange-dim2);border-radius:var(--radius-sm);padding:8px 10px;margin-top:8px;white-space:pre-line;line-height:1.5">🗣️ ${escH(ex.notes)}</div>`:''}
-    ${ex.studentNotes?`<div style="font-size:11px;color:var(--text2);background:var(--surface3);border-radius:var(--radius-sm);padding:8px 10px;margin-top:8px;white-space:pre-line;line-height:1.5">📝 ${escH(ex.studentNotes)}</div>`:''}
+    ${ex.notes?`<div style="font-size:11px;color:var(--orange2);background:var(--orange-dim2);border-radius:var(--radius-sm);padding:8px 10px;margin-top:8px;white-space:pre-line;line-height:1.5"><span style="display:inline-flex;vertical-align:-2px;margin-right:4px">${hcIcon('megaphone',13)}</span>${escH(ex.notes)}</div>`:''}
+    ${ex.studentNotes?`<div style="font-size:11px;color:var(--text2);background:var(--surface3);border-radius:var(--radius-sm);padding:8px 10px;margin-top:8px;white-space:pre-line;line-height:1.5"><span style="display:inline-flex;vertical-align:-2px;margin-right:4px">${hcIcon('pencil',13)}</span>${escH(ex.studentNotes)}</div>`:''}
   </div>`;
 }
 function hcDayCardReadOnlyHTML(day){
@@ -2551,7 +2588,7 @@ async function hcSaveTrac(){
     render();
     const ok=await personalSet(K.HC_TRAC(session.uid), hcOwnTrac);
     if(!ok) throw new Error('no se pudo sincronizar con el servidor');
-    showToast('✅ Cuestionario guardado');
+    showToast('Cuestionario guardado');
   }catch(e){ alert('No se pudo guardar: '+e.message); }
 }
 
@@ -2618,7 +2655,7 @@ function renderHcPlanBody(){
   if(hcArchView.open) return renderHcArchivedBrowser();
 
   const plan=hcOwnPlan||[];
-  const archButton = `<button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;margin-bottom:16px" onclick="hcToggleArchivedList()">📦 Bloques anteriores${hcOwnArchived&&hcOwnArchived.length?' ('+hcOwnArchived.length+')':''}</button>`;
+  const archButton = `<button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;margin-bottom:16px" onclick="hcToggleArchivedList()">${hcIcon('archive',15)} Bloques anteriores${hcOwnArchived&&hcOwnArchived.length?' ('+hcOwnArchived.length+')':''}</button>`;
   const tracBtns = `<div style="display:flex;gap:6px;flex-shrink:0">
     <button class="adm-btn adm-btn-ghost" style="padding:8px" title="Cuestionario de Recuperacion (TRAC)" onclick="hcOpenTrac()">${hcIcon('activity',16,'#FFEC03')}</button>
     <button class="adm-btn adm-btn-ghost" style="padding:8px;width:34px;justify-content:center;font-weight:700;font-size:12px" title="¿Qué es TRAC?" onclick="hcToggleTracInfo()">?</button>
@@ -2628,7 +2665,7 @@ function renderHcPlanBody(){
     Un cuestionario corto para contarle a tu coach cómo llega tu cuerpo: dolores puntuales y tu estado general de descanso, recuperacion y motivación — así se puede ajustar la carga de entrenamiento si hace falta.
   </div>` : '';
   if(!hcHasAnyContent(plan)&&!hcOwnBlockName){
-    return `<div style="display:flex;justify-content:flex-end;margin-bottom:12px">${tracBtns}</div>${tracInfoBox}<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="font-size:32px;margin-bottom:10px">📅</div>Tu profe todavía no cargó tu planificación</div>${archButton}`;
+    return `<div style="display:flex;justify-content:flex-end;margin-bottom:12px">${tracBtns}</div>${tracInfoBox}<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="margin-bottom:10px;display:flex;justify-content:center;opacity:.6">${hcIcon('calendar',32)}</div>Tu profe todavía no cargó tu planificación</div>${archButton}`;
   }
 
   const modeToggle=`<div style="display:flex;gap:6px;margin-bottom:14px">
@@ -2688,7 +2725,7 @@ function renderHybridHome(){
 
 async function hcSaveOwnFicha(){
   await personalSet(K.HC_PROFILE(session.uid), hcProfile);
-  showToast('✅ Ficha guardada');
+  showToast('Ficha guardada');
 }
 
 // ---- Ficha de alumno: campos + foto (compartido Alumno/Admin) ----
@@ -2807,7 +2844,7 @@ function renderFichaForm(profile, uid, opts){
         ${p.photo
           ?`<div style="width:64px;height:64px;border-radius:50%;background-image:url('${p.photo}');background-size:cover;background-position:center;border:2px solid var(--orange)"></div>`
           :`<div class="user-row-avatar" style="width:64px;height:64px;font-size:20px;border:2px solid var(--border2)">${ini}</div>`}
-        <div style="position:absolute;bottom:-2px;right:-2px;background:var(--orange);border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;border:2px solid var(--bg)">📷</div>
+        <div style="position:absolute;bottom:-2px;right:-2px;background:var(--orange);border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;border:2px solid var(--bg);color:var(--on-accent)">${hcIcon('camera',12)}</div>
       </label>
       <div>
         <div style="font-family:var(--font-display);font-size:15px;font-weight:700">${escH(opts.ownerLabel||'')}</div>
@@ -2848,7 +2885,7 @@ function renderHome(){
   }).join('');
 
   const streakHTML=streak>0?`<div style="background:linear-gradient(135deg,rgba(245,158,11,0.18),rgba(var(--orange-rgb),0.08));border:1px solid rgba(245,158,11,0.4);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:14px">
-    <div style="font-size:32px;line-height:1;flex-shrink:0">🔥</div>
+    <div style="line-height:1;flex-shrink:0;color:var(--orange);display:flex">${hcIcon('flame',32)}</div>
     <div style="flex:1;min-width:0">
       <div style="font-size:10px;color:var(--gold);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">RACHA ACTIVA</div>
       <div style="font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--text);line-height:1">${streak} <span style="font-size:14px;color:var(--text2);font-weight:400">${streak===1?'semana':'semanas'} seguidas</span></div>
@@ -2863,7 +2900,7 @@ function renderHome(){
   // Coach message for active week
   const activeMsg = weekMessages[activeIdx] ? weekMessages[activeIdx].trim() : '';
   const msgHTML = activeMsg ? `<div style="background:var(--orange-dim);border:1px solid rgba(var(--orange-rgb),0.25);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px;display:flex;align-items:flex-start;gap:10px">
-    <div style="flex-shrink:0;width:28px;height:28px;border-radius:50%;background:var(--orange);display:flex;align-items:center;justify-content:center;font-size:12px">💬</div>
+    <div style="flex-shrink:0;width:28px;height:28px;border-radius:50%;background:var(--orange);display:flex;align-items:center;justify-content:center;color:var(--on-accent)">${hcIcon('chat',14)}</div>
     <div>
       <div style="font-size:9px;color:var(--orange);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Mensaje del profe · Semana ${activeWd.week}</div>
       <div style="font-size:12px;color:var(--text2);line-height:1.6">${escH(activeMsg)}</div>
@@ -2872,7 +2909,7 @@ function renderHome(){
 
   const activeBanner=`<div onclick="nav('week',{week:${activeIdx}})" style="background:linear-gradient(135deg,var(--orange-dim),rgba(var(--orange-rgb),0.05));border:1px solid rgba(var(--orange-rgb),0.4);border-radius:var(--radius);padding:14px 16px;margin-bottom:${activeMsg?'8px':'16px'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px">
     <div>
-      <div style="font-size:10px;color:var(--orange);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px">📍 SEMANA ACTIVA</div>
+      <div style="font-size:10px;color:var(--orange);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px;display:flex;align-items:center;gap:4px">${hcIcon('mapPin',12)} SEMANA ACTIVA</div>
       <div style="font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--text)">SEMANA ${activeWd.week}</div>
       <div style="font-size:12px;color:var(--text2);margin-top:2px">${activePct===100?'✓ Completada':'En progreso · '+activePct+'%'}</div>
     </div>
@@ -2888,7 +2925,7 @@ function renderHome(){
     const isActive=i===activeIdx;
     return `<div class="week-card ${isActive?'active-week':''}" onclick="setActiveWeek(${i});nav('week',{week:${i}})" style="${isActive?'border-color:var(--orange);box-shadow:0 0 0 1px rgba(var(--orange-rgb),0.3)':''}">
       <div class="week-card-header">
-        <div class="week-icon">${isActive?'<span style="font-size:16px">📍</span>':'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f05a28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>'}</div>
+        <div class="week-icon">${isActive?hcIcon('mapPin',18,'var(--orange)'):'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f05a28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>'}</div>
         <div>
           <div class="week-label">SEMANA ${wd.week} ${isActive?'<span style="font-size:9px;color:var(--orange);font-weight:700;letter-spacing:.5px">● ACTIVA</span>':''}</div>
           <div class="week-sub">${complete?'✓ COMPLETADA':wd.days.length+' DÍAS'}</div>
@@ -2902,7 +2939,7 @@ function renderHome(){
   return `${navBarHTML()}
     <div class="page-tabbed">
       <div class="home-hero" style="padding-bottom:16px">
-        <div class="home-greeting">HOLA, ${escH(session.name.split(' ')[0].toUpperCase())} 👋</div>
+        <div class="home-greeting">HOLA, ${escH(session.name.split(' ')[0].toUpperCase())}</div>
         <h1>PLAN DE<br><span>FUERZA</span></h1>
       </div>
       <div style="text-align:center">${streakHTML}</div>
@@ -2910,7 +2947,7 @@ function renderHome(){
       <div class="admin-section-title" style="margin-bottom:12px">TODAS LAS SEMANAS</div>
       <div class="weeks-grid">${cards}</div>
       ${archivedBlocks.length?`
-      <div class="admin-section-title" style="margin-top:24px;margin-bottom:12px">📁 BLOQUES ANTERIORES</div>
+      <div class="admin-section-title" style="margin-top:24px;margin-bottom:12px">${hcSecTitle('folder','BLOQUES ANTERIORES')}</div>
       <div style="display:flex;flex-direction:column;gap:8px">
         ${archivedBlocks.map(b=>`
           <div onclick="openArchivedBlock('${b.id}')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;transition:border-color .2s" onmouseover="this.style.borderColor='var(--orange)'" onmouseout="this.style.borderColor='var(--border)'">
@@ -2969,7 +3006,7 @@ function renderWeek(){
 
   const days=wd.days.map((day,di)=>
     `<div class="day-card" onclick="nav('day',{week:${ST.week},dayIdx:${di}})">
-      <div class="day-icon-wrap">${day.icon}</div>
+      <div class="day-icon-wrap">${iconFromData(day.icon,22)}</div>
       <div class="day-info"><div class="day-name">${day.name}</div><div class="day-days">${day.days}</div></div>
       <div>${IC.chevron}</div>
     </div>`
@@ -2995,7 +3032,7 @@ function renderDay(){
   const wd=plan[ST.week]; const day=wd.days[ST.dayIdx];
   const blocks=day.blocks.map((bl,bi)=>
     `<div class="block-card" onclick="nav('workout',{week:${ST.week},dayIdx:${ST.dayIdx},blockIdx:${bi}})">
-      <div class="block-icon-wrap">${bl.icon}</div>
+      <div class="block-icon-wrap">${iconFromData(bl.icon,26)}</div>
       <div style="flex:1"><div class="block-name">${bl.name}</div><div class="block-detail">${bl.exercises.length} ejercicios</div></div>
       <div style="color:var(--text3)">${IC.chevron}</div>
     </div>`
@@ -3032,7 +3069,7 @@ function renderWorkout(){
       <div class="workout-info"><div class="workout-week">SEM. ${wd.week} · ${day.name} · ${day.days}</div><div class="workout-block">${block.name}</div></div>
       <div style="width:36px"></div>
     </div>
-    <div class="express-toggle-bar"><span class="express-toggle-label">⚡ Modo Express</span><div class="express-toggle off" onclick="toggleExpressMode()"><div class="express-toggle-dot"></div></div></div>
+    <div class="express-toggle-bar"><span class="express-toggle-label" style="display:inline-flex;align-items:center;gap:6px">${hcIcon('zap',13)} Modo Express</span><div class="express-toggle off" onclick="toggleExpressMode()"><div class="express-toggle-dot"></div></div></div>
     <div class="workout-content">${exsH}
       <button class="finish-btn" onclick="handleFinish()">${IC.trophy} FINALIZAR BLOQUE</button>
     </div>`;
@@ -3063,7 +3100,7 @@ function getPrBadge(exName, repsStr, weight){
   if(!ex||!ex[rk]) return '';
   const range=PR_RANGES.find(r=>r.key===rk);
   if(ex[rk].weight===w && ex[rk].newPr)
-    return `<span style="font-size:10px;font-weight:800;color:var(--gold);letter-spacing:.5px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-radius:4px;padding:2px 6px;flex-shrink:0">🏆 PR ${range.label}</span>`;
+    return `<span style="font-size:10px;font-weight:800;color:var(--gold);letter-spacing:.5px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-radius:4px;padding:2px 6px;flex-shrink:0;display:inline-flex;align-items:center;gap:3px">${hcIcon('trophy',10)} PR ${range.label}</span>`;
   if(ex[rk].weight===w)
     return `<span style="font-size:10px;font-weight:700;color:var(--orange);background:var(--orange-dim);border-radius:4px;padding:2px 6px;flex-shrink:0">= ${range.label}</span>`;
   return '';
@@ -3115,7 +3152,7 @@ function toggleDone(k){
     const btn=row.querySelector('.btn-check'); if(btn){btn.className='btn-check'+(on?' checked':'');btn.innerHTML=IC.check(on);} }
 }
 
-function handleFinish(){ showToast('✅ ¡Bloque registrado!'); setTimeout(()=>nav('day',{week:ST.week,dayIdx:ST.dayIdx}),900); }
+function handleFinish(){ showToast('¡Bloque registrado!'); setTimeout(()=>nav('day',{week:ST.week,dayIdx:ST.dayIdx}),900); }
 
 // ============================================================
 // ADMIN MODAL
@@ -3198,7 +3235,7 @@ function renderAdminPw(){
     <h3>Acceso restringido</h3>
     <p>Ingresá la contraseña de administrador.</p>
     <input class="adm-inp" type="password" id="adm-pw-inp" placeholder="Contraseña..." onkeydown="if(event.key==='Enter')checkAdminPw()">
-    ${adminState.pwErr?`<span class="pw-err">❌ ${adminState.pwErr}</span>`:''}
+    ${adminState.pwErr?`<span class="pw-err">${adminState.pwErr}</span>`:''}
     <button class="adm-btn adm-btn-orange" onclick="checkAdminPw()" style="width:100%;justify-content:center;padding:12px">INGRESAR</button>
   </div>`;
 }
@@ -3240,8 +3277,8 @@ function renderAdminBody(){
     return `<div class="adm-layout"><div class="admin-nav">${nav}</div><div class="adm-main">${renderHcAdminTab()}</div></div>`;
   }
   if(typeof adminState.tab!=='number') adminState.tab=0;
-  const tabs=['📊 Dashboard','👥 Usuarios','📋 Ejercicios','📅 Semanas','📖 RPE','🎯 PRs','📈 Grupo','🔑 Contraseña','🔍 Diagnóstico'];
-  const nav=tabs.map((t,i)=>`<div class="admin-tab ${adminState.tab===i?'active':''}" onclick="setAdminTab(${i})">${t}</div>`).join('');
+  const tabs=[['grid','Dashboard'],['users','Usuarios'],['list','Ejercicios'],['calendar','Semanas'],['bookOpen','RPE'],['target','PRs'],['trendingUp','Grupo'],['key','Contraseña'],['search','Diagnóstico']];
+  const nav=tabs.map(([ic,label],i)=>`<div class="admin-tab ${adminState.tab===i?'active':''}" onclick="setAdminTab(${i})"><span class="adm-tab-ic">${hcIcon(ic,16)}${label}</span></div>`).join('');
   let body='';
   if(adminState.tab===0) body=renderTabDashboard();
   else if(adminState.tab===1) body=renderTabUsers();
@@ -3299,15 +3336,15 @@ function renderTabUsers(){
 
   const subTabs=`<div style="display:flex;gap:8px;margin-bottom:12px">
     <div class="admin-tab ${adminState.userSubTab==='active'?'active':''}" onclick="setUserSubTab('active')">
-      ✅ Activos ${active.length?`<span style="background:rgba(255,255,255,0.2);border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px">${active.length}</span>`:''}
+      Activos ${active.length?`<span style="background:rgba(255,255,255,0.2);border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px">${active.length}</span>`:''}
     </div>
     <div class="admin-tab ${adminState.userSubTab==='pending'?'active':''}" onclick="setUserSubTab('pending')" style="${pending.length?'border-color:var(--yellow);color:var(--yellow)':''}">
-      ⏳ Solicitudes ${pending.length?`<span style="background:rgba(245,158,11,0.25);border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px;color:var(--yellow)">${pending.length}</span>`:''}
+      Solicitudes ${pending.length?`<span style="background:rgba(245,158,11,0.25);border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px;color:var(--yellow)">${pending.length}</span>`:''}
     </div>
   </div>`;
 
   if(adminState.userSubTab==='pending'){
-    if(!pending.length) return subTabs+`<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="font-size:36px;margin-bottom:12px">🎉</div>No hay solicitudes pendientes</div>`;
+    if(!pending.length) return subTabs+`<div style="text-align:center;padding:32px 0;color:var(--text3)"><div style="margin-bottom:12px;display:flex;justify-content:center;opacity:.6">${hcIcon('checkCircle',36)}</div>No hay solicitudes pendientes</div>`;
     const rows=pending.map(u=>renderUserRow(u)).join('');
     return subTabs+`<div class="admin-section-title">SOLICITUDES PENDIENTES (${pending.length})</div>${rows}`;
   }
@@ -3315,8 +3352,8 @@ function renderTabUsers(){
   // Activity filter
   const actFilter=`<div style="display:flex;gap:6px;margin-bottom:10px;overflow-x:auto">
     <div class="admin-tab ${adminState.userActivityFilter==='all'?'active':''}" style="font-size:11px;padding:4px 10px;flex-shrink:0" onclick="setUserActivityFilter('all')">Todos</div>
-    <div class="admin-tab ${adminState.userActivityFilter==='recording'?'active':''}" style="font-size:11px;padding:4px 10px;flex-shrink:0" onclick="setUserActivityFilter('recording')">📝 Anotando</div>
-    <div class="admin-tab ${adminState.userActivityFilter==='silent'?'active':''}" style="font-size:11px;padding:4px 10px;flex-shrink:0;${adminState.userActivityFilter==='silent'?'':'border-color:rgba(239,68,68,0.4);color:var(--red)'}" onclick="setUserActivityFilter('silent')">😴 Sin registros</div>
+    <div class="admin-tab ${adminState.userActivityFilter==='recording'?'active':''}" style="font-size:11px;padding:4px 10px;flex-shrink:0" onclick="setUserActivityFilter('recording')"><span class="adm-tab-ic" style="gap:5px">${hcIcon('pencil',12)}Anotando</span></div>
+    <div class="admin-tab ${adminState.userActivityFilter==='silent'?'active':''}" style="font-size:11px;padding:4px 10px;flex-shrink:0;${adminState.userActivityFilter==='silent'?'':'border-color:rgba(239,68,68,0.4);color:var(--red)'}" onclick="setUserActivityFilter('silent')"><span class="adm-tab-ic" style="gap:5px">${hcIcon('moon',12)}Sin registros</span></div>
   </div>`;
 
   // Search — oninput calls filterUsers() to update only the list without re-rendering modal
@@ -3361,15 +3398,15 @@ function renderUserRow(u){
   const isBlocked=u.status===STATUS.BLOCKED;
   const hasRec=userActivityMap[u.id];
   const recBadge=(!isPending&&hasRec===false)?`<span style="font-size:9px;font-weight:700;color:var(--red);background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);border-radius:4px;padding:1px 6px;margin-top:3px;display:inline-block">SIN REGISTROS</span>`
-    :(!isPending&&hasRec===true)?`<span style="font-size:9px;font-weight:700;color:var(--green);background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);border-radius:4px;padding:1px 6px;margin-top:3px;display:inline-block">📝 ANOTANDO</span>`:'';
+    :(!isPending&&hasRec===true)?`<span style="font-size:9px;font-weight:700;color:var(--green);background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.2);border-radius:4px;padding:1px 6px;margin-top:3px;display:inline-block">ANOTANDO</span>`:'';
   const actionsFuerza=`
       ${isPending?`<button class="adm-btn adm-btn-green" style="padding:6px 12px;font-weight:700" onclick="approveUser('${u.id}')">✓ Aprobar</button>`:''}
       ${!isPending&&!isBlocked?`<button class="adm-btn adm-btn-red" style="padding:6px 8px" onclick="blockUser('${u.id}')" title="Bloquear">✕</button>`:''}
       ${isBlocked?`<button class="adm-btn adm-btn-blue" style="padding:6px 8px" onclick="unblockUser('${u.id}')" title="Reactivar">↩</button>`:''}
-      ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="adminResetPassword('${u.id}')" title="Restablecer contraseña">🔑</button>`:''}
-      ${!isPending?`<button class="adm-btn adm-btn-blue" style="padding:6px 8px" onclick="impersonateUser('${u.id}')" title="Entrar como alumno">👤</button>`:''}
+      ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="adminResetPassword('${u.id}')" title="Restablecer contraseña">${hcIcon('key',14)}</button>`:''}
+      ${!isPending?`<button class="adm-btn adm-btn-blue" style="padding:6px 8px" onclick="impersonateUser('${u.id}')" title="Entrar como alumno">${hcIcon('user',14)}</button>`:''}
       ${!isPending?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px" onclick="viewUserProgress('${u.id}')" title="Ver progreso">${IC.eye}</button>`:''}
-      ${!isPending?`<button class="adm-btn ${u.admin?'adm-btn-orange':'adm-btn-ghost'}" style="padding:6px 8px" onclick="toggleUserAdmin('${u.id}')" title="${u.admin?'Quitar acceso de admin':'Dar acceso de admin'}">👑</button>`:''}`;
+      ${!isPending?`<button class="adm-btn ${u.admin?'adm-btn-orange':'adm-btn-ghost'}" style="padding:6px 8px" onclick="toggleUserAdmin('${u.id}')" title="${u.admin?'Quitar acceso de admin':'Dar acceso de admin'}">${hcIcon('crown',14)}</button>`:''}`;
   return `<div class="user-row">
     <div class="user-row-avatar">${ini}</div>
     <div class="user-row-info">
@@ -3388,7 +3425,7 @@ function setUserSubTab(tab){ adminState.userSubTab=tab; adminState.userSearch=''
 async function approveUser(id){
   await loadUsers(); users[id].status=STATUS.ACTIVE; await saveUsers();
   adminState.userSubTab='active'; // switch to active tab after approving
-  renderModal(); showToast('✅ Usuario aprobado');
+  renderModal(); showToast('Usuario aprobado');
 }
 async function blockUser(id){
   await loadUsers(); users[id].status=STATUS.BLOCKED; await saveUsers();
@@ -3396,7 +3433,7 @@ async function blockUser(id){
 }
 async function unblockUser(id){
   await loadUsers(); users[id].status=STATUS.ACTIVE; await saveUsers();
-  renderModal(); showToast('✅ Usuario reactivado');
+  renderModal(); showToast('Usuario reactivado');
 }
 async function toggleUserAdmin(id){
   await loadUsers();
@@ -3405,7 +3442,7 @@ async function toggleUserAdmin(id){
   u.admin=!u.admin;
   await saveUsers();
   renderModal();
-  showToast(u.admin?'👑 Ahora tiene acceso de admin':'Ya no tiene acceso de admin');
+  showToast(u.admin?'Ahora tiene acceso de admin':'Ya no tiene acceso de admin');
 }
 async function adminResetPassword(id){
   const u=getUserById(id);
@@ -3417,7 +3454,7 @@ async function adminResetPassword(id){
     await loadUsers();
     users[id].hash=hashStr(clean);
     await saveUsers();
-    alert('✅ Contraseña actualizada. Nueva contraseña: '+clean+'\n\nPasásela al alumno para que pueda entrar de nuevo.');
+    alert('Contraseña actualizada. Nueva contraseña: '+clean+'\n\nPasásela al alumno para que pueda entrar de nuevo.');
   }catch(e){ alert('Error al actualizar la contraseña: '+e.message); }
 }
 
@@ -3535,7 +3572,7 @@ function renderUserProgress(){
     <div class="admin-section-title">SEMANA</div>
     <div class="prog-week-tabs" style="margin-bottom:14px">${weekTabs}</div>
     ${entries||`<div style="text-align:center;padding:32px 0;color:var(--text3)">
-      <div style="font-size:32px;margin-bottom:10px">📭</div>
+      <div style="margin-bottom:10px;display:flex;justify-content:center;opacity:.6">${hcIcon('inbox',32)}</div>
       <div style="font-size:13px">Sin registros en la Semana ${adminState.viewUserWeek+1}</div>
     </div>`}
   </div>`;
@@ -3591,6 +3628,8 @@ async function hcLoadAthleteData(force){
 
 async function hcSetAdminTab(k){
   adminState.viewUserIdx=null; adminState.viewFichaUid=null; adminState.viewPlanUid=null; adminState.viewChatUid=null; adminState.viewMetricsUid=null;
+  if(adminState.viewTemplateId){ adminState.viewTemplateId=null; hcPlanEditing=null; }
+  adminState.tplAssignId=null;
   adminState.tab=k; adminState.userSearch='';
   if(k==='dash'||k==='atletas'||k==='planes'||k==='config'){
     await loadUsers();
@@ -3612,6 +3651,7 @@ function renderHcAdminTab(){
   if(adminState.viewMetricsUid) return renderAdminMetrics();
   if(adminState.viewPlanUid) return renderAdminPlan();
   if(adminState.viewChatUid) return renderAdminChat();
+  if(adminState.viewTemplateId) return renderHcTemplateEditor();
   const t=adminState.tab;
   if(t==='dash'||t==='atletas'||t==='planes') hcLoadAthleteData();
   if(t==='plantillas' && !hcTemplates) loadHcTemplates().then(()=>renderModal());
@@ -3871,24 +3911,108 @@ function hcPlanesListHTML(){
 
 // ---- PLANTILLAS ----
 function renderHcTabPlantillas(){
-  const head=`<div style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.5">Estructuras listas para reutilizar. Para guardar una, abrí el editor de un atleta en Planificaciones y tocá "Guardar como plantilla". Para usarla, desde el editor del atleta tocá "Usar plan existente como base".</div>`;
+  const head=`<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+    <div style="font-size:12px;color:var(--text3);line-height:1.5;flex:1;min-width:200px">Estructuras listas para reutilizar y asignar a cualquier atleta sin reescribir el bloque.</div>
+    <button class="adm-btn adm-btn-orange" style="padding:10px 16px;gap:8px" onclick="hcOpenTemplateEditor(null)">${hcIcon('plus',15)} Nueva plantilla</button>
+  </div>`;
   if(!hcTemplates) return head+`<div class="cc-empty">Cargando plantillas...</div>`;
   if(!hcTemplates.length) return head+`<div class="cc-box" style="text-align:center;padding:36px 16px">
-    <div style="color:var(--text3);margin-bottom:10px;display:flex;justify-content:center">${hcIcon('template',30)}</div>
-    <div style="font-weight:700;font-size:15px;margin-bottom:4px">Todavía no hay plantillas</div>
-    <div style="font-size:12px;color:var(--text3)">Guardá el plan de un atleta como plantilla para empezar tu biblioteca.</div>
+    <div style="color:var(--text3);margin-bottom:10px;display:flex;justify-content:center">${hcIcon('sparkles',30)}</div>
+    <div style="font-weight:700;font-size:15px;margin-bottom:4px">Tu primera plantilla</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:18px">Armá una estructura reutilizable y después asignala a cualquier atleta.</div>
+    <div class="ath-grid" style="max-width:560px;margin:0 auto;text-align:left">
+      <div class="cc-item" style="cursor:pointer;margin:0" onclick="hcOpenTemplateEditor(null)">
+        <div style="color:var(--orange);margin-bottom:6px">${hcIcon('plus',18)}</div>
+        <div style="font-weight:700;font-size:13px;margin-bottom:2px">Desde cero</div>
+        <div style="font-size:11px;color:var(--text3)">Nombre, semanas y días. Después la asignás.</div>
+      </div>
+      <div class="cc-item" style="margin:0">
+        <div style="color:var(--orange);margin-bottom:6px">${hcIcon('bookmark',18)}</div>
+        <div style="font-weight:700;font-size:13px;margin-bottom:2px">Desde un plan</div>
+        <div style="font-size:11px;color:var(--text3)">En Planificaciones abrí el editor de un atleta y usá <b>Guardar como plantilla</b>.</div>
+      </div>
+    </div>
   </div>`;
   return head+`<div class="ath-grid">${hcTemplates.map(t=>{
     const weeks=t.plan.length;
     const days=t.plan.reduce((n,w)=>n+hcWeekDaysWithContent(w).length,0);
+    const picker=adminState.tplAssignId===t.id ? `<div style="border-top:1px solid var(--border);padding-top:10px">
+        <div class="ath-label">Asignar a</div>
+        ${hcAdmStudents(false).map(u=>`<div class="user-row" style="margin-bottom:6px;padding:8px 10px;cursor:pointer" onclick="hcAssignTemplate('${t.id}','${u.id}')">
+          <div class="user-row-avatar" style="width:28px;height:28px;font-size:11px">${hcInitials(u.name)}</div>
+          <div class="user-row-info"><div class="user-row-name" style="font-size:13px">${escH(u.name)}</div></div>
+          ${hcIcon('arrowRight',14)}
+        </div>`).join('')||'<div style="font-size:12px;color:var(--text3)">No hay atletas activos</div>'}
+      </div>` : '';
     return `<div class="ath-card">
       <div class="ath-card-top">
         <div class="cc-head-ic">${hcIcon('template',16,'#FFEC03')}</div>
         <div class="user-row-info"><div class="user-row-name">${escH(t.name)}</div><div class="user-row-email">${weeks} semana${weeks===1?'':'s'} · ${days} sesiones</div></div>
         <button class="adm-btn adm-btn-red" style="padding:7px 9px" title="Eliminar" onclick="hcDeleteTemplate('${t.id}')">${IC.trash}</button>
       </div>
+      <div style="display:flex;gap:6px">
+        <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;padding:9px;gap:6px" onclick="hcOpenTemplateEditor('${t.id}')">${hcIcon('pencil',14)} Editar</button>
+        <button class="adm-btn ${adminState.tplAssignId===t.id?'adm-btn-ghost':'adm-btn-orange'}" style="flex:1;justify-content:center;padding:9px;gap:6px" onclick="hcToggleTplAssign('${t.id}')">${adminState.tplAssignId===t.id?'Cancelar':hcIcon('userPlus',14)+' Asignar'}</button>
+      </div>
+      ${picker}
     </div>`;
   }).join('')}</div>`;
+}
+function hcToggleTplAssign(id){ adminState.tplAssignId = adminState.tplAssignId===id ? null : id; renderModal(); }
+// Abre el editor del atleta y le aplica la plantilla (hcApplyTemplate pide confirmación y archiva el plan actual).
+async function hcAssignTemplate(tplId,uid){
+  adminState.tplAssignId=null;
+  await viewUserPlan(uid);
+  await hcApplyTemplate(tplId);
+}
+
+// ---- EDITOR DE PLANTILLAS (reutiliza hcPlanEditing y hcPlanEditorCoreHTML) ----
+let hcTplName='';
+function hcOpenTemplateEditor(id){
+  const tpl=id && (hcTemplates||[]).find(t=>t.id===id);
+  const modal=admScrollEl();
+  adminState.savedScroll=modal?modal.scrollTop:0;
+  adminState.viewTemplateId=tpl?tpl.id:'new';
+  adminState.tplAssignId=null;
+  hcPlanEditing=tpl ? hcNormalizePlan(JSON.parse(JSON.stringify(tpl.plan))) : [hcNewWeek()];
+  if(!hcPlanEditing.length) hcPlanEditing=[hcNewWeek()];
+  hcTplName=tpl?tpl.name:'';
+  adminState.planWeekIdx=0; adminState.planDayIdx=0;
+  renderModal();
+}
+function hcCloseTemplateEditor(){
+  adminState.viewTemplateId=null;
+  hcPlanEditing=null;
+  renderModal();
+  requestAnimationFrame(()=>{ const m=admScrollEl(); if(m) m.scrollTop=adminState.savedScroll; });
+}
+async function hcSaveTemplateEditor(){
+  const name=(hcTplName||'').trim();
+  if(!name){ alert('Ponele un nombre a la plantilla.'); return; }
+  try{
+    await loadHcTemplates(); // releer para no pisar cambios hechos desde otro dispositivo
+    const plan=JSON.parse(JSON.stringify(hcPlanEditing));
+    plan.forEach(w=>w.days.forEach(d=>d.exercises.forEach(ex=>{ ex.studentNotes=''; })));
+    const cur=hcTemplates.find(t=>t.id===adminState.viewTemplateId);
+    if(cur){ cur.name=name; cur.plan=plan; }
+    else { const id='tpl_'+Date.now(); hcTemplates.push({ id, name, plan }); adminState.viewTemplateId=id; }
+    const ok=await saveHcTemplates();
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+    showToast('Plantilla guardada');
+    renderModal();
+  }catch(e){ alert('Error al guardar la plantilla: '+e.message); }
+}
+function renderHcTemplateEditor(){
+  if(!hcPlanEditing) return '';
+  const isNew=!(hcTemplates||[]).some(t=>t.id===adminState.viewTemplateId);
+  return `<div>
+    <button class="adm-btn adm-btn-ghost" style="margin-bottom:14px;gap:8px" onclick="hcCloseTemplateEditor()">${IC.back} Volver a plantillas</button>
+    <div class="cc-head" style="margin-bottom:14px"><div class="cc-head-ic">${hcIcon('template',18,'#FFEC03')}</div><div class="cc-title">${isNew?'Nueva plantilla':'Editar plantilla'}</div></div>
+    <div class="admin-section-title" style="margin-bottom:8px">NOMBRE DE LA PLANTILLA</div>
+    <input class="adm-inp" value="${escH(hcTplName)}" placeholder="Ej: Base HYROX principiante" oninput="hcTplName=this.value" style="margin-bottom:16px">
+    ${hcPlanEditorCoreHTML('')}
+    <button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;padding:12px;gap:8px" onclick="hcSaveTemplateEditor()">${hcIcon('save',16)} Guardar plantilla</button>
+  </div>`;
 }
 
 // ---- CONFIGURACIÓN ----
@@ -3927,7 +4051,7 @@ async function viewUserFicha(id){
 }
 async function adminSaveFicha(uid){
   await personalSet(K.HC_PROFILE(uid), adminFichaProfile);
-  showToast('✅ Ficha guardada');
+  showToast('Ficha guardada');
 }
 function goBackFromFicha(){
   adminState.viewFichaUid=null;
@@ -3964,7 +4088,7 @@ async function adminSaveMetrics(uid){
   try{
     const ok=await personalSet(K.HC_METRICS(uid), adminMetricsProfile);
     if(!ok) throw new Error('no se pudo sincronizar con el servidor');
-    showToast('✅ Métricas guardadas');
+    showToast('Métricas guardadas');
   }catch(e){ alert('Error al guardar las métricas: '+e.message); }
 }
 function goBackFromMetrics(){
@@ -4032,7 +4156,7 @@ function renderAdminChat(){
     <div id="hc-chat-scroll" style="max-height:50vh;overflow-y:auto;margin-bottom:10px">${hcChatBubblesHTML(hcAdmChat,'coach')}</div>
     <div style="display:flex;gap:8px">
       <input class="adm-inp" id="hc-chat-inp" style="margin:0;flex:1" placeholder="Escribile al alumno..." onkeydown="if(event.key==='Enter')hcAdmSendChatMsg()">
-      <button class="adm-btn adm-btn-orange" style="padding:0 16px" onclick="hcAdmSendChatMsg()">➤</button>
+      <button class="adm-btn adm-btn-orange" style="padding:0 16px" onclick="hcAdmSendChatMsg()">${hcIcon('send',16)}</button>
     </div>
   </div>`;
 }
@@ -4148,7 +4272,7 @@ async function hcCopyPlanFrom(sourceUid){
     const srcPlan = hcNormalizePlan(await personalGet(K.HC_PLAN(sourceUid)) || []);
     const srcBlockName = await personalGet(K.HC_BLOCK_NAME(sourceUid)) || '';
     await hcApplyPlanAsBase(srcPlan, srcBlockName ? srcBlockName+' (copia)' : '');
-    showToast('✅ Plan copiado — el anterior quedó archivado. Revisá y tocá "Guardar planificación"');
+    showToast('Plan copiado — el anterior quedó archivado. Revisá y tocá "Guardar planificación"');
     renderModal();
   }catch(e){ alert('Error al copiar el plan: '+e.message); }
 }
@@ -4160,7 +4284,7 @@ async function hcSaveAsTemplate(){
     hcTemplates.push({ id:'tpl_'+Date.now(), name:name.trim(), plan:JSON.parse(JSON.stringify(hcPlanEditing)) });
     const ok=await saveHcTemplates();
     if(!ok) throw new Error('no se pudo sincronizar con el servidor');
-    showToast('✅ Guardada como plantilla');
+    showToast('Guardada como plantilla');
   }catch(e){ alert('Error al guardar la plantilla: '+e.message); }
 }
 async function hcApplyTemplate(templateId){
@@ -4170,7 +4294,7 @@ async function hcApplyTemplate(templateId){
   if(!confirm('Esto reemplaza la planificación actual de '+(dstUser?dstUser.name:'este alumno')+' por la plantilla "'+tpl.name+'" (la actual se archiva automáticamente antes de reemplazarla). ¿Confirmás?')) return;
   try{
     await hcApplyPlanAsBase(tpl.plan, tpl.name);
-    showToast('✅ Plantilla aplicada — el plan anterior quedó archivado. Revisá y tocá "Guardar planificación"');
+    showToast('Plantilla aplicada — el plan anterior quedó archivado. Revisá y tocá "Guardar planificación"');
     renderModal();
   }catch(e){ alert('Error al aplicar la plantilla: '+e.message); }
 }
@@ -4190,7 +4314,7 @@ async function hcSavePlan(){
     const ok2=await personalSet(K.HC_BLOCK_NAME(adminState.viewPlanUid), hcPlanBlockName);
     const cached=hcAthleteData && hcAthleteData[adminState.viewPlanUid];
     if(cached){ cached.plan=hcPlanEditing; cached.blockName=hcPlanBlockName; }
-    showToast('✅ Planificación guardada');
+    showToast('Planificación guardada');
     renderModal();
   }catch(e){ alert('Error al guardar la planificación: '+e.message); }
 }
@@ -4277,7 +4401,7 @@ function renderHcExCard(wi,di,ei,ex){
     <button class="adm-btn adm-btn-ghost" style="margin-bottom:12px" onclick="hcAddExRow(${wi},${di},${ei})">${IC.plus} Otra serie (ej: más pesado, menos reps)</button>
     <div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">Tus indicaciones (para el alumno)</div>
     <textarea class="auth-inp" style="height:90px;padding:10px 14px;resize:vertical;margin-bottom:${ex.studentNotes?'8px':'0'}" placeholder="Ej: enfocate en la técnica, no busques el peso máximo..." oninput="hcUpdateEx(${wi},${di},${ei},'notes',this.value)">${escH(ex.notes||'')}</textarea>
-    ${ex.studentNotes?`<div style="font-size:11px;color:var(--text2);background:var(--surface3);border-radius:var(--radius-sm);padding:8px 10px;white-space:pre-line;line-height:1.5">📝 <b>El alumno anotó:</b> ${escH(ex.studentNotes)}</div>`:''}
+    ${ex.studentNotes?`<div style="font-size:11px;color:var(--text2);background:var(--surface3);border-radius:var(--radius-sm);padding:8px 10px;white-space:pre-line;line-height:1.5"><span style="display:inline-flex;vertical-align:-2px;margin-right:4px">${hcIcon('pencil',13)}</span><b>El alumno anotó:</b> ${escH(ex.studentNotes)}</div>`:''}
   </div>`;
 }
 
@@ -4292,7 +4416,7 @@ async function hcArchiveBlock(){
     adminState.planWeekIdx=0; adminState.planDayIdx=0;
     await personalSet(K.HC_PLAN(adminState.viewPlanUid), hcPlanEditing);
     await personalSet(K.HC_BLOCK_NAME(adminState.viewPlanUid), hcPlanBlockName);
-    showToast('📦 Bloque archivado, arrancaste uno nuevo');
+    showToast('Bloque archivado, arrancaste uno nuevo');
     renderModal();
   }catch(e){ alert('Error al archivar el bloque: '+e.message); }
 }
@@ -4305,7 +4429,7 @@ async function hcRestoreBlock(blkId){
   adminState.planWeekIdx=0; adminState.planDayIdx=0;
   await personalSet(K.HC_PLAN(adminState.viewPlanUid), hcPlanEditing);
   await personalSet(K.HC_BLOCK_NAME(adminState.viewPlanUid), hcPlanBlockName);
-  showToast('✅ Bloque restaurado');
+  showToast('Bloque restaurado');
   renderModal();
 }
 async function hcDeleteArchivedBlock(blkId){
@@ -4316,7 +4440,7 @@ async function hcDeleteArchivedBlock(blkId){
     hcPlanArchived=(hcPlanArchived||[]).filter(b=>b.id!==blkId);
     const ok=await personalSet(K.HC_BLOCKS(adminState.viewPlanUid), hcPlanArchived);
     if(!ok) throw new Error('no se pudo sincronizar con el servidor');
-    showToast('🗑️ Bloque archivado eliminado');
+    showToast('Bloque archivado eliminado');
     renderModal();
   }catch(e){ alert('Error al eliminar el bloque: '+e.message); }
 }
@@ -4328,7 +4452,7 @@ async function hcDeleteAllArchivedBlocks(){
     hcPlanArchived=[];
     const ok=await personalSet(K.HC_BLOCKS(adminState.viewPlanUid), hcPlanArchived);
     if(!ok) throw new Error('no se pudo sincronizar con el servidor');
-    showToast('🗑️ Bloques archivados eliminados');
+    showToast('Bloques archivados eliminados');
     renderModal();
   }catch(e){ alert('Error al eliminar los bloques: '+e.message); }
 }
@@ -4373,7 +4497,7 @@ async function hcSaveTracEditor(){
   hcTracCfg=cfg;
   adminState.tracEditOpen=false; hcTracDraft=null;
   renderModal();
-  if(ok) showToast('✅ Preguntas TRAC guardadas'); else alert('Se guardó localmente pero no se pudo sincronizar con el servidor.');
+  if(ok) showToast('Preguntas TRAC guardadas'); else alert('Se guardó localmente pero no se pudo sincronizar con el servidor.');
 }
 function renderHcTracEditor(){
   const d=hcTracDraft; if(!d) return '';
@@ -4409,7 +4533,7 @@ function renderHcTracEditor(){
     <button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;margin-bottom:12px" onclick="hcTracAddBlock()">${IC.plus} Bloque</button>
     <div style="display:flex;gap:8px">
       <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;padding:10px" onclick="hcCancelTracEditor()">Cancelar</button>
-      <button class="adm-btn adm-btn-orange" style="flex:1;justify-content:center;padding:10px" onclick="hcSaveTracEditor()">💾 Guardar preguntas</button>
+      <button class="adm-btn adm-btn-orange" style="flex:1;justify-content:center;padding:10px" onclick="hcSaveTracEditor()">${hcIcon('save',15)} Guardar preguntas</button>
     </div>
   </div>`;
 }
@@ -4448,7 +4572,7 @@ function hcTracEntryBodyHTML(e){
 }
 function renderHcAdminTracHistory(){
   const entries=(hcPlanTrac||[]).slice().sort((a,b)=>b.ts-a.ts);
-  const editBtn=`<button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;margin-bottom:10px;font-size:12px" onclick="${adminState.tracEditOpen?'hcCancelTracEditor()':'hcOpenTracEditor()'}">✏️ ${adminState.tracEditOpen?'Cerrar editor de preguntas':'Editar preguntas del TRAC'}</button>`;
+  const editBtn=`<button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;margin-bottom:10px;font-size:12px" onclick="${adminState.tracEditOpen?'hcCancelTracEditor()':'hcOpenTracEditor()'}">${hcIcon('pencil',13)} ${adminState.tracEditOpen?'Cerrar editor de preguntas':'Editar preguntas del TRAC'}</button>`;
   const editor=adminState.tracEditOpen?renderHcTracEditor():'';
   const header=`<div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:${adminState.tracHistoryOpen&&entries.length?'0':'10px'};cursor:pointer" onclick="hcToggleTracHistory()">
     <div style="display:flex;align-items:center;gap:8px">
@@ -4467,18 +4591,38 @@ function renderHcAdminTracHistory(){
     </div>`).join('');
   return `${header}<div style="margin-top:10px;margin-bottom:10px">${rows}</div>${editBtn}${editor}<div style="margin-bottom:6px"></div>`;
 }
+// Semanas, días y ejercicios de hcPlanEditing — lo comparten el editor del atleta y el de plantillas.
+// weekSummary: HTML opcional debajo de las semanas (ej: sesiones completadas del atleta).
+function hcPlanEditorCoreHTML(weekSummary){
+  const wi=Math.min(adminState.planWeekIdx,hcPlanEditing.length-1);
+  const week=hcPlanEditing[wi];
+  const di=Math.min(adminState.planDayIdx,week.days.length-1);
+  const day=week.days[di];
+  const weekTabs=hcPlanEditing.map((w,i)=>`<div class="prog-week-tab ${wi===i?'active':''}" onclick="hcSetPlanWeek(${i})">S${i+1}</div>`).join('');
+  const dayTabs=`<div id="hc-adm-daytabs" style="display:flex;gap:6px;overflow-x:auto;flex:1">${week.days.map((d,i)=>`<div class="admin-tab ${di===i?'active':''}" style="font-size:11px;padding:4px 10px;flex-shrink:0" onclick="hcSetPlanDay(${i})">${escH(d.name)}</div>`).join('')}</div>`;
+  const exercisesHTML=day.exercises.map((ex,ei)=>renderHcExCard(wi,di,ei,ex)).join('');
+  return `<div class="admin-section-title" style="margin-bottom:8px">SEMANAS</div>
+    <div class="prog-week-tabs" style="margin-bottom:10px;display:flex;flex-wrap:wrap;gap:6px">${weekTabs}<button class="adm-btn adm-btn-ghost" style="padding:4px 10px" onclick="hcAddWeek()">${IC.plus}</button></div>
+    ${weekSummary||''}
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button class="adm-btn adm-btn-ghost" style="gap:6px" onclick="hcDuplicateWeek(${wi})">${hcIcon('copy',14)} Duplicar semana</button>
+      ${hcPlanEditing.length>1?`<button class="adm-btn adm-btn-red" onclick="hcRemoveWeek(${wi})">Eliminar semana</button>`:''}
+    </div>
+
+    <div class="admin-section-title" style="margin-bottom:8px">DÍAS — SEMANA ${wi+1}</div>
+    <div style="display:flex;gap:6px;margin-bottom:12px;align-items:center">${dayTabs}<button class="adm-btn adm-btn-ghost" style="flex-shrink:0;padding:4px 10px" onclick="hcAddDay(${wi})">${IC.plus} Día</button></div>
+    <input class="adm-inp" value="${escH(day.name)}" oninput="hcUpdateDayName(${wi},${di},this.value)" style="margin-bottom:12px">
+
+    ${exercisesHTML}
+    <button class="adm-btn adm-btn-blue" onclick="hcAddExercise(${wi},${di})" style="width:100%;justify-content:center;margin-bottom:10px">${IC.plus} Ejercicio</button>
+    ${week.days.length>1?`<button class="adm-btn adm-btn-ghost" onclick="hcRemoveDay(${wi},${di})" style="width:100%;justify-content:center;margin-bottom:16px">Eliminar día</button>`:''}`;
+}
 function renderAdminPlan(){
   const u=getUserById(adminState.viewPlanUid);
   if(!u||!hcPlanEditing) return '';
   const ini=u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
   const wi=Math.min(adminState.planWeekIdx,hcPlanEditing.length-1);
   const week=hcPlanEditing[wi];
-  const di=Math.min(adminState.planDayIdx,week.days.length-1);
-  const day=week.days[di];
-
-  const weekTabs=hcPlanEditing.map((w,i)=>`<div class="prog-week-tab ${wi===i?'active':''}" onclick="hcSetPlanWeek(${i})">S${i+1}</div>`).join('');
-  const dayTabs=`<div id="hc-adm-daytabs" style="display:flex;gap:6px;overflow-x:auto;flex:1">${week.days.map((d,i)=>`<div class="admin-tab ${di===i?'active':''}" style="font-size:11px;padding:4px 10px;flex-shrink:0" onclick="hcSetPlanDay(${i})">${escH(d.name)}</div>`).join('')}</div>`;
-  const exercisesHTML=day.exercises.map((ex,ei)=>renderHcExCard(wi,di,ei,ex)).join('');
 
   const daysWithContent=week.days.filter(d=>d.exercises.length>0);
   const doneCount=daysWithContent.filter(d=>hcPlanDoneStatus(d.id||'')==='done').length;
@@ -4501,8 +4645,8 @@ function renderAdminPlan(){
   const tracHistoryHTML = renderHcAdminTracHistory();
 
   const pickerTabs=`<div style="display:flex;gap:6px;margin-bottom:10px">
-    <div class="admin-tab ${hcPlanCopyTab==='alumnos'?'active':''}" style="flex:1;text-align:center" onclick="hcSetPlanCopyTab('alumnos')">👤 Alumnos</div>
-    <div class="admin-tab ${hcPlanCopyTab==='plantillas'?'active':''}" style="flex:1;text-align:center" onclick="hcSetPlanCopyTab('plantillas')">📐 Plantillas</div>
+    <div class="admin-tab ${hcPlanCopyTab==='alumnos'?'active':''}" style="flex:1;text-align:center" onclick="hcSetPlanCopyTab('alumnos')"><span class="adm-tab-ic" style="justify-content:center">${hcIcon('users',14)}Atletas</span></div>
+    <div class="admin-tab ${hcPlanCopyTab==='plantillas'?'active':''}" style="flex:1;text-align:center" onclick="hcSetPlanCopyTab('plantillas')"><span class="adm-tab-ic" style="justify-content:center">${hcIcon('template',14)}Plantillas</span></div>
   </div>`;
   const copyPickerHTML = adminState.planCopyPickerOpen ? `<div style="background:var(--surface2);border:1px dashed var(--border2);border-radius:var(--radius-sm);padding:12px;margin-bottom:16px">
     ${pickerTabs}
@@ -4520,32 +4664,18 @@ function renderAdminPlan(){
     ${tracHistoryHTML}
 
     <div style="display:flex;gap:8px;margin-bottom:16px">
-      <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center" onclick="hcTogglePlanCopyPicker()">📋 ${adminState.planCopyPickerOpen?'Cancelar':'Usar plan existente como base'}</button>
-      <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center" onclick="hcSaveAsTemplate()">💾 Guardar como plantilla</button>
+      <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center" onclick="hcTogglePlanCopyPicker()">${hcIcon('copy',14)} ${adminState.planCopyPickerOpen?'Cancelar':'Usar plan existente como base'}</button>
+      <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center" onclick="hcSaveAsTemplate()">${hcIcon('bookmark',14)} Guardar como plantilla</button>
     </div>
     ${copyPickerHTML}
 
     <div class="admin-section-title" style="margin-bottom:8px">NOMBRE DEL BLOQUE</div>
     <input class="adm-inp" value="${escH(hcPlanBlockName)}" placeholder="Ej: Bloque 1 - Base aeróbica" oninput="hcPlanBlockName=this.value" style="margin-bottom:16px">
 
-    <div class="admin-section-title" style="margin-bottom:8px">SEMANAS</div>
-    <div class="prog-week-tabs" style="margin-bottom:10px;display:flex;flex-wrap:wrap;gap:6px">${weekTabs}<button class="adm-btn adm-btn-ghost" style="padding:4px 10px" onclick="hcAddWeek()">${IC.plus}</button></div>
-    ${doneSummaryHTML}
-    <div style="display:flex;gap:8px;margin-bottom:16px">
-      <button class="adm-btn adm-btn-ghost" onclick="hcDuplicateWeek(${wi})">⧉ Duplicar semana</button>
-      ${hcPlanEditing.length>1?`<button class="adm-btn adm-btn-red" onclick="hcRemoveWeek(${wi})">Eliminar semana</button>`:''}
-    </div>
+    ${hcPlanEditorCoreHTML(doneSummaryHTML)}
 
-    <div class="admin-section-title" style="margin-bottom:8px">DÍAS — SEMANA ${wi+1}</div>
-    <div style="display:flex;gap:6px;margin-bottom:12px;align-items:center">${dayTabs}<button class="adm-btn adm-btn-ghost" style="flex-shrink:0;padding:4px 10px" onclick="hcAddDay(${wi})">${IC.plus} Día</button></div>
-    <input class="adm-inp" value="${escH(day.name)}" oninput="hcUpdateDayName(${wi},${di},this.value)" style="margin-bottom:12px">
-
-    ${exercisesHTML}
-    <button class="adm-btn adm-btn-blue" onclick="hcAddExercise(${wi},${di})" style="width:100%;justify-content:center;margin-bottom:10px">${IC.plus} Ejercicio</button>
-    ${week.days.length>1?`<button class="adm-btn adm-btn-ghost" onclick="hcRemoveDay(${wi},${di})" style="width:100%;justify-content:center;margin-bottom:16px">Eliminar día</button>`:''}
-
-    <button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;padding:12px" onclick="hcSavePlan()">💾 Guardar planificación</button>
-    <button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;padding:12px;margin-top:10px" onclick="hcArchiveBlock()">📦 Archivar bloque y empezar uno nuevo</button>
+    <button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;padding:12px" onclick="hcSavePlan()">${hcIcon('save',15)} Guardar planificación</button>
+    <button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;padding:12px;margin-top:10px" onclick="hcArchiveBlock()">${hcIcon('archive',15)} Archivar bloque y empezar uno nuevo</button>
     ${archivedHTML}
   </div>`;
 }
@@ -4576,7 +4706,7 @@ function renderArchivedBlock(){
 
   const weeks = blockPlan.map((wd,i)=>{
     return `<div class="day-card" onclick="archivedBlockView.weekIdx=${i};render()">
-      <div class="day-icon-wrap" style="font-size:18px">📅</div>
+      <div class="day-icon-wrap">${hcIcon('calendar',20)}</div>
       <div class="day-info">
         <div class="day-name">SEMANA ${wd.week}</div>
         <div class="day-days">${wd.days.length} días</div>
@@ -4593,12 +4723,12 @@ function renderArchivedBlock(){
         <div style="font-size:11px;color:var(--text3);margin-bottom:14px">Archivado el ${new Date(block.archivedAt).toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'})} · ${blockPlan.length} semanas</div>
         <div style="margin-bottom:8px">
           <button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;padding:10px" onclick="openBlockSummary('${block.id}','${block.name}',blockPlan)">
-            📊 Ver resumen del bloque
+            ${hcIcon('chart',15)} Ver resumen del bloque
           </button>
         </div>
         ${isAdmin()?`<div style="display:flex;gap:10px">
           <button class="adm-btn adm-btn-orange" style="flex:1;justify-content:center;padding:10px" onclick="restoreArchivedBlock('${block.id}')">
-            🔄 Restaurar como activo
+            ${hcIcon('refresh',15)} Restaurar como activo
           </button>
           <button class="adm-btn adm-btn-red" style="padding:10px 14px" onclick="deleteArchivedBlock('${block.id}')">
             ${IC.trash}
@@ -4616,7 +4746,7 @@ function renderArchivedWeek(){
   const wd = blockPlan[weekIdx];
   const days = wd.days.map((day,di)=>`
     <div class="day-card" onclick="openArchivedDay(${weekIdx},${di})">
-      <div class="day-icon-wrap">${day.icon}</div>
+      <div class="day-icon-wrap">${iconFromData(day.icon,22)}</div>
       <div class="day-info">
         <div class="day-name">${day.name}</div>
         <div class="day-days">${day.days}</div>
@@ -4653,7 +4783,7 @@ function renderArchivedDay(){
   // Show exercises read-only with saved values
   const exsHTML=day.blocks.map(bl=>`
     <div style="margin-bottom:20px">
-      <div class="admin-section-title" style="margin-bottom:10px">${bl.icon} ${bl.name}</div>
+      <div class="admin-section-title" style="margin-bottom:10px;display:flex;align-items:center;gap:6px">${iconFromData(bl.icon,13)} ${bl.name}</div>
       ${bl.exercises.map(ex=>{
         if(ex.type==='single'){
           return `<div class="ex-card"><div class="ex-header"><span class="ex-order">${ex.order}</span><div class="ex-name">${ex.name}</div></div>
@@ -4722,7 +4852,7 @@ async function impersonateUser(uid){
   closeAdmin();
   ST.view='home'; ST.mainTab='plan';
   render();
-  showToast('👤 Viendo como '+u.name);
+  showToast('Viendo como '+u.name);
 }
 
 function exitImpersonation(){
@@ -4734,7 +4864,7 @@ function exitImpersonation(){
   _realSession=null; _realProgress={}; _realPrs={};
   ST.view='home'; ST.mainTab='plan';
   render();
-  showToast('✅ Volviste a tu cuenta admin');
+  showToast('Volviste a tu cuenta admin');
 }
 
 function setProgWeek(i){ adminState.viewUserWeek=i; renderModal(); }
@@ -4755,7 +4885,7 @@ function renderTabExercises(){
     <div class="adm-inp-row" style="margin-top:8px;margin-bottom:16px"><label>Bloque</label><select class="adm-inp" style="flex:1;margin:0" onchange="setAdmSel('editBlockIdx',parseInt(this.value))">${blOpts}</select></div>
     ${exsH}
     <button class="adm-btn adm-btn-blue" onclick="addExercise()" style="width:100%;justify-content:center;margin-bottom:8px">${IC.plus} Agregar ejercicio</button>
-    <button class="adm-btn adm-btn-ghost" onclick="doSavePlan()" style="width:100%;justify-content:center;padding:12px">💾 Guardar cambios</button>
+    <button class="adm-btn adm-btn-ghost" onclick="doSavePlan()" style="width:100%;justify-content:center;padding:12px">${hcIcon('save',15)} Guardar cambios</button>
   </div>`;
 }
 
@@ -4821,7 +4951,7 @@ function updatePartRpe(wi,di,bi,ei,pi,v){ getEx(wi,di,bi,ei).parts[pi].rpe=v; }
 function addPart(wi,di,bi,ei){ const ex=getEx(wi,di,bi,ei); const codes=['a','b','c','d','e','f']; ex.parts.push({pid:codes[ex.parts.length]||'x'+ex.parts.length,name:'NUEVO MOVIMIENTO',r:'8',rpe:'@2'}); renderModal(); }
 function removePart(wi,di,bi,ei,pi){ if(getEx(wi,di,bi,ei).parts.length<=1){showToast('Mínimo 1 movimiento');return;} getEx(wi,di,bi,ei).parts.splice(pi,1); renderModal(); }
 
-async function doSavePlan(){ await savePlan(); showToast('✅ Plan guardado'); render(); }
+async function doSavePlan(){ await savePlan(); showToast('Plan guardado'); render(); }
 
 // ---- TAB: SEMANAS ----
 function renderTabWeeks(){
@@ -4837,14 +4967,14 @@ function renderTabWeeks(){
       <div class="ex-edit-card-header">
         <span class="ex-edit-title">SEMANA ${wd.week}</span>
         <div style="display:flex;gap:6px">
-          <button class="adm-btn adm-btn-blue" onclick="duplicateWeek(${i})">📋 Duplicar</button>
+          <button class="adm-btn adm-btn-blue" onclick="duplicateWeek(${i})">${hcIcon('copy',14)} Duplicar</button>
           <button class="adm-btn adm-btn-red" onclick="removeWeek(${i})">${IC.trash}</button>
         </div>
       </div>
       ${dayRows}
       <button class="adm-btn adm-btn-blue" onclick="addDay(${i})" style="width:100%;justify-content:center;margin-top:4px">${IC.plus} Agregar día</button>
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
-        <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">💬 Mensaje del profe</div>
+        <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:5px">${hcIcon('chat',12)} Mensaje del profe</div>
         <textarea class="adm-inp" style="margin:0;width:100%;min-height:70px;resize:vertical;font-size:12px;line-height:1.5;padding:8px 10px" placeholder="Mensaje opcional para los alumnos esta semana..." oninput="saveWeekMsg(${i},this.value)">${escH(msg)}</textarea>
         <div style="font-size:10px;color:var(--text3);margin-top:3px">Se guarda automáticamente. Aparece en la pantalla principal cuando esta es la semana activa.</div>
       </div>
@@ -4852,7 +4982,7 @@ function renderTabWeeks(){
   }).join('');
   return `<div>${rows}
     <button class="adm-btn adm-btn-orange" onclick="addWeek()" style="width:100%;justify-content:center;padding:12px;margin-top:4px">${IC.plus} Agregar semana</button>
-    <button class="adm-btn adm-btn-ghost" onclick="doSavePlan()" style="width:100%;justify-content:center;padding:12px;margin-top:8px">💾 Guardar cambios</button>
+    <button class="adm-btn adm-btn-ghost" onclick="doSavePlan()" style="width:100%;justify-content:center;padding:12px;margin-top:8px">${hcIcon('save',15)} Guardar cambios</button>
   </div>`;
 }
 
@@ -4876,7 +5006,7 @@ function duplicateWeek(i){
 
   plan.push(clone);
   renderModal();
-  showToast(`✅ Semana ${source.week} duplicada como Semana ${newWeekNum}`);
+  showToast(`Semana ${source.week} duplicada como Semana ${newWeekNum}`);
 }
 
 function removeWeek(i){
@@ -4953,7 +5083,7 @@ function renderTabHcRaces(){
       <input class="adm-inp" id="new-race-date" type="date" style="margin-bottom:8px">
       <button class="adm-btn adm-btn-orange" onclick="hcAdmAddRace()" style="width:100%;justify-content:center">${IC.plus} Agregar</button>
     </div>
-    <button class="adm-btn adm-btn-ghost" onclick="hcAdmSaveRaces()" style="width:100%;justify-content:center;padding:12px">💾 Guardar cambios</button>
+    <button class="adm-btn adm-btn-ghost" onclick="hcAdmSaveRaces()" style="width:100%;justify-content:center;padding:12px">${hcIcon('save',15)} Guardar cambios</button>
   </div>`;
 }
 
@@ -4968,7 +5098,7 @@ async function hcAdmAddRace(){
     hcRaces.push({ id:'r_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), name, series, location, date });
     const ok=await saveHcRaces();
     if(!ok) throw new Error('la carrera se guardó localmente pero no se pudo sincronizar con el servidor');
-    showToast('✅ Carrera agregada ('+hcRaces.length+' en total)');
+    showToast('Carrera agregada ('+hcRaces.length+' en total)');
     renderModal();
   }catch(e){ alert('Error al agregar la carrera: '+e.message); renderModal(); }
 }
@@ -4998,7 +5128,7 @@ async function hcAdmSaveRaces(){
     }
     const ok=await saveHcRaces();
     if(!ok) throw new Error('no se pudo sincronizar con el servidor');
-    showToast('✅ Calendario de carreras guardado');
+    showToast('Calendario de carreras guardado');
     renderModal();
   }catch(e){ alert('Error al guardar: '+e.message); renderModal(); }
 }
@@ -5069,7 +5199,7 @@ async function hcAdmUploadDoc(){
     hcDocsIndex.push({ id, name, category:catEl.value, size:file.size, uploadedAt:Date.now() });
     const ok2=await saveHcDocsIndex();
     if(!ok2) throw new Error('no se pudo sincronizar el índice con el servidor');
-    showToast('✅ Documento subido');
+    showToast('Documento subido');
     renderModal();
   }catch(e){ alert('Error al subir el documento: '+e.message); statusEl.textContent='Máximo '+hcFmtBytes(HC_DOC_MAX_BYTES)+' por archivo.'; }
 }
@@ -5097,7 +5227,7 @@ function renderTabHcAnnouncement(){
     ${currentHTML}
     <div class="admin-section-title" style="margin-bottom:8px">${current?'REEMPLAZAR AVISO':'PUBLICAR AVISO'}</div>
     <textarea class="auth-inp" id="new-ann-text" style="height:100px;padding:10px 14px;resize:vertical;margin-bottom:10px" placeholder="Ej: Este viernes no hay clase por feriado..."></textarea>
-    <button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;padding:12px" onclick="hcPublishAnnouncement()">📢 Publicar para todos los alumnos</button>
+    <button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;padding:12px" onclick="hcPublishAnnouncement()">${hcIcon('megaphone',15)} Publicar para todos los alumnos</button>
   </div>`;
 }
 async function hcPublishAnnouncement(){
@@ -5107,7 +5237,7 @@ async function hcPublishAnnouncement(){
     hcAnnouncement={ id:'ann_'+Date.now(), text, ts:Date.now() };
     const ok=await saveHcAnnouncement();
     if(!ok) throw new Error('no se pudo sincronizar con el servidor');
-    showToast('✅ Aviso publicado');
+    showToast('Aviso publicado');
     renderModal();
   }catch(e){ alert('Error al publicar el aviso: '+e.message); }
 }
@@ -5148,7 +5278,7 @@ function renderTabHcCalls(){
       <input class="adm-inp" id="new-call-profesor" placeholder="Profesor" style="margin-bottom:8px">
       <button class="adm-btn adm-btn-orange" onclick="hcAdmAddCall()" style="width:100%;justify-content:center">${IC.plus} Agregar</button>
     </div>
-    <button class="adm-btn adm-btn-ghost" onclick="hcAdmSaveCalls()" style="width:100%;justify-content:center;padding:12px">💾 Guardar cambios</button>
+    <button class="adm-btn adm-btn-ghost" onclick="hcAdmSaveCalls()" style="width:100%;justify-content:center;padding:12px">${hcIcon('save',15)} Guardar cambios</button>
   </div>`;
 }
 
@@ -5162,7 +5292,7 @@ async function hcAdmAddCall(){
     hcCalls.push({ id:'c_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), date, time, profesor, uid:null, studentName:null });
     const ok=await saveHcCalls();
     if(!ok) throw new Error('el horario se guardó localmente pero no se pudo sincronizar con el servidor');
-    showToast('✅ Horario agregado ('+hcCalls.length+' en total)');
+    showToast('Horario agregado ('+hcCalls.length+' en total)');
     renderModal();
   }catch(e){ alert('Error al agregar el horario: '+e.message); renderModal(); }
 }
@@ -5192,7 +5322,7 @@ async function hcAdmSaveCalls(){
     }
     const ok=await saveHcCalls();
     if(!ok) throw new Error('no se pudo sincronizar con el servidor');
-    showToast('✅ Horarios guardados');
+    showToast('Horarios guardados');
     renderModal();
   }catch(e){ alert('Error al guardar: '+e.message); renderModal(); }
 }
@@ -5225,7 +5355,7 @@ function renderTabTracked(){
       <input class="adm-inp" id="new-tracked-term" placeholder="Término de búsqueda (ej: banco inclinado)">
       <button class="adm-btn adm-btn-orange" onclick="addTracked()" style="width:100%;justify-content:center;margin-top:8px">${IC.plus} Agregar</button>
     </div>
-    <button class="adm-btn adm-btn-ghost" onclick="doSaveTracked()" style="width:100%;justify-content:center;padding:12px">💾 Guardar cambios</button>
+    <button class="adm-btn adm-btn-ghost" onclick="doSaveTracked()" style="width:100%;justify-content:center;padding:12px">${hcIcon('save',15)} Guardar cambios</button>
   </div>`;
 }
 
@@ -5243,7 +5373,7 @@ function removeTracked(i){ tracked.splice(i,1); renderModal(); }
 function updateTrackedTerm(i,ti,v){ tracked[i].matchTerms[ti]=v.toLowerCase(); }
 function addTrackedTerm(i){ tracked[i].matchTerms.push(''); renderModal(); }
 function removeTrackedTerm(i,ti){ tracked[i].matchTerms.splice(ti,1); renderModal(); }
-async function doSaveTracked(){ await saveTracked(); showToast('✅ Ejercicios guardados'); }
+async function doSaveTracked(){ await saveTracked(); showToast('Ejercicios guardados'); }
 
 // ---- TAB: DASHBOARD ----
 function renderTabDashboard(){
@@ -5269,11 +5399,11 @@ function renderTabDashboard(){
       <div style="font-family:var(--font-display);font-size:32px;font-weight:700;color:${pending.length?'var(--yellow)':'var(--text)'}">${pending.length}</div>
     </div>
     <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:var(--radius-sm);padding:14px;text-align:center">
-      <div style="font-size:10px;color:var(--green);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">📝 Anotando</div>
+      <div style="font-size:10px;color:var(--green);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:5px">${hcIcon('pencil',11)} Anotando</div>
       <div style="font-family:var(--font-display);font-size:32px;font-weight:700;color:var(--green)">${recording.length}</div>
     </div>
     <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:var(--radius-sm);padding:14px;text-align:center">
-      <div style="font-size:10px;color:var(--red);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">😴 Sin registros</div>
+      <div style="font-size:10px;color:var(--red);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:5px">${hcIcon('moon',11)} Sin registros</div>
       <div style="font-family:var(--font-display);font-size:32px;font-weight:700;color:var(--red)">${silent.length}</div>
     </div>
   </div>`;
@@ -5292,7 +5422,7 @@ function renderTabDashboard(){
 
   // Silent users list
   const silentList=silent.length?`
-    <div class="admin-section-title" style="margin-bottom:10px">😴 SIN REGISTROS (${silent.length})</div>
+    <div class="admin-section-title" style="margin-bottom:10px">${hcSecTitle('moon','SIN REGISTROS ('+silent.length+')')}</div>
     ${silent.map(u=>{
       const ini=u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
       return `<div class="user-row" style="margin-bottom:8px">
@@ -5307,7 +5437,7 @@ function renderTabDashboard(){
 
   // Recording users list
   const recordingList=recording.length?`
-    <div class="admin-section-title" style="margin-bottom:10px;margin-top:${silent.length?'16px':'0'}">📝 ANOTANDO (${recording.length})</div>
+    <div class="admin-section-title" style="margin-bottom:10px;margin-top:${silent.length?'16px':'0'}">${hcSecTitle('pencil','ANOTANDO ('+recording.length+')')}</div>
     ${recording.map(u=>{
       const ini=u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
       return `<div class="user-row" style="margin-bottom:8px">
@@ -5328,8 +5458,8 @@ function renderTabDashboard(){
         <div style="font-size:10px;color:var(--text3);margin-top:1px">${b.weekCount} semanas · ${new Date(b.archivedAt).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'})}</div>
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">
-        <button class="adm-btn adm-btn-blue" style="padding:5px 10px;font-size:11px" onclick="restoreArchivedBlock('${b.id}')">🔄 Restaurar</button>
-        <button class="adm-btn adm-btn-ghost" style="padding:5px 8px;font-size:11px" title="Reparar registros" onclick="repairBlockProgress('${b.id}')">🔧</button>
+        <button class="adm-btn adm-btn-blue" style="padding:5px 10px;font-size:11px" onclick="restoreArchivedBlock('${b.id}')">${hcIcon('refresh',12)} Restaurar</button>
+        <button class="adm-btn adm-btn-ghost" style="padding:5px 8px;font-size:11px" title="Reparar registros" onclick="repairBlockProgress('${b.id}')">${hcIcon('wrench',13)}</button>
         <button class="adm-btn adm-btn-red" style="padding:5px 8px" onclick="deleteArchivedBlock('${b.id}')">${IC.trash}</button>
       </div>
     </div>`).join('');
@@ -5340,12 +5470,12 @@ function renderTabDashboard(){
       <div style="font-size:11px;color:var(--text3);margin-bottom:5px">Nombre del bloque activo</div>
       <div style="display:flex;gap:8px">
         <input class="adm-inp" id="block-name-inp" style="margin:0;flex:1" value="${escH(currentBlockName)}" placeholder="Ej: Bloque 4 - 2026" oninput="currentBlockName=this.value">
-        <button class="adm-btn adm-btn-ghost" style="padding:0 12px;flex-shrink:0" onclick="saveBlockNameFromAdmin()">💾</button>
+        <button class="adm-btn adm-btn-ghost" style="padding:0 12px;flex-shrink:0" onclick="saveBlockNameFromAdmin()">${hcIcon('save',15)}</button>
       </div>
       <div style="font-size:10px;color:var(--text3);margin-top:4px">Este nombre aparece en el historial de PRs de cada alumno</div>
     </div>
     <button class="adm-btn adm-btn-orange" onclick="promptArchiveBlock()" style="width:100%;justify-content:center;padding:12px;font-size:14px;margin-bottom:${archivedBlocks.length?'14px':'0'}">
-      📦 Cerrar y archivar bloque actual
+      ${hcIcon('archive',16)} Cerrar y archivar bloque actual
     </button>
     ${archivedBlocks.length?`
       <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">BLOQUES ARCHIVADOS</div>
@@ -5358,7 +5488,7 @@ function renderTabDashboard(){
     ${statCards}
     ${progressBar}
     ${pending.length?`<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
-      <span style="font-size:13px;color:var(--yellow);font-weight:600">⏳ ${pending.length} solicitud${pending.length>1?'es':''} pendiente${pending.length>1?'s':''}</span>
+      <span style="font-size:13px;color:var(--yellow);font-weight:600;display:inline-flex;align-items:center;gap:8px">${hcIcon('hourglass',15)}${pending.length} solicitud${pending.length>1?'es':''} pendiente${pending.length>1?'s':''}</span>
       <button class="adm-btn adm-btn-ghost" style="padding:5px 12px;font-size:12px" onclick="setAdminTab(1);adminState.userSubTab='pending';renderModal()">Ver →</button>
     </div>`:''}
     ${silentList}
@@ -5371,7 +5501,7 @@ async function saveBlockNameFromAdmin(){
   const inp = document.getElementById('block-name-inp');
   if(inp) currentBlockName = inp.value.trim()||currentBlockName;
   await saveBlockName();
-  showToast('✅ Nombre guardado: '+currentBlockName);
+  showToast('Nombre guardado: '+currentBlockName);
 }
 
 async function promptArchiveBlock(){
@@ -5387,7 +5517,7 @@ async function promptArchiveBlock(){
     currentBlockName = newName.trim();
     await saveBlockName();
   }
-  showToast('✅ Bloque "'+name.trim()+'" archivado');
+  showToast('Bloque "'+name.trim()+'" archivado');
   const justBid=archivedBlocks[0]?.id;
   const justPlan=await loadBlockPlan(justBid);
   if(justBid&&justPlan){ blockSummaryState={open:true,blockId:justBid,blockName:name.trim(),blockPlan:justPlan,blockProgress:progress}; render(); }
@@ -5406,7 +5536,7 @@ async function restoreArchivedBlock(bid){
   // Remove from archived list — it's now the active plan, not an archive
   archivedBlocks = archivedBlocks.filter(b=>b.id!==bid);
   await saveBlocks();
-  showToast('✅ "'+block.name+'" restaurado como plan activo');
+  showToast('"'+block.name+'" restaurado como plan activo');
   ST.view='home';
   archivedBlockView={blockId:null,blockPlan:null,weekIdx:null,block:null};
   render();
@@ -5427,7 +5557,7 @@ async function repairBlockProgress(bid){
       }
     }catch(e){}
   }));
-  showToast('✅ Registros guardados para '+count+' alumnos');
+  showToast('Registros guardados para '+count+' alumnos');
   renderModal();
 }
 
@@ -5440,7 +5570,7 @@ async function deleteArchivedBlock(bid){
   await saveBlocks();
   // Also delete the plan snapshot from Firebase
   try{ await sharedSet('fs_plan_'+bid, null); }catch(e){}
-  showToast('🗑️ Bloque eliminado');
+  showToast('Bloque eliminado');
   ST.view='home';
   archivedBlockView={blockId:null,blockPlan:null,weekIdx:null,block:null};
   render();
@@ -5499,15 +5629,15 @@ function renderTabDiag(){
 
       ${unmatched.length>0?`
         <div style="margin-bottom:10px">
-          <div style="font-size:10px;font-weight:700;color:var(--red);letter-spacing:1px;margin-bottom:6px">⚠️ NO COINCIDEN CON EL PLAN ACTUAL (${unmatched.length})</div>
+          <div style="font-size:10px;font-weight:700;color:var(--red);letter-spacing:1px;margin-bottom:6px;display:flex;align-items:center;gap:5px">${hcIcon('alert',12)} NO COINCIDEN CON EL PLAN ACTUAL (${unmatched.length})</div>
           ${unmatchedSample}
           ${unmatched.length>5?`<div style="font-size:10px;color:var(--text3);padding-top:4px">...y ${unmatched.length-5} más</div>`:''}
         </div>
-      `:'<div style="color:var(--green);font-size:12px;margin-bottom:10px">✅ Todas las claves coinciden con el plan</div>'}
+      `:'<div style="color:var(--green);font-size:12px;margin-bottom:10px">Todas las claves coinciden con el plan</div>'}
 
       ${matched.length>0?`
         <div>
-          <div style="font-size:10px;font-weight:700;color:var(--green);letter-spacing:1px;margin-bottom:6px">✅ COINCIDEN (${matched.length})</div>
+          <div style="font-size:10px;font-weight:700;color:var(--green);letter-spacing:1px;margin-bottom:6px">COINCIDEN (${matched.length})</div>
           ${matchedSample}
           ${matched.length>5?`<div style="font-size:10px;color:var(--text3);padding-top:4px">...y ${matched.length-5} más</div>`:''}
         </div>
@@ -5524,7 +5654,7 @@ function renderTabDiag(){
         Para solucionarlo sin perder datos, necesitás <strong style="color:var(--orange)">resetear el plan desde cero</strong> usando el mismo código de generación. Eso va a regenerar los IDs correctamente y el progreso existente va a quedar vinculado.
       </p>
       <button class="adm-btn adm-btn-orange" onclick="resetPlanToDefault()" style="width:100%;justify-content:center;padding:12px">
-        🔄 Regenerar plan con IDs correctos
+        ${hcIcon('refresh',15)} Regenerar plan con IDs correctos
       </button>
       <p style="font-size:10px;color:var(--text3);margin-top:8px;text-align:center">El progreso guardado NO se borra, solo se regeneran los IDs del plan</p>
     </div>
@@ -5560,7 +5690,7 @@ async function runUserDiag(){
     Registros con peso: <strong style="color:var(--text)">${withW.length}</strong><br>
     Coinciden con plan: <strong style="color:${matched.length>0?'var(--green)':'var(--red)'}">${matched.length}</strong><br>
     No coinciden: <strong style="color:${unmatched.length>0?'var(--red)':'var(--green)'}">${unmatched.length}</strong><br>
-    ${unmatched.length>0?`<span style="color:var(--red)">⚠️ IDs desactualizados — los PRs y gráficos no funcionarán hasta regenerar el plan</span>`:`<span style="color:var(--green)">✅ Todo coincide correctamente</span>`}
+    ${unmatched.length>0?`<span style="color:var(--red)">IDs desactualizados — los PRs y gráficos no funcionarán hasta regenerar el plan</span>`:`<span style="color:var(--green)">Todo coincide correctamente</span>`}
   </div>`;
 }
 
@@ -5568,7 +5698,7 @@ async function resetPlanToDefault(){
   if(!confirm('¿Regenerar el plan con IDs correctos? El progreso guardado NO se borra.')) return;
   plan = buildDefaultRoutine();
   await savePlan();
-  showToast('✅ Plan regenerado. Los IDs ahora coinciden con el progreso guardado.');
+  showToast('Plan regenerado. Los IDs ahora coinciden con el progreso guardado.');
   renderModal();
 }
 function saveWeekMsg(idx, val){
@@ -5608,7 +5738,7 @@ function renderTabRpe(){
       Editá el título y la descripción que verán los alumnos al tocar <strong style="color:var(--orange)">?</strong> en la pantalla de cada semana.
     </p>
     ${cards}
-    <button class="adm-btn adm-btn-ghost" onclick="doSaveRpe()" style="width:100%;justify-content:center;padding:12px;margin-top:4px">💾 Guardar cambios</button>
+    <button class="adm-btn adm-btn-ghost" onclick="doSaveRpe()" style="width:100%;justify-content:center;padding:12px;margin-top:4px">${hcIcon('save',15)} Guardar cambios</button>
   </div>`;
 }
 
@@ -5624,7 +5754,7 @@ function removeRpeItem(rpe,ii){
   rpeInfo[rpe].items.splice(ii,1);
   renderModal();
 }
-async function doSaveRpe(){ await saveRpeInfo(); showToast('✅ Info de RPE guardada'); }
+async function doSaveRpe(){ await saveRpeInfo(); showToast('Info de RPE guardada'); }
 
 let comparativeState={exIdx:0};
 
@@ -5668,9 +5798,9 @@ async function renderTabComparative(){
   }).join('');
   const rankRows=withData.slice(0,10).map((d,i)=>{
     const ini=d.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
-    const medals=['🥇','🥈','🥉'];
+    const medalColors=['#f5b301','#c0c0c8','#cd7f32']; // oro, plata, bronce
     return `<div class="ranking-row">
-      <div class="rank-pos" style="color:${i<3?'var(--gold)':'var(--text3)'}">${medals[i]||i+1}</div>
+      <div class="rank-pos" style="color:${i<3?'var(--gold)':'var(--text3)'}">${i<3?`<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${medalColors[i]};color:#000;font-size:12px;font-family:'Inter',sans-serif">${i+1}</span>`:i+1}</div>
       <div class="rank-avatar">${ini}</div>
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(d.name)}</div>
@@ -5737,7 +5867,7 @@ async function changeAdminPw(){
   await sharedSet(K.ADMINPW(club),newHash);
   lsSet(K.ADMINPW(club),newHash);
   err.style.display='none';
-  showToast('✅ Contraseña actualizada en todos los dispositivos');
+  showToast('Contraseña actualizada en todos los dispositivos');
 }
 
 // ============================================================
@@ -5746,13 +5876,13 @@ async function changeAdminPw(){
 function tabBarHTML(){
   return `<div class="tab-bar">
     <div class="tab-bar-item ${ST.mainTab==='plan'?'active':''}" onclick="switchMainTab('plan')">
-      <div class="tab-bar-icon">📅</div>Plan
+      <div class="tab-bar-icon">${hcIcon('calendar',20)}</div>Plan
     </div>
     <div class="tab-bar-item ${ST.mainTab==='prs'?'active':''}" onclick="switchMainTab('prs')">
-      <div class="tab-bar-icon">🏆</div>PRs
+      <div class="tab-bar-icon">${hcIcon('trophy',20)}</div>PRs
     </div>
     <div class="tab-bar-item ${ST.mainTab==='chart'?'active':''}" onclick="switchMainTab('chart')">
-      <div class="tab-bar-icon">📊</div>Progreso
+      <div class="tab-bar-icon">${hcIcon('chart',20)}</div>Progreso
     </div>
   </div>`;
 }
@@ -5783,11 +5913,11 @@ function renderPrs(){
         if(ep[r.key].newPr) hasNew=true;
       }
     });
-    const icons={'Banco Plano':'🏋️','Back Squat':'🦵','Peso Muerto':'⚡'};
-    const icon=icons[t.name]||'💪';
+    const icons={'Banco Plano':'dumbbell','Back Squat':'footprints','Peso Muerto':'zap'};
+    const icon=hcIcon(icons[t.name]||'dumbbell',22,'var(--orange)');
     return `<div onclick="openPrDetail('${t.name}')" style="flex:1;background:${hasNew?'linear-gradient(135deg,rgba(245,158,11,0.12),rgba(var(--orange-rgb),0.08))':'var(--surface2)'};border:1px solid ${hasNew?'rgba(245,158,11,0.4)':'var(--border)'};border-radius:var(--radius-sm);padding:12px 10px;text-align:center;position:relative;overflow:hidden;min-width:0;cursor:pointer;">
       ${hasNew?`<div style="position:absolute;top:0;right:0;background:var(--gold);color:#000;font-size:7px;font-weight:800;padding:2px 6px;border-radius:0 0 0 5px;letter-spacing:.5px">NUEVO</div>`:''}
-      <div style="font-size:22px;margin-bottom:6px">${icon}</div>
+      <div style="margin-bottom:6px;display:flex;justify-content:center">${icon}</div>
       <div style="font-size:9px;color:var(--text3);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px;line-height:1.2">${escH(t.name)}</div>
       ${bestW!==null
         ? `<div style="font-family:var(--font-display);font-size:24px;font-weight:700;color:${hasNew?'var(--gold)':'var(--orange)'};line-height:1">${bestW}<span style="font-size:12px;color:var(--text3)"> kg</span></div>
@@ -5800,7 +5930,7 @@ function renderPrs(){
 
   const heroHTML=`<div style="margin-bottom:20px">
     <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:var(--text3);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px">
-      <span>🏆</span> MOVIMIENTOS PRINCIPALES
+      ${hcIcon('trophy',13)} MOVIMIENTOS PRINCIPALES
     </div>
     <div style="display:flex;gap:8px">${heroCards}</div>
   </div>`;
@@ -5815,7 +5945,7 @@ function renderPrs(){
         <span class="pr-range-label">${r.label}</span>
         <span class="pr-range-val">${entry.weight}<span> kg</span></span>
         <span class="pr-range-week">S${entry.week}</span>
-        ${entry.newPr?`<span class="pr-range-new">🏆 NUEVO</span>`:''}
+        ${entry.newPr?`<span class="pr-range-new" style="display:inline-flex;align-items:center;gap:3px">${hcIcon('trophy',9)} NUEVO</span>`:''}
       </div>`;
     }).join('');
     return `<div class="pr-card ${hasNew?'has-new':''}" onclick="openPrDetail('${escH(t.name)}')" style="cursor:pointer">
@@ -5867,9 +5997,9 @@ function renderBlockSummarySheet(){
   const {completedWeeks,totalWeeks,adherence,weekStatus,prs:prData}=calcBlockSummary(blockPlan,blockProgress);
   const dotColor=s=>s==='done'?'wdot-done':s==='partial'?'wdot-partial':'wdot-skip';
   const dots=weekStatus.map((s,i)=>`<div class="wdot ${dotColor(s)}">S${i+1}</div>`).join('');
-  const prRows=DEFAULT_TRACKED.map(t=>{ const found=prData.find(p=>p.name===t.name); if(!found)return `<div class="summary-pr-row"><div style="font-size:13px;font-weight:600;color:var(--text)">${escH(t.name)}</div><div style="font-size:12px;color:var(--text3)">Sin registro</div></div>`; return `<div class="summary-pr-row"><div><div style="font-size:13px;font-weight:600;color:var(--text)">${escH(t.name)}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">${found.range.label} · Semana ${found.week}</div></div><div style="text-align:right"><div style="font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--orange)">${found.weight} <span style="font-size:13px;color:var(--text3)">kg</span></div><div style="font-size:9px;color:var(--gold);font-weight:700">🏆 PR EN ESTE BLOQUE</div></div></div>`; }).join('');
+  const prRows=DEFAULT_TRACKED.map(t=>{ const found=prData.find(p=>p.name===t.name); if(!found)return `<div class="summary-pr-row"><div style="font-size:13px;font-weight:600;color:var(--text)">${escH(t.name)}</div><div style="font-size:12px;color:var(--text3)">Sin registro</div></div>`; return `<div class="summary-pr-row"><div><div style="font-size:13px;font-weight:600;color:var(--text)">${escH(t.name)}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">${found.range.label} · Semana ${found.week}</div></div><div style="text-align:right"><div style="font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--orange)">${found.weight} <span style="font-size:13px;color:var(--text3)">kg</span></div><div style="font-size:9px;color:var(--gold);font-weight:700;display:flex;align-items:center;justify-content:flex-end;gap:3px">${hcIcon('trophy',10)} PR EN ESTE BLOQUE</div></div></div>`; }).join('');
   const ac=adherence>=80?'var(--green)':adherence>=50?'var(--orange)':'var(--red)';
-  return `<div class="summary-overlay" onclick="closeBlockSummary()"><div class="summary-sheet" onclick="event.stopPropagation()"><div class="summary-handle"></div><div class="summary-hero"><div class="summary-block-tag">📦 RESUMEN DEL BLOQUE</div><div class="summary-block-title">${escH(blockName)}</div><div class="summary-stats-grid"><div class="summary-stat"><div class="summary-stat-val">${completedWeeks}<span style="font-size:14px;color:var(--text3)">/${totalWeeks}</span></div><div class="summary-stat-label">SEMANAS COMPLETAS</div></div><div class="summary-stat"><div class="summary-stat-val" style="color:${ac}">${adherence}%</div><div class="summary-stat-label">ADHERENCIA</div></div><div class="summary-stat"><div class="summary-stat-val" style="color:var(--gold)">${prData.length}</div><div class="summary-stat-label">PRs LOGRADOS</div></div></div></div><div style="padding:16px 20px 0"><div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">SEMANA A SEMANA</div><div class="week-dots">${dots}</div><div style="display:flex;gap:12px;font-size:10px;color:var(--text3);margin-bottom:16px"><span>🟢 Completa</span><span>🟡 Parcial</span><span>⬜ Sin registro</span></div><div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase">RÉCORDS DEL BLOQUE</div></div><div style="margin-top:8px">${prRows}</div><button class="summary-close-btn" onclick="closeBlockSummary()">CERRAR</button></div></div>`;
+  return `<div class="summary-overlay" onclick="closeBlockSummary()"><div class="summary-sheet" onclick="event.stopPropagation()"><div class="summary-handle"></div><div class="summary-hero"><div class="summary-block-tag" style="display:flex;align-items:center;gap:6px">${hcIcon('archive',12)} RESUMEN DEL BLOQUE</div><div class="summary-block-title">${escH(blockName)}</div><div class="summary-stats-grid"><div class="summary-stat"><div class="summary-stat-val">${completedWeeks}<span style="font-size:14px;color:var(--text3)">/${totalWeeks}</span></div><div class="summary-stat-label">SEMANAS COMPLETAS</div></div><div class="summary-stat"><div class="summary-stat-val" style="color:${ac}">${adherence}%</div><div class="summary-stat-label">ADHERENCIA</div></div><div class="summary-stat"><div class="summary-stat-val" style="color:var(--gold)">${prData.length}</div><div class="summary-stat-label">PRs LOGRADOS</div></div></div></div><div style="padding:16px 20px 0"><div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">SEMANA A SEMANA</div><div class="week-dots">${dots}</div><div style="display:flex;gap:12px;font-size:10px;color:var(--text3);margin-bottom:16px"><span><i class="legend-dot" style="background:var(--green)"></i>Completa</span><span><i class="legend-dot" style="background:var(--yellow)"></i>Parcial</span><span><i class="legend-dot" style="background:var(--surface3);border:1px solid var(--border2)"></i>Sin registro</span></div><div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase">RÉCORDS DEL BLOQUE</div></div><div style="margin-top:8px">${prRows}</div><button class="summary-close-btn" onclick="closeBlockSummary()">CERRAR</button></div></div>`;
 }
 
 const RANGE_COLORS={'rm1':'#f05a28','rm2':'#e91e63','rm3':'#9c27b0','rm4':'#3b82f6'};
@@ -5918,11 +6048,11 @@ function renderExpressDay(){
   const hasPrev=ST.blockIdx>0; const hasNext=ST.blockIdx<day.blocks.length-1;
   return `<div class="workout-header">
     <button class="nav-back" onclick="nav('day',{week:${ST.week},dayIdx:${ST.dayIdx}})">${IC.back}</button>
-    <div class="workout-info"><div class="workout-week">SEM. ${wd.week} · ${day.name}</div><div class="workout-block">${block.name} ⚡</div></div>
+    <div class="workout-info"><div class="workout-week">SEM. ${wd.week} · ${day.name}</div><div class="workout-block" style="display:flex;align-items:center;gap:6px">${block.name} ${hcIcon('zap',14)}</div></div>
     <div style="width:36px"></div>
   </div>
   <div class="express-toggle-bar">
-    <span class="express-toggle-label">⚡ Modo Express</span>
+    <span class="express-toggle-label" style="display:inline-flex;align-items:center;gap:6px">${hcIcon('zap',13)} Modo Express</span>
     <div class="express-toggle on" onclick="toggleExpressMode()"><div class="express-toggle-dot"></div></div>
   </div>
   <div class="express-progress-bar"><div class="express-progress-fill" style="width:${pct}%"></div></div>
@@ -5988,7 +6118,7 @@ function renderPrDetailSheet(){
           <div class="pr-timeline-dot ${isCurrent?'current':''}" style="color:${isCurrent?color:'var(--border2)'};background:${isCurrent?color:'var(--surface3)'}"></div>
           <div class="pr-timeline-card ${isCurrent?'current':''}">
             <div class="pr-timeline-week" style="color:${isCurrent?color:'var(--text3)'}">
-              ${isCurrent?'🏆 RÉCORD ACTUAL':(blockLabel?escH(blockLabel)+' · ':'')+' Semana '+h.week}${!isCurrent&&blockLabel?'':!isCurrent?' · '+label:''}
+              ${isCurrent?hcIcon('trophy',11)+' RÉCORD ACTUAL':(blockLabel?escH(blockLabel)+' · ':'')+' Semana '+h.week}${!isCurrent&&blockLabel?'':!isCurrent?' · '+label:''}
             </div>
             ${isCurrent?`<div style="font-size:10px;color:var(--text3);margin-bottom:4px">${blockLabel?escH(blockLabel)+' · ':''}Semana ${h.week} · ${label}</div>`:''}
             <div class="pr-timeline-weight" style="color:${isCurrent?color:'var(--text)'}">${h.weight} <span style="font-size:16px;color:var(--text3)">kg</span></div>
