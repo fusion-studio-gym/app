@@ -216,8 +216,10 @@ body{max-width:480px;margin:0 auto;}
 .cc-tab.active{background:var(--orange);border-color:var(--orange);color:var(--on-accent);}
 .cc-count{font-size:10px;font-weight:700;border-radius:8px;padding:1px 6px;background:rgba(255,255,255,0.12);}
 .cc-tab.active .cc-count{background:rgba(0,0,0,0.18);}
-.cc-chips{display:flex;gap:6px;margin-bottom:12px;}
-.cc-chip{padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:11px;font-weight:600;cursor:pointer;}
+.cc-tab .cc-lbl-s{display:none;}
+@media(max-width:600px){.cc-tab .cc-lbl{display:none;}.cc-tab .cc-lbl-s{display:inline;}}
+.cc-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+.cc-chip{white-space:nowrap;padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:11px;font-weight:600;cursor:pointer;}
 .cc-chip.active{border-color:var(--orange);color:var(--orange);}
 .cc-empty{text-align:center;padding:28px 10px;color:var(--text3);font-size:12px;line-height:1.5;}
 .cc-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;}
@@ -4080,7 +4082,7 @@ function hcVidActionsHTML(uid){
     <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;gap:8px" onclick="${adminState.vidCatEditOpen?'hcCancelVidCatEditor()':'hcOpenVidCatEditor()'}">${hcIcon('pencil',14)} ${adminState.vidCatEditOpen?'Cerrar catalogo':'Catalogo'}</button>
   </div>${adminState.vidCatEditOpen?renderHcVidCatEditor():''}`;
 }
-function hcPlanVideosHTML(uid){ return hcVidActionsHTML(uid); }
+function hcPlanVideosHTML(uid){ return renderHcAdminVideoHistory()+hcVidActionsHTML(uid); }
 
 // Lee en paralelo plan, sesiones marcadas, TRAC, chat, objetivo, bloque y pedidos de video de cada atleta.
 async function hcLoadAthleteData(force){
@@ -4180,19 +4182,25 @@ function renderHcTabDashboard(){
       <span style="font-size:13px;color:var(--yellow);font-weight:600;display:inline-flex;align-items:center;gap:8px">${hcIcon('hourglass',15)}${pending.length} solicitud${pending.length>1?'es':''} pendiente${pending.length>1?'s':''}</span>
       <button class="adm-btn adm-btn-ghost" style="padding:5px 12px;font-size:12px;gap:6px" onclick="hcGoPendingRequests()">Ver ${hcIcon('arrowRight',13)}</button>
     </div>`:'';
-  return `<div class="adm-dash-grid"><div>${statCards}${banner}${renderHcControlCenter()}</div><aside class="adm-dash-col">${renderHcDashboardRaces()}${renderHcDashboardCalls()}</aside></div>`;
+  const vidPend=hcAthleteData?hcCcItems().videos.pend.length:0;
+  const vidBanner=vidPend?`<div style="background:rgba(255,122,107,0.08);border:1px solid rgba(255,122,107,0.3);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <span style="font-size:13px;color:#ff7a6b;font-weight:600;display:inline-flex;align-items:center;gap:8px">${hcIcon('video',15)}${vidPend} video${vidPend>1?'s':''} por revisar</span>
+      <button class="adm-btn adm-btn-ghost" style="padding:5px 12px;font-size:12px;gap:6px" onclick="hcGoCcVideos()">Ver ${hcIcon('arrowRight',13)}</button>
+    </div>`:'';
+  return `<div class="adm-dash-grid"><div>${statCards}${banner}${vidBanner}${renderHcControlCenter()}</div><aside class="adm-dash-col">${renderHcDashboardRaces()}${renderHcDashboardCalls()}</aside></div>`;
 }
 function hcGoPendingRequests(){ adminState.userSubTab='pending'; adminState.userSearch=''; setAdminTab('atletas'); }
 
 // ---- CENTRO DE CONTROL Y TAREAS ----
 const HC_CC_TABS=[
-  {k:'trac',label:'Control de Fatiga / Dolor',ic:'activity'},
-  {k:'chat',label:'Feedback de Atletas',ic:'chat'},
-  {k:'ses',label:'Sesiones Incompletas',ic:'calendarX'}
+  {k:'trac',label:'Control de Fatiga / Dolor',short:'Fatiga',ic:'activity'},
+  {k:'chat',label:'Feedback de Atletas',short:'Feedback',ic:'chat'},
+  {k:'ses',label:'Sesiones Incompletas',short:'Sesiones',ic:'calendarX'},
+  {k:'videos',label:'Videos por Revisar',short:'Videos',ic:'video'}
 ];
 function hcCcItems(){
   const D=hcAthleteData||{}, R=hcAdmReviewed||{trac:{},sessions:{}};
-  const out={ trac:{pend:[],done:[]}, chat:{pend:[],done:[]}, ses:{pend:[],done:[]} };
+  const out={ trac:{pend:[],done:[]}, chat:{pend:[],done:[]}, ses:{pend:[],done:[]}, videos:{pend:[],done:[],unsent:[]} };
   hcAdmStudents(false).forEach(u=>{
     const d=D[u.id]; if(!d) return;
     d.trac.forEach(e=>out.trac[R.trac[e.id]?'done':'pend'].push({u,e,ts:e.ts||0}));
@@ -4207,39 +4215,48 @@ function hcCcItems(){
       const key=u.id+'_'+f.d.id;
       out.ses[R.sessions[key]?'done':'pend'].push({u,f,key,ts:R.sessions[key]||0});
     });
+    (d.videos||[]).forEach(v=>{
+      if(v.status==='sent') out.videos.pend.push({u,v,ts:v.sentAt||0});
+      else if(v.status==='reviewed') out.videos.done.push({u,v,ts:v.reviewedAt||0});
+      else out.videos.unsent.push({u,v,ts:v.createdAt||0});
+    });
     // Revisados por el admin que el atleta después marcó: siguen en Completadas
     d.plan.forEach((w,wi)=>w.days.forEach(day=>{
       const key=u.id+'_'+day.id;
       if(R.sessions[key] && !skippedIds.has(day.id)) out.ses.done.push({u,f:{d:day,week:w,wi},key,ts:R.sessions[key]});
     }));
   });
-  Object.values(out).forEach(g=>{ g.pend.sort((a,b)=>b.ts-a.ts); g.done.sort((a,b)=>b.ts-a.ts); });
+  Object.values(out).forEach(g=>{ g.pend.sort((a,b)=>b.ts-a.ts); g.done.sort((a,b)=>b.ts-a.ts); if(g.unsent) g.unsent.sort((a,b)=>b.ts-a.ts); });
   return out;
 }
 function hcSetCcTab(k){ adminState.ccTab=k; renderModal(); }
 function hcSetCcView(v){ adminState.ccView=v; renderModal(); }
 
 function renderHcControlCenter(){
-  const tab=adminState.ccTab||'trac', view=adminState.ccView||'pend';
+  const tab=adminState.ccTab||'trac';
+  let view=adminState.ccView||'pend';
+  if(view==='unsent' && tab!=='videos') view='pend';
   const head=`<div class="cc-head"><div class="cc-head-ic">${hcIcon('activity',18,'#FFEC03')}</div><div class="cc-title">Centro de Control y Tareas</div></div>
-    <div class="cc-sub">Fatiga y dolor reportados en el TRAC, mensajes de los atletas y sesiones que quedaron sin marcar.</div>`;
+    <div class="cc-sub">Fatiga y dolor reportados en el TRAC, mensajes de los atletas, sesiones que quedaron sin marcar y videos enviados.</div>`;
   if(!hcAthleteData) return `<div class="cc-box">${head}${hcAdmLoadingHTML()}</div>`;
   const items=hcCcItems();
-  const tabs=`<div class="cc-tabs">${HC_CC_TABS.map(t=>`<div class="cc-tab ${tab===t.k?'active':''}" onclick="hcSetCcTab('${t.k}')">${hcIcon(t.ic,14)}${t.label}<span class="cc-count">${items[t.k].pend.length}</span></div>`).join('')}</div>`;
+  const tabs=`<div class="cc-tabs">${HC_CC_TABS.map(t=>`<div class="cc-tab ${tab===t.k?'active':''}" onclick="hcSetCcTab('${t.k}')">${hcIcon(t.ic,14)}<span class="cc-lbl">${t.label}</span><span class="cc-lbl-s">${t.short}</span><span class="cc-count">${items[t.k].pend.length}</span></div>`).join('')}</div>`;
   const g=items[tab];
   const chips=`<div class="cc-chips">
     <button class="cc-chip ${view==='pend'?'active':''}" onclick="hcSetCcView('pend')">Pendientes (${g.pend.length})</button>
     <button class="cc-chip ${view==='done'?'active':''}" onclick="hcSetCcView('done')">Completadas (${g.done.length})</button>
+    ${tab==='videos'?`<button class="cc-chip ${view==='unsent'?'active':''}" onclick="hcSetCcView('unsent')">Sin enviar (${g.unsent.length})</button>`:''}
   </div>`;
   const list=g[view];
   const emptyMsg={
     trac:view==='pend'?'No hay cuestionarios TRAC sin revisar.':'Todavía no marcaste ningún TRAC como revisado.',
     chat:view==='pend'?'No hay mensajes de atletas sin leer.':'No hay conversaciones leídas todavía.',
-    ses:view==='pend'?'Ningún atleta dejó sesiones salteadas sin marcar.':'Todavía no marcaste ninguna sesión como revisada.'
+    ses:view==='pend'?'Ningún atleta dejó sesiones salteadas sin marcar.':'Todavía no marcaste ninguna sesión como revisada.',
+    videos:view==='pend'?'No hay videos enviados sin revisar.':view==='unsent'?'No hay pedidos esperando que el alumno envíe el video.':'Todavía no revisaste ningún video.'
   }[tab];
-  const render={trac:hcCcTracItem, chat:hcCcChatItem, ses:hcCcSesItem}[tab];
+  const render={trac:hcCcTracItem, chat:hcCcChatItem, ses:hcCcSesItem, videos:hcCcVideoItem}[tab];
   const body=list.length?list.map(it=>render(it,view)).join(''):`<div class="cc-empty">${hcIcon('check',22,'var(--green)')}<div style="margin-top:8px">${emptyMsg}</div></div>`;
-  return `<div class="cc-box">${head}${tabs}${chips}${body}</div>`;
+  return `<div class="cc-box">${head}${tabs}${tab==='videos'?hcVidActionsHTML(''):''}${chips}${body}</div>`;
 }
 function hcCcWho(u,sub){
   return `<div style="display:flex;align-items:center;gap:10px;min-width:0">
@@ -4287,6 +4304,7 @@ function hcCcSesItem(it,view){
   return `<div class="cc-item"><div class="cc-item-top">${hcCcWho(it.u,`Semana ${it.f.wi+1} · ${escH(it.f.d.name)}${stLbl}`)}${hcCcReviewBtn('sessions',it.key,view)}</div></div>`;
 }
 async function hcCcMarkReviewed(kind,id,on){
+  if(kind==='videos') return hcCcVidReview(id,on);
   try{
     // Releer antes de escribir para no pisar lo que haya marcado otro admin
     const remote=await sharedGet(K.HC_ADM_REVIEWED);
@@ -4296,6 +4314,131 @@ async function hcCcMarkReviewed(kind,id,on){
     const ok=await sharedSet(K.HC_ADM_REVIEWED,hcAdmReviewed);
     if(!ok) throw new Error('no se pudo sincronizar con el servidor');
   }catch(e){ alert('No se pudo guardar: '+e.message); }
+}
+
+// Videos por Revisar: el pedido vive en K.HC_VIDEOS del alumno; "Revisado" guarda la devolución ahí mismo.
+function hcCcVidFind(id){
+  const D=hcAthleteData||{};
+  for(const uid in D){ const v=(D[uid].videos||[]).find(x=>x.id===id); if(v) return { uid, v, list:D[uid].videos }; }
+  return null;
+}
+function hcCcVidFbVal(v){ const d=adminState.vidFb&&adminState.vidFb[v.id]; return d!=null?d:(v.feedback||''); }
+function hcCcVidFb(id,val){ adminState.vidFb=adminState.vidFb||{}; adminState.vidFb[id]=val; }
+async function hcCcVidRefresh(uid){
+  const fresh=await personalGet(K.HC_VIDEOS(uid));
+  if(Array.isArray(fresh)) hcVidSetAdminCache(uid,fresh);
+}
+async function hcCcVidReview(id,on){
+  const f=hcCcVidFind(id); if(!f) return;
+  const fb=hcCcVidFbVal(f.v).trim();
+  try{
+    let gone=false;
+    const list=await hcVideosMutate(f.uid, l=>{
+      const v=l.find(x=>x.id===id);
+      if(!v){ gone=true; return false; }
+      if(on){ v.status='reviewed'; v.feedback=fb; v.reviewedAt=Date.now(); }
+      else { v.status='sent'; v.reviewedAt=null; }   // la devolución queda guardada para editarla
+    }, f.list);
+    if(gone){ alert('Este pedido ya no existe.'); await hcCcVidRefresh(f.uid); }
+    else { hcVidSetAdminCache(f.uid,list); if(adminState.vidFb) delete adminState.vidFb[id]; }
+    renderModal();
+    if(on && !gone) showToast('Devolucion guardada');
+  }catch(e){ alert('No se pudo guardar: '+e.message); }
+}
+async function hcCcVidSaveFb(id){
+  const f=hcCcVidFind(id); if(!f) return;
+  const fb=hcCcVidFbVal(f.v).trim();
+  try{
+    const list=await hcVideosMutate(f.uid, l=>{ const v=l.find(x=>x.id===id); if(!v) return false; v.feedback=fb; }, f.list);
+    if(list){ hcVidSetAdminCache(f.uid,list); if(adminState.vidFb) delete adminState.vidFb[id]; showToast('Devolucion actualizada'); }
+    else await hcCcVidRefresh(f.uid);
+    renderModal();
+  }catch(e){ alert('No se pudo guardar: '+e.message); }
+}
+async function hcCcVidCancel(id){
+  const f=hcCcVidFind(id); if(!f) return;
+  if(!confirm('¿Cancelar el pedido de "'+f.v.movement+'"? El alumno deja de verlo.')) return;
+  try{
+    let sent=false;
+    const list=await hcVideosMutate(f.uid, l=>{
+      const i=l.findIndex(x=>x.id===id);
+      if(i<0) return false;
+      if(l[i].status!=='pending'){ sent=true; return false; }
+      l.splice(i,1);
+    }, f.list);
+    if(list) hcVidSetAdminCache(f.uid,list);
+    else { await hcCcVidRefresh(f.uid); if(sent) alert('El alumno ya lo marcó como enviado: ahora está en Pendientes.'); }
+    renderModal();
+  }catch(e){ alert('No se pudo cancelar: '+e.message); }
+}
+function hcCcFolderBtnHTML(uid){
+  const url=hcDriveLink(uid);
+  return url
+    ? `<a class="adm-btn adm-btn-ghost" style="padding:6px 10px;gap:6px;font-size:12px;text-decoration:none" href="${escH(url)}" target="_blank" rel="noopener">${hcDriveLogo(14)} Abrir carpeta</a>`
+    : `<button class="adm-btn adm-btn-ghost" style="padding:6px 10px;gap:6px;font-size:12px" onclick="hcPromptDriveLink('${uid}')">${hcDriveLogo(14)} Cargar carpeta</button>`;
+}
+function hcCcVideoItem(it,view){
+  const v=it.v;
+  const sub = view==='unsent'
+    ? `${escH(v.movement)} · Pedido el ${escH(hcFmtShortDate(v.createdAt))}${v.dueDate?' · Limite '+escH(hcFmtDueDate(v.dueDate)):''}`
+    : view==='pend'
+    ? `${escH(v.movement)} · Enviado el ${escH(hcFmtShortDate(v.sentAt))}`
+    : `${escH(v.movement)} · Revisado el ${escH(hcFmtShortDate(v.reviewedAt))}`;
+  if(view==='unsent') return `<div class="cc-item"><div class="cc-item-top">${hcCcWho(it.u,sub)}
+      <button class="adm-btn adm-btn-red" style="padding:6px 8px;flex-shrink:0" title="Cancelar pedido" onclick="hcCcVidCancel('${v.id}')">${IC.trash}</button>
+    </div></div>`;
+  return `<div class="cc-item">
+    <div class="cc-item-top" style="margin-bottom:10px">${hcCcWho(it.u,sub)}${hcCcReviewBtn('videos',v.id,view)}</div>
+    ${v.instruction?`<div style="font-size:11px;color:var(--text3);line-height:1.4;margin-bottom:8px;white-space:pre-line">${escH(v.instruction)}</div>`:''}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${hcCcFolderBtnHTML(it.u.id)}</div>
+    <textarea class="auth-inp" style="height:70px;padding:8px 12px;resize:vertical;margin:0;font-size:12px" placeholder="Devolucion para el alumno (que hizo bien, que corregir...)" oninput="hcCcVidFb('${v.id}',this.value)">${escH(hcCcVidFbVal(v))}</textarea>
+    ${view==='done'?`<div style="display:flex;justify-content:flex-end;margin-top:6px"><button class="adm-btn adm-btn-ghost" style="padding:6px 10px;gap:6px;font-size:12px" onclick="hcCcVidSaveFb('${v.id}')">${hcIcon('save',13)} Guardar devolucion</button></div>`:''}
+  </div>`;
+}
+function hcGoCcVideos(){
+  adminState.ccTab='videos'; adminState.ccView='pend';
+  renderModal();
+  setTimeout(()=>{ const b=document.querySelector('#modal-root .cc-box'); if(b) b.scrollIntoView({behavior:'smooth',block:'start'}); },60);
+}
+
+// Historial por movimiento (editor del plan del alumno)
+function hcToggleVidHistory(){ adminState.vidHistoryOpen=!adminState.vidHistoryOpen; renderModal(); }
+function hcVidStatusTag(v){
+  const st={ pending:['Sin enviar','#ff7a6b','rgba(255,122,107,0.12)'], sent:['Enviado','var(--green)','rgba(34,197,94,0.12)'], reviewed:['Revisado','#1a1a00','#FFEC03'] }[v.status]||['','var(--text3)','transparent'];
+  return `<span style="font-size:10px;font-weight:700;color:${st[1]};background:${st[2]};border-radius:10px;padding:2px 8px;flex-shrink:0">${st[0]}</span>`;
+}
+function renderHcAdminVideoHistory(){
+  const vids=hcPlanVideos||[];
+  const header=`<div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:10px;cursor:pointer" onclick="hcToggleVidHistory()">
+    <div style="display:flex;align-items:center;gap:8px">
+      ${hcIcon('video',16,'#ff7a6b')}
+      <div style="font-size:13px;font-weight:600">Videos y devoluciones${vids.length?` (${vids.length})`:''}</div>
+    </div>
+    <div style="font-size:12px;color:var(--text3)">${vids.length?(adminState.vidHistoryOpen?'Ocultar ▲':'Ver ▼'):'Sin pedidos'}</div>
+  </div>`;
+  if(!adminState.vidHistoryOpen || !vids.length) return header;
+  const groups={};
+  vids.forEach(v=>{ const k=hcVidNorm(v.movement); (groups[k]=groups[k]||{ name:v.movement, items:[] }).items.push(v); });
+  const when=v=>v.reviewedAt||v.sentAt||v.createdAt||0;
+  const list=Object.values(groups).map(g=>{ g.items.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)); g.last=Math.max(...g.items.map(when)); return g; }).sort((a,b)=>b.last-a.last);
+  const rows=list.map(g=>`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:700">${escH(g.name)}</div>
+        <div style="font-size:10px;color:var(--text3);background:var(--surface3);border-radius:4px;padding:2px 8px">${g.items.length} pedido${g.items.length===1?'':'s'}</div>
+      </div>
+      <div style="border-left:2px solid var(--border2);margin-left:5px;padding-left:14px">
+        ${g.items.map(v=>`<div style="position:relative;margin-bottom:12px">
+          <span style="position:absolute;left:-20px;top:3px;width:10px;height:10px;border-radius:50%;background:${v.status==='reviewed'?'#FFEC03':v.status==='sent'?'var(--green)':'var(--surface3)'};border:2px solid var(--surface2)"></span>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px">
+            <div style="font-size:12px;font-weight:600">${escH(new Date(v.createdAt||0).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'}))}</div>
+            ${hcVidStatusTag(v)}
+          </div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:${v.feedback?'6px':'0'}">${[v.dueDate?'Limite '+hcFmtDueDate(v.dueDate):'', v.sentAt?'Enviado '+hcFmtShortDate(v.sentAt):'', v.reviewedAt?'Revisado '+hcFmtShortDate(v.reviewedAt):''].filter(Boolean).map(escH).join(' · ')||'Esperando el video'}</div>
+          ${v.feedback?`<div style="font-size:11px;color:var(--text2);line-height:1.4;background:var(--surface3);border-radius:6px;padding:8px 10px;display:flex;gap:6px;align-items:flex-start;white-space:pre-line"><span style="flex-shrink:0;margin-top:1px">${hcIcon('chat',12)}</span><span>${escH(v.feedback)}</span></div>`:''}
+        </div>`).join('')}
+      </div>
+    </div>`).join('');
+  return `${header}<div style="margin-bottom:10px">${rows}</div>`;
 }
 
 // ---- ATLETAS ----
@@ -4691,7 +4834,7 @@ async function viewUserPlan(uid){
 }
 function goBackFromPlan(){
   adminState.viewPlanUid=null;
-  hcPlanEditing=null; hcPlanArchived=null; hcPlanDone=null; hcPlanTrac=null; hcPlanVideos=null; adminState.planCopyPickerOpen=false; adminState.tracHistoryOpen=false; adminState.tracEditOpen=false; hcTracDraft=null; adminState.driveDraft=null;
+  hcPlanEditing=null; hcPlanArchived=null; hcPlanDone=null; hcPlanTrac=null; hcPlanVideos=null; adminState.vidHistoryOpen=false; adminState.planCopyPickerOpen=false; adminState.tracHistoryOpen=false; adminState.tracEditOpen=false; hcTracDraft=null; adminState.driveDraft=null;
   renderModal();
   requestAnimationFrame(()=>{
     const modal=admScrollEl();
