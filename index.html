@@ -1269,6 +1269,7 @@ const HC_ICONS={
   grid:'<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
   users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
   clipboardList:'<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4M12 16h4M8 11h.01M8 16h.01"/>',
+  stack:'<path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
   template:'<rect x="3" y="3" width="18" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
   settings:'<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
   key:'<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/>',
@@ -2596,8 +2597,24 @@ function hcExDisplayHTML(wi,di,ei,ex){
     <textarea class="auth-inp" style="height:44px;padding:8px 12px;resize:vertical;margin-bottom:0;font-size:12px" placeholder="¿Cómo te sentiste, qué pesos usaste...?" onchange="hcSetExNote(${wi},${di},${ei},this.value)">${escH(ex.studentNotes||'')}</textarea>
   </div>`;
 }
+// Bloques del día (Movilidad, Principal...): tramos consecutivos de ejercicios con el mismo "block".
+function hcExBlock(ex){ return ((ex&&ex.block)||'').trim(); }
+function hcBlockRuns(list){
+  const runs=[];
+  list.forEach((ex,ei)=>{
+    const b=hcExBlock(ex);
+    if(!runs.length || runs[runs.length-1].block!==b) runs.push({ block:b, items:[] });
+    runs[runs.length-1].items.push({ ex, ei });
+  });
+  return runs;
+}
+// Lista de ejercicios con el título de sección arriba de cada bloque. Sin bloques, queda igual que siempre.
+function hcBlockGroupsHTML(list,exFn){
+  if(!list.some(ex=>hcExBlock(ex))) return list.map((ex,ei)=>exFn(ex,ei)).join('');
+  return hcBlockRuns(list).map((r,ri)=>`${r.block?`<div style="font-size:10px;font-weight:700;color:#FFEC03;letter-spacing:1.5px;text-transform:uppercase;margin:${ri===0?'2px':'16px'} 0 8px">${escH(r.block)}</div>`:(ri>0?'<div style="height:8px"></div>':'')}${r.items.map(it=>exFn(it.ex,it.ei)).join('')}`).join('');
+}
 function hcDayCardHTML(wi,di,day,weekId){
-  const exList = day.exercises.length ? day.exercises.map((ex,ei)=>hcExDisplayHTML(wi,di,ei,ex)).join('') : `<div style="font-size:11px;color:var(--text3);padding:4px 0 12px">Sin ejercicios cargados</div>`;
+  const exList = day.exercises.length ? hcBlockGroupsHTML(day.exercises,(ex,ei)=>hcExDisplayHTML(wi,di,ei,ex)) : `<div style="font-size:11px;color:var(--text3);padding:4px 0 12px">Sin ejercicios cargados</div>`;
   const dayId = day.id || ('w'+wi+'_d'+di);
   const status = hcDoneStatus(dayId);
   const statusBtns = day.exercises.length ? `<div style="display:flex;gap:8px;margin-bottom:16px">
@@ -2626,7 +2643,7 @@ function hcExReadOnlyHTML(ex){
   </div>`;
 }
 function hcDayCardReadOnlyHTML(day){
-  const exList = day.exercises.length ? day.exercises.map(ex=>hcExReadOnlyHTML(ex)).join('') : `<div style="font-size:11px;color:var(--text3);padding:4px 0 12px">Sin ejercicios cargados</div>`;
+  const exList = day.exercises.length ? hcBlockGroupsHTML(day.exercises,ex=>hcExReadOnlyHTML(ex)) : `<div style="font-size:11px;color:var(--text3);padding:4px 0 12px">Sin ejercicios cargados</div>`;
   return `<div style="margin-bottom:16px">
     <div style="font-family:var(--font-display);font-size:14px;font-weight:700;letter-spacing:1px;color:var(--orange);text-transform:uppercase;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">${escH(day.name)}</div>
     ${exList}
@@ -4840,7 +4857,7 @@ function renderAdminChat(){
 function hcNewDay(n){ return { id:'d_'+Date.now()+'_'+n, name:'Dia '+n, exercises:[] }; }
 function hcNewWeek(){ return { id:'w_'+Date.now()+'_'+Math.random().toString(36).slice(2,5), days:[hcNewDay(1)] }; }
 function hcNewSetRow(){ return { series:3, reps:'10', rpe:'' }; }
-function hcNewExercise(){ return { id:'ex_'+Date.now()+'_'+Math.random().toString(36).slice(2,5), name:'Nuevo ejercicio', rows:[hcNewSetRow()], notes:'', studentNotes:'' }; }
+function hcNewExercise(){ return { id:'ex_'+Date.now()+'_'+Math.random().toString(36).slice(2,5), name:'Nuevo ejercicio', rows:[hcNewSetRow()], notes:'', studentNotes:'', block:'' }; }
 // Convierte ejercicios guardados en el formato viejo (series/reps/rpe sueltos) al formato nuevo (rows[]), sin perder datos.
 function hcNormalizeEx(ex){
   if(!ex.rows){
@@ -4849,6 +4866,7 @@ function hcNormalizeEx(ex){
   }
   if(ex.studentNotes==null) ex.studentNotes='';
   if(ex.notes==null) ex.notes='';
+  if(ex.block==null) ex.block='';
   return ex;
 }
 function hcNormalizePlan(plan){
@@ -5034,7 +5052,12 @@ function hcMoveDay(wi,di,dir){
   renderModal();
 }
 function hcUpdateDayName(wi,di,val){ hcPlanEditing[wi].days[di].name=val; }
-function hcAddExercise(wi,di){ hcPlanEditing[wi].days[di].exercises.push(hcNewExercise()); renderModal(); }
+function hcAddExercise(wi,di){
+  const list=hcPlanEditing[wi].days[di].exercises;
+  const ex=hcNewExercise();
+  if(list.length) ex.block=list[list.length-1].block||'';
+  list.push(ex); renderModal();
+}
 function hcRemoveExercise(wi,di,ei){ hcPlanEditing[wi].days[di].exercises.splice(ei,1); renderModal(); }
 function hcMoveExercise(wi,di,ei,dir){
   const list=hcPlanEditing[wi].days[di].exercises;
@@ -5064,6 +5087,22 @@ function hcMoveExRow(wi,di,ei,ri,dir){
   renderModal();
 }
 
+// Al confirmar el bloque (salir del campo o elegir una sugerencia) se redibujan los encabezados de sección.
+// Se suelta el foco antes de redibujar: sacar un input con foco del DOM vuelve a disparar el change.
+let hcBlockRedrawing=false;
+function hcBlockInputChanged(el){
+  if(hcBlockRedrawing) return;
+  hcBlockRedrawing=true;
+  try{ el.blur(); renderModal(); } finally { hcBlockRedrawing=false; }
+}
+// Encabezado de sección del editor: aparece cada vez que cambia el bloque respecto del ejercicio anterior.
+function hcEditorBlockHeadHTML(wi,di,block){
+  if(!block) return `<div style="display:flex;align-items:center;gap:8px;margin:16px 0 8px;color:var(--text3);font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase">${hcIcon('stack',14)} Sin bloque</div>`;
+  return `<div style="display:flex;align-items:center;gap:8px;margin:16px 0 8px;padding-bottom:6px;border-bottom:1px solid rgba(255,236,3,0.35)">
+    <span style="display:flex;color:#FFEC03">${hcIcon('stack',15)}</span>
+    <span style="flex:1;min-width:0;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#FFEC03;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escH(block)}</span>
+  </div>`;
+}
 function renderHcExCard(wi,di,ei,ex){
   const rowsHTML=ex.rows.map((r,ri)=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
     <div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0">
@@ -5087,6 +5126,8 @@ function renderHcExCard(wi,di,ei,ex){
       </div>
     </div>
     <input class="adm-inp" style="margin-bottom:10px" value="${escH(ex.name)}" placeholder="Nombre del ejercicio" oninput="hcUpdateEx(${wi},${di},${ei},'name',this.value)">
+    <div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">Bloque (opcional)</div>
+    <input class="adm-inp" style="margin-bottom:10px" list="hc-blk-sugg" value="${escH(ex.block||'')}" placeholder="Ej: Movilidad, Principal, Vuelta a la calma" oninput="hcUpdateEx(${wi},${di},${ei},'block',this.value)" onchange="hcBlockInputChanged(this)">
     <div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">Series de este ejercicio</div>
     ${rowsHTML}
     <button class="adm-btn adm-btn-ghost" style="margin-bottom:12px" onclick="hcAddExRow(${wi},${di},${ei})">${IC.plus} Otra serie (ej: más pesado, menos reps)</button>
@@ -5291,7 +5332,13 @@ function hcPlanEditorCoreHTML(weekSummary){
   const day=week.days[di];
   const weekTabs=hcPlanEditing.map((w,i)=>`<div class="prog-week-tab ${wi===i?'active':''}" onclick="hcSetPlanWeek(${i})">S${i+1}</div>`).join('');
   const dayTabs=`<div id="hc-adm-daytabs" style="display:flex;gap:6px;overflow-x:auto;flex:1">${week.days.map((d,i)=>`<div class="admin-tab ${di===i?'active':''}" style="font-size:11px;padding:4px 10px;flex-shrink:0" onclick="hcSetPlanDay(${i})">${escH(d.name)}</div>`).join('')}</div>`;
-  const exercisesHTML=day.exercises.map((ex,ei)=>renderHcExCard(wi,di,ei,ex)).join('');
+  const exercisesHTML=day.exercises.map((ex,ei)=>{
+    const b=hcExBlock(ex);
+    const showHead = ei===0 ? !!b : b!==hcExBlock(day.exercises[ei-1]);
+    return (showHead?hcEditorBlockHeadHTML(wi,di,b):'')+renderHcExCard(wi,di,ei,ex);
+  }).join('');
+  const blkSugg=['Movilidad','Principal','Vuelta a la calma'];
+  day.exercises.forEach(ex=>{ const b=hcExBlock(ex); if(b && !blkSugg.some(x=>x.toLowerCase()===b.toLowerCase())) blkSugg.push(b); });
   return `<div class="admin-section-title" style="margin-bottom:8px">SEMANAS</div>
     <div class="prog-week-tabs" style="margin-bottom:10px;display:flex;flex-wrap:wrap;gap:6px">${weekTabs}<button class="adm-btn adm-btn-ghost" style="padding:4px 10px" onclick="hcAddWeek()">${IC.plus}</button></div>
     ${weekSummary||''}
@@ -5304,6 +5351,7 @@ function hcPlanEditorCoreHTML(weekSummary){
     <div style="display:flex;gap:6px;margin-bottom:12px;align-items:center">${dayTabs}${week.days.length>1?`<button class="adm-btn adm-btn-ghost" style="flex-shrink:0;padding:6px 8px" title="Mover día antes" ${di===0?'disabled':''} onclick="hcMoveDay(${wi},${di},-1)"><span style="display:inline-block;transform:rotate(180deg)">${IC.chevron}</span></button><button class="adm-btn adm-btn-ghost" style="flex-shrink:0;padding:6px 8px" title="Mover día después" ${di===week.days.length-1?'disabled':''} onclick="hcMoveDay(${wi},${di},1)">${IC.chevron}</button>`:''}<button class="adm-btn adm-btn-ghost" style="flex-shrink:0;padding:4px 10px" onclick="hcAddDay(${wi})">${IC.plus} Día</button></div>
     <input class="adm-inp" value="${escH(day.name)}" oninput="hcUpdateDayName(${wi},${di},this.value)" style="margin-bottom:12px">
 
+    <datalist id="hc-blk-sugg">${blkSugg.map(b=>`<option value="${escH(b)}"></option>`).join('')}</datalist>
     ${exercisesHTML}
     <button class="adm-btn adm-btn-blue" onclick="hcAddExercise(${wi},${di})" style="width:100%;justify-content:center;margin-bottom:10px">${IC.plus} Ejercicio</button>
     ${week.days.length>1?`<button class="adm-btn adm-btn-ghost" onclick="hcRemoveDay(${wi},${di})" style="width:100%;justify-content:center;margin-bottom:16px">Eliminar día</button>`:''}`;
