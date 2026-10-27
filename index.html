@@ -537,6 +537,8 @@ const K = {
   HC_TRAC: (uid) => `hc_trac_${uid}_v1`,  // personal: [{id,ts,date,type:'semanal'|'bloque',soreness:{legs,push,pull},sistemic:{sleep,recovery,motivation},comments}] — cuestionarios TRAC
   HC_ADM_REVIEWED: 'hc_admin_reviewed_v1',  // shared: {trac:{[entryId]:ts}, sessions:{[uid+'_'+dayId]:ts}} — lo que el admin ya marcó como revisado en el Centro de Control
   HC_DRIVE_LINKS: 'hc_drive_links_v1',  // shared: {[uid]: url} — link de la carpeta de Google Drive de cada alumno (canal de videos)
+  HC_VIDEO_CATALOG: 'hc_video_catalog_v1',  // shared: {groups:[{id,name,movements:[{id,name,instruction}]}], updatedAt} — movimientos que el admin puede pedir en video
+  HC_VIDEOS: (uid) => `hc_videos_${uid}_v1`,  // personal: [{id,group,movement,instruction,dueDate,createdAt,status:'pending'|'sent'|'reviewed',sentAt,feedback,reviewedAt}] — pedidos de video (sin links: los videos van a la carpeta de Drive)
 };
 const DEFAULT_ADMIN_PW = 'fusion2025';
 const DEFAULT_ADMIN_PW_HYBRID = 'hybrid2025';
@@ -3600,7 +3602,7 @@ function goBackToUserList(){
 // ============================================================
 // ADMIN HYBRID CLUB — pestañas, datos de atletas y Centro de Control
 // ============================================================
-let hcAthleteData=null;   // {[uid]:{plan,done,trac,chat,goal,blockName}} — cache del admin, se refresca al cambiar de pestaña
+let hcAthleteData=null;   // {[uid]:{plan,done,trac,chat,goal,blockName,videos}} — cache del admin, se refresca al cambiar de pestaña
 let hcAthleteLoading=false;
 let hcAdmReviewed=null;   // {trac:{},sessions:{}} — ver K.HC_ADM_REVIEWED
 
@@ -3671,7 +3673,261 @@ function hcPlanDriveHTML(uid){
   </div>`;
 }
 
-// Lee en paralelo plan, sesiones marcadas, TRAC, chat, objetivo y bloque de cada atleta.
+// ---- Pedidos de video ----
+// La app no guarda videos ni links de videos: solo el pedido, el aviso de "enviado" y la devolución.
+const HC_VID_DEFAULT_SHOT='Vista lateral, cuerpo completo.';
+function hcVidFileHint(name){ return 'Nombrá el archivo: '+(name||'').trim()+'.'; }
+function hcVideoCatalogDefault(){
+  const m=(id,name,txt)=>({ id, name, instruction:txt+' '+hcVidFileHint(name) });
+  return { groups:[
+    { id:'g_fuerza', name:'Fuerza', movements:[
+      m('m_sentadilla','Sentadilla','Vista lateral, cuerpo completo, cámara a la altura de la cadera. Una serie liviana y una con la carga de trabajo.'),
+      m('m_pesomuerto','Peso muerto','Vista lateral, cuerpo completo y la barra siempre a la vista. Una serie liviana y una con la carga de trabajo.'),
+      m('m_press','Press','Vista lateral (y si podés, otra de frente), cuerpo completo. Una serie liviana y una con la carga de trabajo.'),
+      m('m_dominadas','Dominadas','Vista de frente o de espalda, cuerpo completo desde brazos extendidos. Una serie completa.')
+    ]},
+    { id:'g_hyrox', name:'Estaciones HYROX', movements:[
+      m('m_skierg','SkiErg','Vista lateral, cuerpo completo y la máquina entera en cuadro. 20 a 30 segundos a ritmo de carrera.'),
+      m('m_sledpush','Sled push','Vista lateral, cuerpo completo. Una pasada liviana y una con la carga de trabajo.'),
+      m('m_sledpull','Sled pull','Vista lateral, cuerpo completo y la soga a la vista. Un tramo completo con la carga de trabajo.'),
+      m('m_bbj','Burpee broad jumps','Vista lateral, cuerpo completo. 5 repeticiones seguidas a ritmo de carrera.'),
+      m('m_remo','Remo','Vista lateral, cuerpo completo y la máquina entera en cuadro. 20 a 30 segundos a ritmo de carrera.'),
+      m('m_farmers','Farmers carry','Vista de frente o lateral, cuerpo completo. Un tramo de 20 a 25 m con la carga de trabajo.'),
+      m('m_lunges','Sandbag lunges','Vista lateral, cuerpo completo. 6 a 8 pasos con la bolsa a ritmo de carrera.'),
+      m('m_wallballs','Wall balls','Vista lateral, cuerpo completo y el objetivo a la vista. 10 repeticiones seguidas.')
+    ]},
+    { id:'g_carrera', name:'Carrera', movements:[
+      m('m_tecnica','Tecnica de carrera','Vista lateral, cuerpo completo. 10 a 15 segundos a ritmo cómodo y otros 10 a 15 a ritmo de carrera.')
+    ]}
+  ]};
+}
+let hcVideoCatalog=null;   // ver K.HC_VIDEO_CATALOG
+async function hcLoadVideoCatalog(){
+  const remote=await sharedGet(K.HC_VIDEO_CATALOG);
+  hcVideoCatalog=(remote&&Array.isArray(remote.groups))?remote:hcVideoCatalogDefault();
+  return hcVideoCatalog;
+}
+function hcVidCatalog(){ return hcVideoCatalog||hcVideoCatalogDefault(); }
+function hcVidNewId(p){ return (p||'v_')+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+// Busca un movimiento del catálogo por nombre (sin distinguir mayúsculas ni tildes)
+function hcVidNorm(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); }
+function hcVidFindMovement(name){
+  const n=hcVidNorm(name);
+  for(const g of hcVidCatalog().groups) for(const m of g.movements) if(hcVidNorm(m.name)===n) return { g, m };
+  return null;
+}
+// Lee la lista fresca del alumno, aplica el cambio y la guarda (alumno y admin escriben la misma key).
+// Si la lectura falla y hay una copia local, se usa esa para no pisar pedidos existentes.
+async function hcVideosMutate(uid,fn,localCopy){
+  const remote=await personalGet(K.HC_VIDEOS(uid));
+  const list=Array.isArray(remote)?remote:(localCopy?JSON.parse(JSON.stringify(localCopy)):[]);
+  if(fn(list)===false) return null;
+  const ok=await personalSet(K.HC_VIDEOS(uid),list);
+  if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+  return list;
+}
+// Actualiza las copias del admin (Centro de Control y editor del plan) después de escribir
+function hcVidSetAdminCache(uid,list){
+  if(hcAthleteData && hcAthleteData[uid]) hcAthleteData[uid].videos=list;
+  if(adminState.viewPlanUid===uid) hcPlanVideos=list;
+}
+function hcVidAdminList(uid){
+  if(adminState.viewPlanUid===uid && hcPlanVideos) return hcPlanVideos;
+  return (hcAthleteData && hcAthleteData[uid] && hcAthleteData[uid].videos)||null;
+}
+function hcFmtShortDate(ts){ return ts?new Date(ts).toLocaleDateString('es-AR',{day:'2-digit',month:'short'}):''; }
+function hcFmtDueDate(d){ return d?new Date(d+'T00:00:00').toLocaleDateString('es-AR',{weekday:'short',day:'2-digit',month:'short'}):''; }
+
+// ── Formulario "Pedir video" (admin) — hoja que se abre arriba del panel ──
+let hcVidReq=null;   // {uid, lockUid, group, movement, instruction, dueDate, sending}
+async function hcOpenVidReq(uid,movementName){
+  if(!hcVideoCatalog) await hcLoadVideoCatalog();
+  hcVidReq={ uid:uid||'', lockUid:!!uid, group:'', movement:'', instruction:'', dueDate:'', sending:false };
+  if(movementName){
+    const f=hcVidFindMovement(movementName);
+    hcVidReq.movement=f?f.m.name:movementName.trim();
+    hcVidReq.group=f?f.g.name:'Plan';
+    hcVidReq.instruction=f?f.m.instruction:HC_VID_DEFAULT_SHOT+' '+hcVidFileHint(movementName);
+  }
+  hcRenderVidSheet();
+}
+function hcOpenVidReqFromEx(wi,di,ei){
+  const ex=hcPlanEditing && hcPlanEditing[wi] && hcPlanEditing[wi].days[di].exercises[ei];
+  hcOpenVidReq(adminState.viewPlanUid, ex?ex.name:'');
+}
+function hcCloseVidReq(){ hcVidReq=null; hcRenderVidSheet(); }
+function hcVidReqSet(field,val){ if(hcVidReq) hcVidReq[field]=val; }
+function hcVidReqPick(gi,mi){
+  const g=hcVidCatalog().groups[gi], m=g&&g.movements[mi];
+  if(!m) return;
+  hcVidReq.group=g.name; hcVidReq.movement=m.name; hcVidReq.instruction=m.instruction||'';
+  hcRenderVidSheet();
+}
+async function hcVidReqSend(){
+  const r=hcVidReq; if(!r||r.sending) return;
+  if(!r.uid){ alert('Elegí el alumno.'); return; }
+  if(!r.movement.trim()){ alert('Elegí o escribí el movimiento.'); return; }
+  const item={ id:hcVidNewId(), group:r.group||'', movement:r.movement.trim(), instruction:(r.instruction||'').trim(), dueDate:r.dueDate||'', createdAt:Date.now(), status:'pending', sentAt:null, feedback:'', reviewedAt:null };
+  r.sending=true; hcRenderVidSheet();
+  try{
+    const list=await hcVideosMutate(r.uid, l=>{ l.push(item); }, hcVidAdminList(r.uid));
+    hcVidSetAdminCache(r.uid,list);
+    hcVidReq=null; hcRenderVidSheet();
+    renderModal();
+    showToast('Pedido de video enviado');
+  }catch(e){ r.sending=false; hcRenderVidSheet(); alert('No se pudo enviar el pedido: '+e.message); }
+}
+function hcRenderVidSheet(){
+  let root=document.getElementById('hc-vreq-root');
+  if(!hcVidReq){ if(root) root.remove(); return; }
+  if(!root){ root=document.createElement('div'); root.id='hc-vreq-root'; document.body.appendChild(root); }
+  const old=root.querySelector('.summary-sheet'); const keep=old?old.scrollTop:0;
+  root.innerHTML=renderHcVidReqSheet();
+  const nw=root.querySelector('.summary-sheet'); if(nw) nw.scrollTop=keep;
+}
+function renderHcVidReqSheet(){
+  const r=hcVidReq; if(!r) return '';
+  const u=r.uid?getUserById(r.uid):null;
+  const studentSel = r.lockUid
+    ? `<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <div class="user-row-avatar" style="width:32px;height:32px;font-size:12px">${hcInitials(u?u.name:'')}</div>
+        <div class="user-row-name">${escH(u?u.name:'')}</div>
+      </div>`
+    : `<div class="ath-label">Alumno</div>
+      <select class="adm-inp" style="margin-bottom:14px" onchange="hcVidReqSet('uid',this.value)">
+        <option value="">Elegí un alumno...</option>
+        ${hcAdmStudents(false).map(s=>`<option value="${s.id}" ${r.uid===s.id?'selected':''}>${escH(s.name)}</option>`).join('')}
+      </select>`;
+  const chips=hcVidCatalog().groups.map((g,gi)=>`<div style="margin-bottom:10px">
+      <div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">${escH(g.name)}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${g.movements.map((m,mi)=>`<button class="cc-chip ${r.movement===m.name&&r.group===g.name?'active':''}" onclick="hcVidReqPick(${gi},${mi})">${escH(m.name)}</button>`).join('')}</div>
+    </div>`).join('');
+  return `<div class="summary-overlay" onclick="hcCloseVidReq()"><div class="summary-sheet" onclick="event.stopPropagation()" style="padding:0 0 24px">
+    <div class="summary-handle"></div>
+    <div style="padding:16px 20px 0">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="cc-head-ic" style="background:rgba(255,122,107,0.14)">${hcIcon('video',18,'#ff7a6b')}</div>
+          <div class="cc-title">Pedir video</div>
+        </div>
+        <button class="modal-close" onclick="hcCloseVidReq()">✕</button>
+      </div>
+      ${studentSel}
+      <div class="ath-label">Movimiento</div>
+      ${chips}
+      <input class="adm-inp" style="margin:4px 0 14px" value="${escH(r.movement)}" placeholder="O escribí otro movimiento..." oninput="hcVidReqSet('movement',this.value)">
+      <div class="ath-label">Consigna para el alumno</div>
+      <textarea class="auth-inp" style="height:96px;padding:10px 14px;resize:vertical;margin-bottom:14px" placeholder="Ej: vista lateral, cuerpo completo... Nombrá el archivo: Sled push." oninput="hcVidReqSet('instruction',this.value)">${escH(r.instruction)}</textarea>
+      <div class="ath-label">Fecha limite (opcional)</div>
+      <input class="adm-inp" type="date" style="margin-bottom:16px" value="${escH(r.dueDate)}" oninput="hcVidReqSet('dueDate',this.value)">
+      <div style="font-size:11px;color:var(--text3);line-height:1.5;margin-bottom:12px">El alumno sube el video a su carpeta de Drive y toca "Marcar como enviado". Te aparece en el Centro de Control, en "Videos por Revisar".</div>
+      <button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;padding:12px" ${r.sending?'disabled':''} onclick="hcVidReqSend()">${hcIcon('send',15)} ${r.sending?'Enviando...':'Enviar pedido'}</button>
+    </div>
+  </div></div>`;
+}
+
+// ── Editor del catálogo de movimientos (mismo patrón que el editor de preguntas TRAC) ──
+let hcVidCatDraft=null;
+async function hcOpenVidCatEditor(){
+  await hcLoadVideoCatalog();
+  hcVidCatDraft=JSON.parse(JSON.stringify(hcVidCatalog()));
+  adminState.vidCatEditOpen=true;
+  renderModal();
+}
+function hcCancelVidCatEditor(){ adminState.vidCatEditOpen=false; hcVidCatDraft=null; renderModal(); }
+function hcVidCatEdGroup(gi,val){ hcVidCatDraft.groups[gi].name=val; }
+function hcVidCatEdMov(gi,mi,field,val){ hcVidCatDraft.groups[gi].movements[mi][field]=val; }
+function hcVidCatAddMov(gi){ hcVidCatDraft.groups[gi].movements.push({ id:hcVidNewId('m_'), name:'Nuevo movimiento', instruction:HC_VID_DEFAULT_SHOT }); renderModal(); }
+function hcVidCatDelMov(gi,mi){
+  if(!confirm('¿Eliminar este movimiento del catálogo? Los pedidos ya hechos no cambian.')) return;
+  hcVidCatDraft.groups[gi].movements.splice(mi,1); renderModal();
+}
+function hcVidCatMoveMov(gi,mi,dir){
+  const ms=hcVidCatDraft.groups[gi].movements, j=mi+dir;
+  if(j<0||j>=ms.length) return;
+  [ms[mi],ms[j]]=[ms[j],ms[mi]]; renderModal();
+}
+function hcVidCatAddGroup(){ hcVidCatDraft.groups.push({ id:hcVidNewId('g_'), name:'Nuevo grupo', movements:[{ id:hcVidNewId('m_'), name:'Nuevo movimiento', instruction:HC_VID_DEFAULT_SHOT }] }); renderModal(); }
+function hcVidCatDelGroup(gi){
+  if(!confirm('¿Eliminar este grupo con todos sus movimientos? Los pedidos ya hechos no cambian.')) return;
+  hcVidCatDraft.groups.splice(gi,1); renderModal();
+}
+function hcVidCatMoveGroup(gi,dir){
+  const gs=hcVidCatDraft.groups, j=gi+dir;
+  if(j<0||j>=gs.length) return;
+  [gs[gi],gs[j]]=[gs[j],gs[gi]]; renderModal();
+}
+async function hcSaveVidCatEditor(){
+  const cat=hcVidCatDraft;
+  cat.groups.forEach(g=>{
+    g.name=(g.name||'').trim()||'Grupo';
+    g.movements=g.movements.filter(m=>(m.name||'').trim());
+    g.movements.forEach(m=>{
+      m.name=m.name.trim();
+      m.instruction=(m.instruction||'').trim();
+      // Toda consigna termina pidiendo el nombre del archivo
+      if(!/nombr[aá] el archivo/i.test(m.instruction)) m.instruction=(m.instruction?m.instruction+' ':'')+hcVidFileHint(m.name);
+    });
+  });
+  cat.groups=cat.groups.filter(g=>g.movements.length);
+  if(!cat.groups.length){ alert('El catálogo necesita al menos un movimiento.'); return; }
+  try{
+    // Releer antes de escribir: si otro admin lo cambió mientras editabas, avisar
+    const remote=await sharedGet(K.HC_VIDEO_CATALOG);
+    const base=hcVideoCatalog&&hcVideoCatalog.updatedAt||0;
+    if(remote && (remote.updatedAt||0)>base && !confirm('El catálogo se modificó desde otro dispositivo mientras lo editabas. ¿Guardar igual y reemplazarlo con tu versión?')) return;
+    cat.updatedAt=Date.now();
+    const ok=await sharedSet(K.HC_VIDEO_CATALOG,cat);
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+    hcVideoCatalog=cat;
+    adminState.vidCatEditOpen=false; hcVidCatDraft=null;
+    renderModal();
+    showToast('Catálogo de movimientos guardado');
+  }catch(e){ alert('No se pudo guardar el catálogo: '+e.message); }
+}
+function renderHcVidCatEditor(){
+  const d=hcVidCatDraft; if(!d) return '';
+  const groups=d.groups.map((g,gi)=>`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px">
+    <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center">
+      <input class="adm-inp" style="margin:0;flex:1;font-weight:600" value="${escH(g.name)}" placeholder="Nombre del grupo" oninput="hcVidCatEdGroup(${gi},this.value)">
+      <button class="adm-btn adm-btn-ghost" style="padding:4px 8px;flex-shrink:0" onclick="hcVidCatMoveGroup(${gi},-1)">▲</button>
+      <button class="adm-btn adm-btn-ghost" style="padding:4px 8px;flex-shrink:0" onclick="hcVidCatMoveGroup(${gi},1)">▼</button>
+      <button class="adm-btn adm-btn-red" style="padding:6px 8px;flex-shrink:0" title="Eliminar grupo" onclick="hcVidCatDelGroup(${gi})">${IC.trash}</button>
+    </div>
+    ${g.movements.map((m,mi)=>`<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px">
+      <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+        <input class="adm-inp" style="margin:0;flex:1" value="${escH(m.name)}" placeholder="Movimiento" oninput="hcVidCatEdMov(${gi},${mi},'name',this.value)">
+        <button class="adm-btn adm-btn-ghost" style="padding:4px 8px;flex-shrink:0" onclick="hcVidCatMoveMov(${gi},${mi},-1)">▲</button>
+        <button class="adm-btn adm-btn-ghost" style="padding:4px 8px;flex-shrink:0" onclick="hcVidCatMoveMov(${gi},${mi},1)">▼</button>
+        <button class="adm-btn adm-btn-red" style="padding:4px 8px;flex-shrink:0" onclick="hcVidCatDelMov(${gi},${mi})">${IC.trash}</button>
+      </div>
+      <textarea class="auth-inp" style="height:70px;padding:8px 12px;resize:vertical;margin:0;font-size:12px" placeholder="Consigna por defecto" oninput="hcVidCatEdMov(${gi},${mi},'instruction',this.value)">${escH(m.instruction||'')}</textarea>
+    </div>`).join('')}
+    <button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center" onclick="hcVidCatAddMov(${gi})">${IC.plus} Movimiento</button>
+  </div>`).join('');
+  return `<div style="border:1px dashed var(--border2);border-radius:var(--radius-sm);padding:12px;margin-bottom:16px">
+    <div class="admin-section-title" style="margin-bottom:4px">CATALOGO DE MOVIMIENTOS</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:12px;line-height:1.4">Son las opciones que aparecen al pedir un video. Si una consigna no termina pidiendo el nombre del archivo, se agrega sola al guardar. Los pedidos ya hechos no cambian.</div>
+    ${groups}
+    <button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;margin-bottom:12px" onclick="hcVidCatAddGroup()">${IC.plus} Grupo</button>
+    <div style="display:flex;gap:8px">
+      <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;padding:10px" onclick="hcCancelVidCatEditor()">Cancelar</button>
+      <button class="adm-btn adm-btn-orange" style="flex:1;justify-content:center;padding:10px" onclick="hcSaveVidCatEditor()">${hcIcon('save',15)} Guardar catalogo</button>
+    </div>
+  </div>`;
+}
+
+// Sección de videos del editor del plan del alumno
+let hcPlanVideos=null;      // pedidos de video del alumno abierto en el editor (ver K.HC_VIDEOS)
+function hcVidActionsHTML(uid){
+  return `<div style="display:flex;gap:8px;margin-bottom:${adminState.vidCatEditOpen?'12px':'16px'}">
+    <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;gap:8px" onclick="hcOpenVidReq(${uid?`'${uid}'`:''})">${hcIcon('video',15,'#ff7a6b')} Pedir video</button>
+    <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;gap:8px" onclick="${adminState.vidCatEditOpen?'hcCancelVidCatEditor()':'hcOpenVidCatEditor()'}">${hcIcon('pencil',14)} ${adminState.vidCatEditOpen?'Cerrar catalogo':'Catalogo'}</button>
+  </div>${adminState.vidCatEditOpen?renderHcVidCatEditor():''}`;
+}
+function hcPlanVideosHTML(uid){ return hcVidActionsHTML(uid); }
+
+// Lee en paralelo plan, sesiones marcadas, TRAC, chat, objetivo, bloque y pedidos de video de cada atleta.
 async function hcLoadAthleteData(force){
   if(hcAthleteLoading || (hcAthleteData && !force)) return;
   hcAthleteLoading=true;
@@ -3680,11 +3936,12 @@ async function hcLoadAthleteData(force){
     if(!hcCalls) await loadHcCalls();
     const data={};
     await Promise.all(hcAdmStudents(true).map(async u=>{
-      const [plan,done,trac,chat,goal,blockName]=await Promise.all([
+      const [plan,done,trac,chat,goal,blockName,videos]=await Promise.all([
         personalGet(K.HC_PLAN(u.id)), personalGet(K.HC_DONE(u.id)), personalGet(K.HC_TRAC(u.id)),
-        personalGet(K.HC_CHAT(u.id)), personalGet(K.HC_GOAL(u.id)), personalGet(K.HC_BLOCK_NAME(u.id))
+        personalGet(K.HC_CHAT(u.id)), personalGet(K.HC_GOAL(u.id)), personalGet(K.HC_BLOCK_NAME(u.id)),
+        personalGet(K.HC_VIDEOS(u.id))
       ]);
-      data[u.id]={ plan:hcNormalizePlan(plan||[]), done:done||{}, trac:trac||[], chat:chat||[], goal:hcNormalizeGoal(goal), blockName:blockName||'' };
+      data[u.id]={ plan:hcNormalizePlan(plan||[]), done:done||{}, trac:trac||[], chat:chat||[], goal:hcNormalizeGoal(goal), blockName:blockName||'', videos:Array.isArray(videos)?videos:[] };
     }));
     const [rev]=await Promise.all([ sharedGet(K.HC_ADM_REVIEWED), hcLoadDriveLinks() ]);
     hcAdmReviewed={ trac:(rev&&rev.trac)||{}, sessions:(rev&&rev.sessions)||{} };
@@ -4272,13 +4529,14 @@ async function viewUserPlan(uid){
   hcPlanArchived = await personalGet(K.HC_BLOCKS(uid)) || [];
   hcPlanDone = await personalGet(K.HC_DONE(uid)) || {};
   hcPlanTrac = await personalGet(K.HC_TRAC(uid)) || [];
+  hcPlanVideos = await personalGet(K.HC_VIDEOS(uid)) || [];
   adminState.driveDraft=null;
   if(!hcDriveLinks) await hcLoadDriveLinks();
   renderModal();
 }
 function goBackFromPlan(){
   adminState.viewPlanUid=null;
-  hcPlanEditing=null; hcPlanArchived=null; hcPlanDone=null; hcPlanTrac=null; adminState.planCopyPickerOpen=false; adminState.tracHistoryOpen=false; adminState.tracEditOpen=false; hcTracDraft=null; adminState.driveDraft=null;
+  hcPlanEditing=null; hcPlanArchived=null; hcPlanDone=null; hcPlanTrac=null; hcPlanVideos=null; adminState.planCopyPickerOpen=false; adminState.tracHistoryOpen=false; adminState.tracEditOpen=false; hcTracDraft=null; adminState.driveDraft=null;
   renderModal();
   requestAnimationFrame(()=>{
     const modal=admScrollEl();
@@ -4463,6 +4721,7 @@ function renderHcExCard(wi,di,ei,ex){
     <div class="ex-edit-card-header">
       <span class="ex-edit-title">EJERCICIO ${ei+1}</span>
       <div style="display:flex;gap:4px">
+        ${adminState.viewPlanUid?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px;gap:4px;font-size:11px" title="Pedir video de este ejercicio" onclick="hcOpenVidReqFromEx(${wi},${di},${ei})">${hcIcon('video',13,'#ff7a6b')} Pedir video</button>`:''}
         <button class="adm-btn adm-btn-ghost" style="padding:6px 8px" title="Subir" ${ei===0?'disabled':''} onclick="hcMoveExercise(${wi},${di},${ei},-1)"><span style="display:inline-block;transform:rotate(-90deg)">${IC.chevron}</span></button>
         <button class="adm-btn adm-btn-ghost" style="padding:6px 8px" title="Bajar" ${ei===total-1?'disabled':''} onclick="hcMoveExercise(${wi},${di},${ei},1)"><span style="display:inline-block;transform:rotate(90deg)">${IC.chevron}</span></button>
         <button class="adm-btn adm-btn-red" onclick="hcRemoveExercise(${wi},${di},${ei})">${IC.trash}</button>
@@ -4734,6 +4993,7 @@ function renderAdminPlan(){
       <div><div style="font-family:var(--font-display);font-size:16px;font-weight:700">${escH(u.name)}</div></div>
     </div>
     <div style="padding:0 2px 14px">${hcPlanDriveHTML(u.id)}</div>
+    ${hcPlanVideosHTML(u.id)}
 
     ${tracHistoryHTML}
 
