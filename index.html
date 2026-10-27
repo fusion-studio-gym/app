@@ -2639,7 +2639,7 @@ function hcBlockRuns(list){
 // Lista de ejercicios con el título de sección arriba de cada bloque. Sin bloques, queda igual que siempre.
 function hcBlockGroupsHTML(list,exFn){
   if(!list.some(ex=>hcExBlock(ex))) return list.map((ex,ei)=>exFn(ex,ei)).join('');
-  return hcBlockRuns(list).map((r,ri)=>`${r.block?`<div style="font-size:10px;font-weight:700;color:#FFEC03;letter-spacing:1.5px;text-transform:uppercase;margin:${ri===0?'2px':'16px'} 0 8px">${escH(r.block)}</div>`:(ri>0?'<div style="height:8px"></div>':'')}${r.items.map(it=>exFn(it.ex,it.ei)).join('')}`).join('');
+  return hcBlockRuns(list).map((r,ri)=>`${r.block?`<div style="font-size:10px;font-weight:700;color:#FFEC03;letter-spacing:1.5px;text-transform:uppercase;margin:${ri===0?'2px':'16px'} 0 8px">${escH(r.block)}</div>`:(ri>0?'<div style="border-top:1px solid var(--border);margin:16px 0 10px"></div>':'')}${r.items.map(it=>exFn(it.ex,it.ei)).join('')}`).join('');
 }
 function hcDayCardHTML(wi,di,day,weekId){
   const exList = day.exercises.length ? hcBlockGroupsHTML(day.exercises,(ex,ei)=>hcExDisplayHTML(wi,di,ei,ex)) : `<div style="font-size:11px;color:var(--text3);padding:4px 0 12px">Sin ejercicios cargados</div>`;
