@@ -231,6 +231,8 @@ body{max-width:480px;margin:0 auto;}
 .race-chip b{color:var(--orange2);font-weight:700;}
 .ic-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;flex-shrink:0;}
 .ic-btn .dot{position:absolute;top:3px;right:3px;width:7px;height:7px;border-radius:50%;background:var(--red);}
+.ic-btn .cnt{position:absolute;top:-6px;right:-6px;min-width:15px;height:15px;border-radius:8px;background:var(--red);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;}
+a.ic-btn{text-decoration:none;}
 /* ADMIN — vista de escritorio (se activa sola en pantallas anchas) */
 .adm-desk-only{display:none;}
 @media(min-width:1024px){
@@ -534,6 +536,7 @@ const K = {
   HC_TRAC_QS: 'hc_trac_questions_v1',  // shared: {blocks:[{id,title,hint,bad,questions:[{id,type:'scale'|'text',title,desc}]}]} — preguntas editables del TRAC
   HC_TRAC: (uid) => `hc_trac_${uid}_v1`,  // personal: [{id,ts,date,type:'semanal'|'bloque',soreness:{legs,push,pull},sistemic:{sleep,recovery,motivation},comments}] — cuestionarios TRAC
   HC_ADM_REVIEWED: 'hc_admin_reviewed_v1',  // shared: {trac:{[entryId]:ts}, sessions:{[uid+'_'+dayId]:ts}} — lo que el admin ya marcó como revisado en el Centro de Control
+  HC_DRIVE_LINKS: 'hc_drive_links_v1',  // shared: {[uid]: url} — link de la carpeta de Google Drive de cada alumno (canal de videos)
 };
 const DEFAULT_ADMIN_PW = 'fusion2025';
 const DEFAULT_ADMIN_PW_HYBRID = 'hybrid2025';
@@ -1291,8 +1294,15 @@ const HC_ICONS={
   target:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
   bookOpen:'<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
   trendingUp:'<path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/>',
-  list:'<path d="M3 6h.01M3 12h.01M3 18h.01M8 6h13M8 12h13M8 18h13"/>'
+  list:'<path d="M3 6h.01M3 12h.01M3 18h.01M8 6h13M8 12h13M8 18h13"/>',
+  video:'<path d="m16 13 5.22 3.48a.5.5 0 0 0 .78-.42V7.87a.5.5 0 0 0-.75-.43L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/>',
+  drive:'<path d="M7.7 3h8.6L22 13.5 17.7 21H6.3L2 13.5z"/><path d="M7.7 3l5.8 10.5H22M6.3 21 12 10.5"/>'
 };
+// Logo de Google Drive a color (SVG inline, sin dependencias) para los accesos a la carpeta de videos.
+function hcDriveLogo(size){
+  size=size||15;
+  return `<svg width="${size}" height="${Math.round(size*0.9)}" viewBox="0 0 87.3 78" style="flex-shrink:0"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0-1.2 4.5h27.5z" fill="#00ac47"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg>`;
+}
 // Íconos que quedaron guardados como emoji dentro del plan de Fuerza (campo "icon" de días y bloques).
 // No se tocan los datos: solo se dibujan como ícono de línea al mostrarlos.
 const EMOJI_ICON_MAP={'🏋️':'dumbbell','🏋':'dumbbell','💪':'dumbbell','🦵':'footprints','⚡':'zap','🔥':'flame','📌':'mapPin','📅':'calendar'};
@@ -3601,6 +3611,66 @@ function hcAdmStudents(includeBlocked){
 }
 function hcInitials(name){ return (name||'').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(); }
 
+// ---- Carpetas de Google Drive (canal de videos de cada alumno) ----
+// La app solo guarda el link de la carpeta; los videos viven en Drive.
+let hcDriveLinks=null;    // {[uid]: url} — ver K.HC_DRIVE_LINKS
+async function hcLoadDriveLinks(){ hcDriveLinks=await sharedGet(K.HC_DRIVE_LINKS)||{}; return hcDriveLinks; }
+function hcDriveLink(uid){ return (hcDriveLinks&&hcDriveLinks[uid])||''; }
+function hcValidDriveUrl(url){ return /^https?:\/\/\S+$/i.test((url||'').trim()); }
+async function hcSaveDriveLink(uid,url){
+  url=(url||'').trim();
+  if(url && !hcValidDriveUrl(url)){ alert('El link tiene que empezar con http:// o https://'); return false; }
+  try{
+    // Releer antes de escribir para no pisar el link de otro alumno cargado desde otro dispositivo
+    const remote=await sharedGet(K.HC_DRIVE_LINKS)||{};
+    if(url) remote[uid]=url; else delete remote[uid];
+    hcDriveLinks=remote;
+    const ok=await sharedSet(K.HC_DRIVE_LINKS,remote);
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+    showToast(url?'Carpeta de Drive guardada':'Carpeta de Drive quitada');
+    return true;
+  }catch(e){ alert('No se pudo guardar: '+e.message); return false; }
+}
+// Botón de Drive de las cards de Planificaciones: abre la carpeta, o pide el link si todavía no hay.
+async function hcPromptDriveLink(uid){
+  const u=getUserById(uid);
+  const url=prompt('Pegá el link de la carpeta de Google Drive de '+(u?u.name:'este alumno')+':','https://drive.google.com/');
+  if(url===null) return;
+  if(!url.trim() || url.trim()==='https://drive.google.com/') return;
+  if(await hcSaveDriveLink(uid,url)) renderModal();
+}
+function hcDriveBtnHTML(uid,count){
+  const url=hcDriveLink(uid);
+  const badge=count?`<span class="cnt">${count>9?'9+':count}</span>`:'';
+  return url
+    ? `<a class="ic-btn" href="${escH(url)}" target="_blank" rel="noopener" title="Abrir carpeta de Drive${count?` · ${count} video${count===1?'':'s'} por revisar`:''}">${hcDriveLogo(15)}${badge}</a>`
+    : `<button class="ic-btn" title="Cargar carpeta de Drive" onclick="hcPromptDriveLink('${uid}')">${hcDriveLogo(15)}${badge}</button>`;
+}
+// Campo "Carpeta de Drive" del encabezado del editor del plan
+function hcPlanDriveInput(val){ adminState.driveDraft=val; }
+async function hcPlanDriveSave(){
+  const uid=adminState.viewPlanUid; if(!uid) return;
+  if(await hcSaveDriveLink(uid,adminState.driveDraft)){ adminState.driveDraft=null; renderModal(); }
+}
+async function hcPlanDriveRemove(){
+  const uid=adminState.viewPlanUid; if(!uid) return;
+  if(!confirm('¿Quitar el link de la carpeta de Drive de este alumno? La carpeta en Drive no se toca.')) return;
+  if(await hcSaveDriveLink(uid,'')){ adminState.driveDraft=null; renderModal(); }
+}
+function hcPlanDriveHTML(uid){
+  const saved=hcDriveLink(uid);
+  const val=adminState.driveDraft!=null?adminState.driveDraft:saved;
+  return `<div style="display:flex;align-items:center;gap:8px">
+    <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;flex-shrink:0">${hcDriveLogo(13)} Carpeta de Drive</div>
+  </div>
+  <div style="display:flex;gap:6px;margin-top:6px">
+    <input class="adm-inp" style="margin:0;flex:1;min-width:0;font-size:12px;height:34px" value="${escH(val)}" placeholder="https://drive.google.com/..." oninput="hcPlanDriveInput(this.value)">
+    <button class="adm-btn adm-btn-ghost" style="padding:6px 10px;flex-shrink:0" title="Guardar link" onclick="hcPlanDriveSave()">${hcIcon('save',14)}</button>
+    ${saved?`<a class="adm-btn adm-btn-ghost" style="padding:6px 10px;flex-shrink:0;text-decoration:none" href="${escH(saved)}" target="_blank" rel="noopener" title="Abrir carpeta">${hcIcon('arrowRight',14)}</a>
+    <button class="adm-btn adm-btn-red" style="padding:6px 8px;flex-shrink:0" title="Quitar link" onclick="hcPlanDriveRemove()">${IC.trash}</button>`:''}
+  </div>`;
+}
+
 // Lee en paralelo plan, sesiones marcadas, TRAC, chat, objetivo y bloque de cada atleta.
 async function hcLoadAthleteData(force){
   if(hcAthleteLoading || (hcAthleteData && !force)) return;
@@ -3616,7 +3686,7 @@ async function hcLoadAthleteData(force){
       ]);
       data[u.id]={ plan:hcNormalizePlan(plan||[]), done:done||{}, trac:trac||[], chat:chat||[], goal:hcNormalizeGoal(goal), blockName:blockName||'' };
     }));
-    const rev=await sharedGet(K.HC_ADM_REVIEWED);
+    const [rev]=await Promise.all([ sharedGet(K.HC_ADM_REVIEWED), hcLoadDriveLinks() ]);
     hcAdmReviewed={ trac:(rev&&rev.trac)||{}, sessions:(rev&&rev.sessions)||{} };
     hcAthleteData=data;
   }catch(e){
@@ -3896,6 +3966,7 @@ function hcPlanesListHTML(){
         <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1">
           <div class="user-row-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(u.name)}</div>
           <button class="ic-btn" title="Chat de feedback" onclick="viewUserChat('${u.id}')">${hcIcon('chat',14)}${unread?'<span class="dot"></span>':''}</button>
+          ${hcDriveBtnHTML(u.id,(d.videos||[]).filter(v=>v.status==='sent').length)}
         </div>
       </div>
       <div>
@@ -4201,11 +4272,13 @@ async function viewUserPlan(uid){
   hcPlanArchived = await personalGet(K.HC_BLOCKS(uid)) || [];
   hcPlanDone = await personalGet(K.HC_DONE(uid)) || {};
   hcPlanTrac = await personalGet(K.HC_TRAC(uid)) || [];
+  adminState.driveDraft=null;
+  if(!hcDriveLinks) await hcLoadDriveLinks();
   renderModal();
 }
 function goBackFromPlan(){
   adminState.viewPlanUid=null;
-  hcPlanEditing=null; hcPlanArchived=null; hcPlanDone=null; hcPlanTrac=null; adminState.planCopyPickerOpen=false; adminState.tracHistoryOpen=false; adminState.tracEditOpen=false; hcTracDraft=null;
+  hcPlanEditing=null; hcPlanArchived=null; hcPlanDone=null; hcPlanTrac=null; adminState.planCopyPickerOpen=false; adminState.tracHistoryOpen=false; adminState.tracEditOpen=false; hcTracDraft=null; adminState.driveDraft=null;
   renderModal();
   requestAnimationFrame(()=>{
     const modal=admScrollEl();
@@ -4660,6 +4733,7 @@ function renderAdminPlan(){
       <div class="user-row-avatar" style="width:46px;height:46px;font-size:17px;flex-shrink:0">${ini}</div>
       <div><div style="font-family:var(--font-display);font-size:16px;font-weight:700">${escH(u.name)}</div></div>
     </div>
+    <div style="padding:0 2px 14px">${hcPlanDriveHTML(u.id)}</div>
 
     ${tracHistoryHTML}
 
