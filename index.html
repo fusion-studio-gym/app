@@ -534,7 +534,7 @@ const K = {
   HC_DOC_FILE: (id) => `hc_doc_file_${id}_v1`,  // shared: {dataUrl} — el archivo en sí, uno por doc (evita el límite de 1MB agregado)
   HC_METRICS: (uid) => `hc_metrics_${uid}_v1`,  // personal: métricas físicas del alumno (VAM, remo, ski, fuerza, movilidad)
   HC_DONE: (uid) => `hc_done_${uid}_v1`,  // personal: {[dayId]: {ts, weekId}} — días de entrenamiento marcados como completados
-  HC_NOTIFS: (uid) => `hc_notifs_${uid}_v1`,  // personal: {weeks:{[weekId]:{ts,read}}} — notificaciones de semanas nuevas del alumno
+  HC_NOTIFS: (uid) => `hc_notifs_${uid}_v1`,  // personal: {weeks:{[weekId]:{ts,read}}, videos:{[key]:{ts,read}}, clearedAt} — notificaciones del alumno (clearedAt = "Borrar todas")
   HC_TRAC_QS: 'hc_trac_questions_v1',  // shared: {blocks:[{id,title,hint,bad,questions:[{id,type:'scale'|'text',title,desc}]}]} — preguntas editables del TRAC
   HC_TRAC: (uid) => `hc_trac_${uid}_v1`,  // personal: [{id,ts,date,type:'semanal'|'bloque',soreness:{legs,push,pull},sistemic:{sleep,recovery,motivation},comments}] — cuestionarios TRAC
   HC_ADM_REVIEWED: 'hc_admin_reviewed_v1',  // shared: {trac:{[entryId]:ts}, sessions:{[uid+'_'+dayId]:ts}} — lo que el admin ya marcó como revisado en el Centro de Control
@@ -1991,9 +1991,10 @@ async function hcSetExNote(wi,di,ei,val){
 }
 
 // ---- Notificaciones del alumno (campanita + badge del chat) ----
-let hcNotifs=null;          // {weeks:{[weekId]:{ts,read}}, videos:{[key]:{ts,read}}} — semanas y pedidos/devoluciones de video ya "vistos" por el alumno
+let hcNotifs=null;          // {weeks:{[weekId]:{ts,read}}, videos:{[key]:{ts,read}}, clearedAt} — semanas y pedidos/devoluciones de video ya "vistos" por el alumno
 let hcNotifOpen=false;
 let hcNotifPollTimer=null;
+const HC_NOTIF_READ_TTL=15*24*60*60*1000;   // las notificaciones leídas se ocultan solas a los 15 días
 
 function hcWeekSig(plan){ return (plan||[]).filter(w=>hcWeekDaysWithContent(w).length).map(w=>w.id).join(','); }
 // Registra semanas nuevas con contenido. La primera vez que el alumno entra, todo lo existente queda como leído.
@@ -2029,8 +2030,21 @@ function hcNotifList(){
     const last=unread[unread.length-1];
     list.push({ type:'chat', id:'chat', ts:last.ts, read:false, title:unread.length>1?unread.length+' mensajes de tu coach':'Mensaje de tu coach', sub:(last.text||'').slice(0,60) });
   }
-  list.sort((a,b)=>b.ts-a.ts);
-  return list.slice(0,10);
+  // Se ocultan las borradas con "Borrar todas" y las leídas de más de 15 días
+  const cleared=(hcNotifs&&hcNotifs.clearedAt)||0, old=Date.now()-HC_NOTIF_READ_TTL;
+  const shown=list.filter(n=>n.ts>cleared && !(n.read && n.ts<old));
+  shown.sort((a,b)=>b.ts-a.ts);
+  return shown.slice(0,10);
+}
+// "Borrar todas": marca como leídas semanas y videos y oculta todo lo anterior a clearedAt.
+// No toca m.read del chat: el contador del tab Chat sigue hasta que el alumno abre el chat.
+function hcNotifClearAll(){
+  if(!hcNotifs) return;
+  Object.values(hcNotifs.weeks||{}).forEach(n=>{ n.read=true; });
+  Object.values(hcNotifs.videos||{}).forEach(n=>{ n.read=true; });
+  hcNotifs.clearedAt=Date.now();
+  hcSaveNotifs();
+  hcRefreshNotifUI();
 }
 function hcUnreadNotifCount(){ return hcNotifList().filter(n=>!n.read).length; }
 function hcBellDotHTML(){
@@ -2062,7 +2076,10 @@ function hcNotifPanelHTML(){
   <div style="position:fixed;top:60px;left:12px;right:12px;margin:0 auto;max-width:360px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:8px;z-index:151;box-shadow:0 8px 32px rgba(0,0,0,0.4);animation:fadeIn .15s ease;max-height:70vh;overflow-y:auto">
     <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px 8px">
       <div style="font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);font-weight:700">Notificaciones</div>
-      ${anyUnread?'<div style="font-size:11px;color:#FFEC03;cursor:pointer" onclick="hcNotifMarkAll()">Marcar todas como leídas</div>':''}
+      <div style="display:flex;gap:14px;align-items:center">
+        ${anyUnread?'<div style="font-size:11px;color:#FFEC03;cursor:pointer;white-space:nowrap" onclick="hcNotifMarkAll()">Marcar leídas</div>':''}
+        ${list.length?'<div style="font-size:11px;color:var(--text3);cursor:pointer;white-space:nowrap" onclick="hcNotifClearAll()">Borrar todas</div>':''}
+      </div>
     </div>
     ${rows}
   </div>`;
