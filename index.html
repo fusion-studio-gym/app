@@ -235,6 +235,16 @@ body{max-width:480px;margin:0 auto;}
 .ic-btn .dot{position:absolute;top:3px;right:3px;width:7px;height:7px;border-radius:50%;background:var(--red);}
 .ic-btn .cnt{position:absolute;top:-6px;right:-6px;min-width:15px;height:15px;border-radius:8px;background:var(--red);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;}
 a.ic-btn{text-decoration:none;}
+/* Tarjeta "Pedidos de video" del alumno */
+.hc-vid-head{display:flex;align-items:center;gap:13px;padding-bottom:12px;}
+.hc-vid-head .cc-head-ic{background:rgba(255,122,107,0.14);}
+.hc-vid-head-txt{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1;}
+.hc-vid-head-sub{font-size:11px;color:var(--text3);line-height:1.4;}
+.hc-vid-btns{display:flex;gap:8px;}
+.hc-vid-btn{flex:1;min-width:0;height:44px;display:flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;padding:0 14px;text-decoration:none;}
+.hc-vid-btn svg{flex-shrink:0;}
+.hc-vid-btn:disabled{opacity:.5;cursor:default;}
+@media(max-width:479px){.hc-vid-btns{flex-direction:column;}.hc-vid-btn{flex:none;width:100%;}}
 /* ADMIN — vista de escritorio (se activa sola en pantallas anchas) */
 .adm-desk-only{display:none;}
 @media(min-width:1024px){
@@ -2182,8 +2192,8 @@ function hcVidSortActive(a,b){ return (a.dueDate||'9999').localeCompare(b.dueDat
 function hcVidFolderBtnHTML(){
   const url=hcOwnDriveLink();
   return url
-    ? `<a class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;gap:8px;text-decoration:none;padding:10px" href="${escH(url)}" target="_blank" rel="noopener">${hcDriveLogo(15)} Abrir mi carpeta</a>`
-    : `<button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;gap:8px;padding:10px;opacity:.7;font-size:11px;line-height:1.3" onclick="showToast('Avisale a tu profe para que la configure')">${hcDriveLogo(15)} Tu profe todavia no configuro tu carpeta</button>`;
+    ? `<a class="adm-btn adm-btn-ghost hc-vid-btn" href="${escH(url)}" target="_blank" rel="noopener">${hcDriveLogo(15)}<span>Abrir mi carpeta</span></a>`
+    : `<button class="adm-btn adm-btn-ghost hc-vid-btn" disabled>${hcDriveLogo(15)}<span>Abrir mi carpeta</span></button>`;
 }
 function hcVidActiveItemHTML(v){
   const overdue=v.dueDate && v.dueDate<new Date().toISOString().slice(0,10);
@@ -2195,9 +2205,10 @@ function hcVidActiveItemHTML(v){
     </div>
     ${v.instruction?`<div style="font-size:12px;color:var(--text2);line-height:1.5;white-space:pre-line;margin-bottom:8px">${escH(v.instruction)}</div>`:''}
     ${v.dueDate?`<div style="font-size:11px;color:${overdue?'var(--red)':'var(--text3)'};margin-bottom:10px;display:flex;align-items:center;gap:6px">${hcIcon('calendar',12)} Fecha limite: ${escH(hcFmtDueDate(v.dueDate))}${overdue?' (vencida)':''}</div>`:''}
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
+    ${hcOwnDriveLink()?'':`<div style="font-size:11px;color:var(--text3);margin-bottom:8px;line-height:1.4">Tu profe todavia no configuro tu carpeta. Avisale para que la cargue.</div>`}
+    <div class="hc-vid-btns">
       ${hcVidFolderBtnHTML()}
-      <button class="adm-btn adm-btn-orange" style="flex:1;justify-content:center;gap:6px;padding:10px" ${busy?'disabled':''} onclick="hcMarkVideoSent('${v.id}')">${hcIcon('check',14,'#1a1a00')} Marcar como enviado</button>
+      <button class="adm-btn adm-btn-orange hc-vid-btn" ${busy?'disabled':''} onclick="hcMarkVideoSent('${v.id}')">${hcIcon('check',15,'#1a1a00')}<span>Marcar como enviado</span></button>
     </div>
   </div>`;
 }
@@ -2223,9 +2234,9 @@ function hcVideoCardHTML(){
   if(!active.length && !feedback.length) return '';
   const sub=(t)=>`<div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin:12px 0 8px">${t}</div>`;
   return `<div class="cc-box" style="padding:14px;margin-bottom:16px">
-    <div class="cc-head" style="margin-bottom:10px">
-      <div class="cc-head-ic" style="background:rgba(255,122,107,0.14)">${hcIcon('video',18,'#ff7a6b')}</div>
-      <div style="flex:1;min-width:0"><div class="cc-title">Pedidos de video</div><div style="font-size:11px;color:var(--text3)">${active.length?`Subí el video a tu carpeta de Drive y marcalo como enviado.`:'Tu profe te dejó una devolución.'}</div></div>
+    <div class="hc-vid-head">
+      <div class="cc-head-ic">${hcIcon('video',18,'#ff7a6b')}</div>
+      <div class="hc-vid-head-txt"><div class="cc-title">Pedidos de video</div><div class="hc-vid-head-sub">${active.length?`Subí el video a tu carpeta de Drive y marcalo como enviado.`:'Tu profe te dejó una devolución.'}</div></div>
     </div>
     ${active.map(hcVidActiveItemHTML).join('')}
     ${feedback.length?(active.length?sub('Con devolucion'):'')+feedback.map(hcVidReviewedItemHTML).join(''):''}
