@@ -540,6 +540,7 @@ const K = {
   HC_ANNOUNCEMENT: 'hc_announcement_v1',  // shared: {id,text,ts} | null — mensaje para todos los alumnos
   HC_ANN_DISMISSED: (uid) => `hc_ann_dismissed_${uid}_v1`,  // personal: id del último aviso que el alumno cerró
   HC_TEMPLATES: 'hc_templates_v1',  // shared: [{id,name,plan}] — plantillas de planificación reutilizables
+  HC_BLOCK_LIBRARY: 'hc_block_library_v1',  // shared: [{id,name,category,exercises:[...],createdAt}] — biblioteca de bloques (Movilidad, Principal...) para insertar en un día
   HC_DOCS_INDEX: 'hc_docs_index_v1',  // shared: [{id,name,category,size,uploadedAt}] — metadata liviana de documentos
   HC_DOC_FILE: (id) => `hc_doc_file_${id}_v1`,  // shared: {dataUrl} — el archivo en sí, uno por doc (evita el límite de 1MB agregado)
   HC_METRICS: (uid) => `hc_metrics_${uid}_v1`,  // personal: métricas físicas del alumno (VAM, remo, ski, fuerza, movilidad)
@@ -896,6 +897,33 @@ async function loadHcTemplates(){
   hcTemplates.forEach(t=>hcNormalizePlan(t.plan));
 }
 async function saveHcTemplates(){ const ok=await sharedSet(K.HC_TEMPLATES,hcTemplates); lsSet(K.HC_TEMPLATES,hcTemplates); return ok; }
+
+const HC_BLOCK_CATS=['Movilidad','Fuerza','Resistencia','Otro'];
+let hcBlockLib=null; // [{id,name,category,exercises,createdAt}]
+async function loadHcBlockLib(){
+  const remote = await sharedGet(K.HC_BLOCK_LIBRARY);
+  if(Array.isArray(remote)){ hcBlockLib=remote; lsSet(K.HC_BLOCK_LIBRARY,remote); }
+  else { hcBlockLib=lsGet(K.HC_BLOCK_LIBRARY)||[]; }
+  hcBlockLib.forEach(b=>{ b.exercises=(b.exercises||[]).map(hcNormalizeEx); });
+}
+// Releer antes de escribir para no pisar lo que haya cambiado otro admin; fn modifica la lista recién leída.
+async function hcBlockLibMutate(fn){
+  await loadHcBlockLib();
+  fn(hcBlockLib);
+  const ok=await sharedSet(K.HC_BLOCK_LIBRARY,hcBlockLib);
+  lsSet(K.HC_BLOCK_LIBRARY,hcBlockLib);
+  if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+}
+// Copia independiente de ejercicios: ids nuevos y sin anotaciones del alumno.
+function hcCloneExercises(list,block){
+  return JSON.parse(JSON.stringify(list||[])).map(ex=>{
+    ex=hcNormalizeEx(ex);
+    ex.id='ex_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+    ex.studentNotes='';
+    ex.block=block;
+    return ex;
+  });
+}
 
 const HC_DOC_MAX_BYTES = 900*1024; // ~900KB crudo — deja margen bajo el límite de 1MB por documento de Firestore una vez codificado en base64
 let hcDocsIndex=null; // [{id,name,category,size,uploadedAt}]
@@ -4206,6 +4234,7 @@ function renderHcAdminTab(){
   const t=adminState.tab;
   if(t==='dash'||t==='atletas'||t==='planes') hcLoadAthleteData();
   if(t==='plantillas' && !hcTemplates) loadHcTemplates().then(()=>renderModal());
+  if(t==='plantillas' && adminState.tplSection==='bloques' && !hcBlockLib) loadHcBlockLib().then(()=>renderModal());
   if(t==='atletas') return renderHcTabAtletas();
   if(t==='planes') return renderHcTabPlanes();
   if(t==='plantillas') return renderHcTabPlantillas();
@@ -4604,6 +4633,19 @@ function hcPlanesListHTML(){
 
 // ---- PLANTILLAS ----
 function renderHcTabPlantillas(){
+  const sec=adminState.tplSection==='bloques'?'bloques':'planes';
+  const tabs=`<div style="display:flex;gap:6px;margin-bottom:16px">
+    <div class="admin-tab ${sec==='planes'?'active':''}" style="flex:1;text-align:center" onclick="hcSetTplSection('planes')"><span class="adm-tab-ic" style="justify-content:center">${hcIcon('template',14)}Planes completos</span></div>
+    <div class="admin-tab ${sec==='bloques'?'active':''}" style="flex:1;text-align:center" onclick="hcSetTplSection('bloques')"><span class="adm-tab-ic" style="justify-content:center">${hcIcon('stack',14)}Bloques</span></div>
+  </div>`;
+  return tabs+(sec==='bloques'?renderHcTplBloques():renderHcTplPlanes());
+}
+function hcSetTplSection(s){
+  adminState.tplSection=s; adminState.libOpenId=null;
+  if(s==='bloques' && !hcBlockLib) loadHcBlockLib().then(()=>renderModal());
+  renderModal();
+}
+function renderHcTplPlanes(){
   const head=`<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap">
     <div style="font-size:12px;color:var(--text3);line-height:1.5;flex:1;min-width:200px">Estructuras listas para reutilizar y asignar a cualquier atleta sin reescribir el bloque.</div>
     <button class="adm-btn adm-btn-orange" style="padding:10px 16px;gap:8px" onclick="hcOpenTemplateEditor(null)">${hcIcon('plus',15)} Nueva plantilla</button>
@@ -4651,6 +4693,146 @@ function renderHcTabPlantillas(){
     </div>`;
   }).join('')}</div>`;
 }
+// ---- BIBLIOTECA DE BLOQUES ----
+function hcBlockCatChipsHTML(sel,onclickFn,withAll){
+  const cats=(withAll?['Todas']:[]).concat(HC_BLOCK_CATS);
+  return `<div style="display:flex;gap:6px;flex-wrap:wrap">${cats.map(c=>`<div class="admin-tab ${sel===c?'active':''}" style="font-size:11px;padding:5px 12px" onclick="${onclickFn}('${c}')">${c}</div>`).join('')}</div>`;
+}
+function renderHcTplBloques(){
+  const intro=`<div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:12px">Bloques sueltos (movilidad, entrada en calor, vuelta a la calma...) para insertar en el día de cualquier atleta. Se guardan desde el editor con <b>Guardar bloque</b>, en el encabezado de cada sección.</div>`;
+  if(!hcBlockLib) return intro+`<div class="cc-empty">Cargando bloques...</div>`;
+  const cat=adminState.libCat||'Todas';
+  const list=hcBlockLib.filter(b=>cat==='Todas'||b.category===cat);
+  const filters=`<div style="margin-bottom:14px">${hcBlockCatChipsHTML(cat,'hcSetLibCat',true)}</div>`;
+  if(!hcBlockLib.length) return intro+`<div class="cc-box" style="text-align:center;padding:32px 16px">
+    <div style="color:var(--text3);margin-bottom:10px;display:flex;justify-content:center">${hcIcon('stack',30)}</div>
+    <div style="font-weight:700;font-size:15px;margin-bottom:4px">Todavía no hay bloques</div>
+    <div style="font-size:12px;color:var(--text3)">En el editor de un atleta, poné un Bloque a los ejercicios del día y tocá <b>Guardar bloque</b> en el encabezado de la sección.</div>
+  </div>`;
+  if(!list.length) return intro+filters+`<div class="cc-empty">No hay bloques en esta categoría</div>`;
+  return intro+filters+`<div class="ath-grid">${list.map(b=>{
+    const open=adminState.libOpenId===b.id;
+    const n=b.exercises.length;
+    return `<div class="ath-card">
+      <div class="ath-card-top">
+        <div class="cc-head-ic">${hcIcon('stack',16,'#FFEC03')}</div>
+        <div class="user-row-info"><div class="user-row-name">${escH(b.name)}</div><div class="user-row-email">${escH(b.category||'Otro')} · ${n} ejercicio${n===1?'':'s'}</div></div>
+        <button class="adm-btn adm-btn-red" style="padding:7px 9px" title="Eliminar" onclick="hcDeleteLibBlock('${b.id}')">${IC.trash}</button>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;padding:9px;gap:6px" onclick="hcRenameLibBlock('${b.id}')">${hcIcon('pencil',14)} Renombrar</button>
+        <button class="adm-btn ${open?'adm-btn-orange':'adm-btn-ghost'}" style="flex:1;justify-content:center;padding:9px;gap:6px" onclick="hcToggleLibBlock('${b.id}')">${hcIcon('eye',14)} ${open?'Cerrar':'Ver'}</button>
+      </div>
+      ${open?`<div style="border-top:1px solid var(--border);padding-top:10px">
+        <div class="ath-label">Categoría</div>
+        <div style="margin-bottom:12px">${hcBlockCatChipsHTML(b.category||'Otro',`hcSetLibBlockCat.bind(null,'${b.id}')`,false)}</div>
+        <div class="ath-label">Ejercicios</div>
+        ${b.exercises.map(ex=>hcExReadOnlyHTML(ex)).join('')||'<div style="font-size:12px;color:var(--text3)">Sin ejercicios</div>'}
+      </div>`:''}
+    </div>`;
+  }).join('')}</div>`;
+}
+function hcSetLibCat(c){ adminState.libCat=c; renderModal(); }
+function hcToggleLibBlock(id){ adminState.libOpenId = adminState.libOpenId===id ? null : id; renderModal(); }
+async function hcRenameLibBlock(id){
+  const b=(hcBlockLib||[]).find(x=>x.id===id); if(!b) return;
+  const name=prompt('Nuevo nombre del bloque:', b.name);
+  if(!name||!name.trim()) return;
+  try{
+    await hcBlockLibMutate(lib=>{ const x=lib.find(y=>y.id===id); if(x) x.name=name.trim(); });
+    showToast('Bloque renombrado'); renderModal();
+  }catch(e){ alert('Error: '+e.message); }
+}
+async function hcSetLibBlockCat(id,cat){
+  try{
+    await hcBlockLibMutate(lib=>{ const x=lib.find(y=>y.id===id); if(x) x.category=cat; });
+    renderModal();
+  }catch(e){ alert('Error: '+e.message); }
+}
+async function hcDeleteLibBlock(id){
+  const b=(hcBlockLib||[]).find(x=>x.id===id); if(!b) return;
+  if(!confirm('¿Eliminar el bloque "'+b.name+'" de la biblioteca? No afecta los planes donde ya se insertó.')) return;
+  try{
+    await hcBlockLibMutate(lib=>{ const i=lib.findIndex(y=>y.id===id); if(i>=0) lib.splice(i,1); });
+    if(adminState.libOpenId===id) adminState.libOpenId=null;
+    showToast('Bloque eliminado'); renderModal();
+  }catch(e){ alert('Error: '+e.message); }
+}
+
+// Guardar bloque (desde el encabezado de sección del editor): panel con nombre y categoría.
+function hcOpenBlkSave(wi,di,ei){
+  adminState.blkInsert=null;
+  const block=hcExBlock(hcPlanEditing[wi].days[di].exercises[ei]);
+  const cur=adminState.blkSave;
+  adminState.blkSave = (cur && cur.wi===wi && cur.di===di && cur.ei===ei) ? null : { wi, di, ei, block, name:block, category:'Otro' };
+  renderModal();
+}
+function hcBlkSaveCat(c){ if(adminState.blkSave){ adminState.blkSave.category=c; renderModal(); } }
+function hcBlkSavePanelHTML(){
+  const s=adminState.blkSave;
+  const n=hcPlanEditing[s.wi].days[s.di].exercises.filter(ex=>hcExBlock(ex)===s.block).length;
+  return `<div style="background:var(--surface2);border:1px dashed var(--border2);border-radius:var(--radius-sm);padding:12px;margin-bottom:10px">
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px;line-height:1.4">Guarda ${n} ejercicio${n===1?'':'s'} de esta sección en la biblioteca, sin las anotaciones del alumno.</div>
+    <div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">Nombre</div>
+    <input class="adm-inp" style="margin-bottom:10px" value="${escH(s.name)}" placeholder="Ej: Movilidad de cadera" oninput="adminState.blkSave.name=this.value">
+    <div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">Categoría</div>
+    <div style="margin-bottom:12px">${hcBlockCatChipsHTML(s.category,'hcBlkSaveCat',false)}</div>
+    <div style="display:flex;gap:8px">
+      <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;padding:9px" onclick="adminState.blkSave=null;renderModal()">Cancelar</button>
+      <button class="adm-btn adm-btn-orange" style="flex:1;justify-content:center;padding:9px;gap:6px" onclick="hcSaveBlockToLib()">${hcIcon('save',14)} Guardar bloque</button>
+    </div>
+  </div>`;
+}
+async function hcSaveBlockToLib(){
+  const s=adminState.blkSave; if(!s) return;
+  const name=(s.name||'').trim();
+  if(!name){ alert('Ponele un nombre al bloque.'); return; }
+  const src=hcPlanEditing[s.wi].days[s.di].exercises.filter(ex=>hcExBlock(ex)===s.block);
+  if(!src.length){ alert('Esta sección no tiene ejercicios.'); return; }
+  try{
+    const entry={ id:'blib_'+Date.now()+'_'+Math.random().toString(36).slice(2,5), name, category:s.category||'Otro', exercises:hcCloneExercises(src,''), createdAt:Date.now() };
+    await hcBlockLibMutate(lib=>lib.push(entry));
+    adminState.blkSave=null;
+    showToast('Bloque guardado en la biblioteca');
+    renderModal();
+  }catch(e){ alert('Error al guardar el bloque: '+e.message); }
+}
+
+// Insertar bloque: copia los ejercicios de la biblioteca al final del día (copia independiente del original).
+async function hcToggleBlkInsert(wi,di){
+  adminState.blkSave=null;
+  const cur=adminState.blkInsert;
+  adminState.blkInsert = (cur && cur.wi===wi && cur.di===di) ? null : { wi, di, cat:'Todas' };
+  if(adminState.blkInsert && !hcBlockLib){ renderModal(); await loadHcBlockLib(); }
+  renderModal();
+}
+function hcBlkInsertCat(c){ if(adminState.blkInsert){ adminState.blkInsert.cat=c; renderModal(); } }
+function hcBlkInsertPanelHTML(){
+  const st=adminState.blkInsert;
+  if(!hcBlockLib) return `<div class="cc-empty">Cargando bloques...</div>`;
+  const list=hcBlockLib.filter(b=>st.cat==='Todas'||b.category===st.cat);
+  const rows=!hcBlockLib.length
+    ? `<div style="font-size:12px;color:var(--text3);line-height:1.5">Todavía no hay bloques guardados. Poné un Bloque a los ejercicios del día y tocá <b>Guardar bloque</b> en el encabezado de la sección.</div>`
+    : list.length ? list.map(b=>`<div class="user-row" style="margin-bottom:6px">
+        <div class="user-row-info"><div class="user-row-name">${escH(b.name)}</div><div class="user-row-email">${escH(b.category||'Otro')} · ${b.exercises.length} ejercicio${b.exercises.length===1?'':'s'}</div></div>
+        <button class="adm-btn adm-btn-orange" style="padding:6px 10px" onclick="hcInsertLibBlock('${b.id}')">Insertar</button>
+      </div>`).join('') : `<div style="font-size:12px;color:var(--text3)">No hay bloques en esta categoría</div>`;
+  return `<div style="background:var(--surface2);border:1px dashed var(--border2);border-radius:var(--radius-sm);padding:12px;margin-bottom:10px">
+    <div class="admin-section-title" style="margin-bottom:8px">INSERTAR BLOQUE</div>
+    ${hcBlockLib.length?`<div style="margin-bottom:10px">${hcBlockCatChipsHTML(st.cat,'hcBlkInsertCat',true)}</div>`:''}
+    ${rows}
+  </div>`;
+}
+function hcInsertLibBlock(id){
+  const st=adminState.blkInsert; if(!st) return;
+  const b=(hcBlockLib||[]).find(x=>x.id===id); if(!b) return;
+  const day=hcPlanEditing[st.wi].days[st.di];
+  day.exercises.push(...hcCloneExercises(b.exercises,b.name));
+  adminState.blkInsert=null;
+  showToast('Bloque insertado. Tocá "Guardar" para confirmar');
+  renderModal();
+}
+
 function hcToggleTplAssign(id){ adminState.tplAssignId = adminState.tplAssignId===id ? null : id; renderModal(); }
 // Abre el editor del atleta y le aplica la plantilla (hcApplyTemplate pide confirmación y archiva el plan actual).
 async function hcAssignTemplate(tplId,uid){
@@ -4670,7 +4852,7 @@ function hcOpenTemplateEditor(id){
   hcPlanEditing=tpl ? hcNormalizePlan(JSON.parse(JSON.stringify(tpl.plan))) : [hcNewWeek()];
   if(!hcPlanEditing.length) hcPlanEditing=[hcNewWeek()];
   hcTplName=tpl?tpl.name:'';
-  adminState.planWeekIdx=0; adminState.planDayIdx=0;
+  adminState.planWeekIdx=0; adminState.planDayIdx=0; adminState.blkSave=null; adminState.blkInsert=null;
   renderModal();
 }
 function hcCloseTemplateEditor(){
@@ -4889,7 +5071,7 @@ async function viewUserPlan(uid){
   const modal=admScrollEl();
   adminState.savedScroll=modal?modal.scrollTop:0;
   adminState.viewPlanUid=uid;
-  adminState.planWeekIdx=0; adminState.planDayIdx=0; adminState.planCopyPickerOpen=false;
+  adminState.planWeekIdx=0; adminState.planDayIdx=0; adminState.planCopyPickerOpen=false; adminState.blkSave=null; adminState.blkInsert=null;
   hcPlanEditing = hcNormalizePlan(await personalGet(K.HC_PLAN(uid)) || [hcNewWeek()]);
   hcPlanBlockName = await personalGet(K.HC_BLOCK_NAME(uid)) || '';
   hcPlanArchived = await personalGet(K.HC_BLOCKS(uid)) || [];
@@ -5096,12 +5278,13 @@ function hcBlockInputChanged(el){
   try{ el.blur(); renderModal(); } finally { hcBlockRedrawing=false; }
 }
 // Encabezado de sección del editor: aparece cada vez que cambia el bloque respecto del ejercicio anterior.
-function hcEditorBlockHeadHTML(wi,di,block){
+function hcEditorBlockHeadHTML(wi,di,ei,block){
   if(!block) return `<div style="display:flex;align-items:center;gap:8px;margin:16px 0 8px;color:var(--text3);font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase">${hcIcon('stack',14)} Sin bloque</div>`;
   return `<div style="display:flex;align-items:center;gap:8px;margin:16px 0 8px;padding-bottom:6px;border-bottom:1px solid rgba(255,236,3,0.35)">
     <span style="display:flex;color:#FFEC03">${hcIcon('stack',15)}</span>
     <span style="flex:1;min-width:0;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#FFEC03;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escH(block)}</span>
-  </div>`;
+    <button class="adm-btn adm-btn-ghost" style="flex-shrink:0;padding:5px 9px;gap:5px;font-size:11px" onclick="hcOpenBlkSave(${wi},${di},${ei})">${hcIcon('bookmark',13)} Guardar bloque</button>
+  </div>${(()=>{ const s=adminState.blkSave; return (s && s.wi===wi && s.di===di && s.ei===ei) ? hcBlkSavePanelHTML() : ''; })()}`;
 }
 function renderHcExCard(wi,di,ei,ex){
   const rowsHTML=ex.rows.map((r,ri)=>`<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
@@ -5335,7 +5518,7 @@ function hcPlanEditorCoreHTML(weekSummary){
   const exercisesHTML=day.exercises.map((ex,ei)=>{
     const b=hcExBlock(ex);
     const showHead = ei===0 ? !!b : b!==hcExBlock(day.exercises[ei-1]);
-    return (showHead?hcEditorBlockHeadHTML(wi,di,b):'')+renderHcExCard(wi,di,ei,ex);
+    return (showHead?hcEditorBlockHeadHTML(wi,di,ei,b):'')+renderHcExCard(wi,di,ei,ex);
   }).join('');
   const blkSugg=['Movilidad','Principal','Vuelta a la calma'];
   day.exercises.forEach(ex=>{ const b=hcExBlock(ex); if(b && !blkSugg.some(x=>x.toLowerCase()===b.toLowerCase())) blkSugg.push(b); });
@@ -5353,7 +5536,11 @@ function hcPlanEditorCoreHTML(weekSummary){
 
     <datalist id="hc-blk-sugg">${blkSugg.map(b=>`<option value="${escH(b)}"></option>`).join('')}</datalist>
     ${exercisesHTML}
-    <button class="adm-btn adm-btn-blue" onclick="hcAddExercise(${wi},${di})" style="width:100%;justify-content:center;margin-bottom:10px">${IC.plus} Ejercicio</button>
+    ${(adminState.blkInsert && adminState.blkInsert.wi===wi && adminState.blkInsert.di===di)?hcBlkInsertPanelHTML():''}
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button class="adm-btn adm-btn-blue" onclick="hcAddExercise(${wi},${di})" style="flex:1;justify-content:center">${IC.plus} Ejercicio</button>
+      <button class="adm-btn ${(adminState.blkInsert&&adminState.blkInsert.wi===wi&&adminState.blkInsert.di===di)?'adm-btn-orange':'adm-btn-ghost'}" onclick="hcToggleBlkInsert(${wi},${di})" style="flex:1;justify-content:center;gap:6px">${hcIcon('stack',14)} Insertar bloque</button>
+    </div>
     ${week.days.length>1?`<button class="adm-btn adm-btn-ghost" onclick="hcRemoveDay(${wi},${di})" style="width:100%;justify-content:center;margin-bottom:16px">Eliminar día</button>`:''}`;
 }
 function renderAdminPlan(){
