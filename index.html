@@ -216,8 +216,10 @@ body{max-width:480px;margin:0 auto;}
 .cc-tab.active{background:var(--orange);border-color:var(--orange);color:var(--on-accent);}
 .cc-count{font-size:10px;font-weight:700;border-radius:8px;padding:1px 6px;background:rgba(255,255,255,0.12);}
 .cc-tab.active .cc-count{background:rgba(0,0,0,0.18);}
-.cc-chips{display:flex;gap:6px;margin-bottom:12px;}
-.cc-chip{padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:11px;font-weight:600;cursor:pointer;}
+.cc-tab .cc-lbl-s{display:none;}
+@media(max-width:600px){.cc-tab .cc-lbl{display:none;}.cc-tab .cc-lbl-s{display:inline;}}
+.cc-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+.cc-chip{white-space:nowrap;padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:transparent;color:var(--text3);font-size:11px;font-weight:600;cursor:pointer;}
 .cc-chip.active{border-color:var(--orange);color:var(--orange);}
 .cc-empty{text-align:center;padding:28px 10px;color:var(--text3);font-size:12px;line-height:1.5;}
 .cc-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;}
@@ -231,6 +233,8 @@ body{max-width:480px;margin:0 auto;}
 .race-chip b{color:var(--orange2);font-weight:700;}
 .ic-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;flex-shrink:0;}
 .ic-btn .dot{position:absolute;top:3px;right:3px;width:7px;height:7px;border-radius:50%;background:var(--red);}
+.ic-btn .cnt{position:absolute;top:-6px;right:-6px;min-width:15px;height:15px;border-radius:8px;background:var(--red);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;}
+a.ic-btn{text-decoration:none;}
 /* ADMIN — vista de escritorio (se activa sola en pantallas anchas) */
 .adm-desk-only{display:none;}
 @media(min-width:1024px){
@@ -534,6 +538,9 @@ const K = {
   HC_TRAC_QS: 'hc_trac_questions_v1',  // shared: {blocks:[{id,title,hint,bad,questions:[{id,type:'scale'|'text',title,desc}]}]} — preguntas editables del TRAC
   HC_TRAC: (uid) => `hc_trac_${uid}_v1`,  // personal: [{id,ts,date,type:'semanal'|'bloque',soreness:{legs,push,pull},sistemic:{sleep,recovery,motivation},comments}] — cuestionarios TRAC
   HC_ADM_REVIEWED: 'hc_admin_reviewed_v1',  // shared: {trac:{[entryId]:ts}, sessions:{[uid+'_'+dayId]:ts}} — lo que el admin ya marcó como revisado en el Centro de Control
+  HC_DRIVE_LINKS: 'hc_drive_links_v1',  // shared: {[uid]: url} — link de la carpeta de Google Drive de cada alumno (canal de videos)
+  HC_VIDEO_CATALOG: 'hc_video_catalog_v1',  // shared: {groups:[{id,name,movements:[{id,name,instruction}]}], updatedAt} — movimientos que el admin puede pedir en video
+  HC_VIDEOS: (uid) => `hc_videos_${uid}_v1`,  // personal: [{id,group,movement,instruction,dueDate,createdAt,status:'pending'|'sent'|'reviewed',sentAt,feedback,reviewedAt}] — pedidos de video (sin links: los videos van a la carpeta de Drive)
 };
 const DEFAULT_ADMIN_PW = 'fusion2025';
 const DEFAULT_ADMIN_PW_HYBRID = 'hybrid2025';
@@ -1291,8 +1298,15 @@ const HC_ICONS={
   target:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
   bookOpen:'<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
   trendingUp:'<path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/>',
-  list:'<path d="M3 6h.01M3 12h.01M3 18h.01M8 6h13M8 12h13M8 18h13"/>'
+  list:'<path d="M3 6h.01M3 12h.01M3 18h.01M8 6h13M8 12h13M8 18h13"/>',
+  video:'<path d="m16 13 5.22 3.48a.5.5 0 0 0 .78-.42V7.87a.5.5 0 0 0-.75-.43L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/>',
+  drive:'<path d="M7.7 3h8.6L22 13.5 17.7 21H6.3L2 13.5z"/><path d="M7.7 3l5.8 10.5H22M6.3 21 12 10.5"/>'
 };
+// Logo de Google Drive a color (SVG inline, sin dependencias) para los accesos a la carpeta de videos.
+function hcDriveLogo(size){
+  size=size||15;
+  return `<svg width="${size}" height="${Math.round(size*0.9)}" viewBox="0 0 87.3 78" style="flex-shrink:0"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0-1.2 4.5h27.5z" fill="#00ac47"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg>`;
+}
 // Íconos que quedaron guardados como emoji dentro del plan de Fuerza (campo "icon" de días y bloques).
 // No se tocan los datos: solo se dibujan como ícono de línea al mostrarlos.
 const EMOJI_ICON_MAP={'🏋️':'dumbbell','🏋':'dumbbell','💪':'dumbbell','🦵':'footprints','⚡':'zap','🔥':'flame','📌':'mapPin','📅':'calendar'};
@@ -1440,6 +1454,7 @@ function userMenuHTML(){
     <div class="user-menu-item" onclick="closeUserMenu();hcOpenMetrics()">${hcIcon('chart',15)} Mis métricas</div>
     <div class="user-menu-item" onclick="closeUserMenu();hcOpenLlamadas()">${hcIcon('phone',15)} Videollamadas</div>
     <div class="user-menu-item" onclick="closeUserMenu();hcOpenDocs()">${hcIcon('file',15)} Documentos</div>
+    <div class="user-menu-item" onclick="hcOpenOwnDrive();closeUserMenu()">${hcDriveLogo(15)} Mi carpeta de Drive</div>
     <div class="user-menu-item" onclick="closeUserMenu();hcOpenCalc()">${hcIcon('calc',15)} Calculadora de ritmos</div>` : '';
   return `<div class="user-menu-overlay" onclick="closeUserMenu()"></div>
   <div class="user-menu">
@@ -1927,8 +1942,13 @@ async function hcEnsurePlanData(){
     hcOwnDone = await personalGet(K.HC_DONE(session.uid)) || {};
     hcOwnTrac = await personalGet(K.HC_TRAC(session.uid)) || [];
     hcOwnPlanUid = session.uid;
+    const [vids]=await Promise.all([ personalGet(K.HC_VIDEOS(session.uid)), hcLoadDriveLinks() ]);
+    hcOwnVideos = Array.isArray(vids)?vids:[];
+    hcVidHistOpen=false;
     hcNotifs = await personalGet(K.HC_NOTIFS(session.uid)) || null;
-    if(hcSyncPlanNotifs()) hcSaveNotifs();
+    const firstNotifs=!hcNotifs;
+    const planCh=hcSyncPlanNotifs();
+    if(hcSyncVideoNotifs(firstNotifs) || planCh) hcSaveNotifs();
     hcPlanView={ mode:'proximos', week:null, day:null, viewWeek:'active', nextDay:null };
     hcArchView={ open:false, blockId:null, week:0 };
     return true;
@@ -1972,7 +1992,7 @@ async function hcSetExNote(wi,di,ei,val){
 }
 
 // ---- Notificaciones del alumno (campanita + badge del chat) ----
-let hcNotifs=null;          // {weeks:{[weekId]:{ts,read}}} — semanas con contenido ya "vistas" por el alumno
+let hcNotifs=null;          // {weeks:{[weekId]:{ts,read}}, videos:{[key]:{ts,read}}} — semanas y pedidos/devoluciones de video ya "vistos" por el alumno
 let hcNotifOpen=false;
 let hcNotifPollTimer=null;
 
@@ -1998,6 +2018,13 @@ function hcNotifList(){
     const n=hcNotifs&&hcNotifs.weeks[w.id];
     if(n && hcWeekDaysWithContent(w).length) list.push({ type:'plan', id:w.id, ts:n.ts, read:!!n.read, title:'Nueva semana cargada', sub:'Semana '+(wi+1)+' ya está disponible' });
   });
+  (hcOwnVideos||[]).forEach(v=>{
+    const vn=hcNotifs&&hcNotifs.videos||{};
+    const rq=vn['req_'+v.id];
+    if(rq) list.push({ type:'vidreq', id:v.id, ts:rq.ts, read:!!rq.read, title:'Tu profe te pidio un video', sub:v.movement+(v.dueDate?' · hasta el '+hcFmtDueDate(v.dueDate):'') });
+    const fb=v.status==='reviewed' && v.reviewedAt && vn['fb_'+v.id+'_'+v.reviewedAt];
+    if(fb) list.push({ type:'vidfb', id:v.id, ts:fb.ts, read:!!fb.read, title:'Devolucion de tu video', sub:v.movement+(v.feedback?': '+v.feedback:'') });
+  });
   const unread=hcUnreadChatMsgs();
   if(unread.length){
     const last=unread[unread.length-1];
@@ -2019,9 +2046,9 @@ function hcNotifPanelHTML(){
   const list=hcNotifList();
   const anyUnread=list.some(n=>!n.read);
   const rows=list.length ? list.map(n=>{
-    const isChat=n.type==='chat';
-    const ic=isChat?hcIcon('chat',16,'#5a9fe0'):hcIcon('calendar',16,'#FFEC03');
-    const bg=isChat?'rgba(55,138,221,0.14)':'rgba(255,236,3,0.12)';
+    const isChat=n.type==='chat', isVid=n.type==='vidreq'||n.type==='vidfb';
+    const ic=isChat?hcIcon('chat',16,'#5a9fe0'):isVid?hcIcon('video',16,'#ff7a6b'):hcIcon('calendar',16,'#FFEC03');
+    const bg=isChat?'rgba(55,138,221,0.14)':isVid?'rgba(255,122,107,0.14)':'rgba(255,236,3,0.12)';
     return `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:10px;cursor:pointer;opacity:${n.read?0.55:1}" onclick="hcNotifClick('${n.type}','${n.id}')">
       <div style="width:30px;height:30px;border-radius:8px;background:${bg};display:flex;align-items:center;justify-content:center;flex-shrink:0">${ic}</div>
       <div style="flex:1;min-width:0">
@@ -2047,12 +2074,14 @@ function hcMarkPlanNotifsRead(){
   if(!hcNotifs) return false;
   let ch=false;
   Object.values(hcNotifs.weeks).forEach(n=>{ if(!n.read){ n.read=true; ch=true; } });
+  Object.values(hcNotifs.videos||{}).forEach(n=>{ if(!n.read){ n.read=true; ch=true; } });
   if(ch) hcSaveNotifs();
   return ch;
 }
 async function hcNotifClick(type,id){
   hcNotifOpen=false;
   if(type==='chat'){ await hcOpenChat(); return; }
+  if(type==='vidreq'||type==='vidfb'){ await hcOpenPlan(); return; }  // abrir Plan marca como leídos los avisos de video
   if(hcNotifs && hcNotifs.weeks[id]){ hcNotifs.weeks[id].read=true; hcSaveNotifs(); }
   await hcOpenPlan();
 }
@@ -2078,15 +2107,19 @@ async function hcPollNotifs(){
   if(!session || session.club!=='hybrid' || session.uid==='__pending__' || hcOwnPlanUid!==session.uid) return;
   try{
     const uid=session.uid;
-    const [chat,plan]=await Promise.all([ personalGet(K.HC_CHAT(uid)), personalGet(K.HC_PLAN(uid)) ]);
+    const [chat,plan,vids,links]=await Promise.all([ personalGet(K.HC_CHAT(uid)), personalGet(K.HC_PLAN(uid)), personalGet(K.HC_VIDEOS(uid)), sharedGet(K.HC_DRIVE_LINKS) ]);
     if(!session || session.uid!==uid) return;
+    let vidChanged=false;
+    if(Array.isArray(vids) && JSON.stringify(vids)!==JSON.stringify(hcOwnVideos||[]) && !Object.keys(hcVidBusy).length){ hcOwnVideos=vids; vidChanged=true; }
+    if(links && (links[uid]||'')!==hcDriveLink(uid)){ hcDriveLinks=links; vidChanged=true; }
     let chatChanged=false;
     if(chat && chat.length>(hcOwnChat||[]).length){ hcOwnChat=chat; chatChanged=true; }
     if(plan){
       const norm=hcNormalizePlan(plan);
       if(hcWeekSig(norm)!==hcWeekSig(hcOwnPlan)){ hcOwnPlan=norm; }
     }
-    if(hcSyncPlanNotifs()) hcSaveNotifs();
+    const planCh=hcSyncPlanNotifs();
+    if(hcSyncVideoNotifs(false) || planCh) hcSaveNotifs();
     if(chatChanged && hcState.tab==='chat'){
       // chat abierto: marcar como leído y refrescar conservando lo que se esté escribiendo
       let changed=false;
@@ -2096,10 +2129,143 @@ async function hcPollNotifs(){
       render();
       const inp2=document.getElementById('hc-chat-inp'); if(inp2) inp2.value=keep;
       requestAnimationFrame(hcScrollChatBottom);
+    } else if(vidChanged){
+      hcRefreshVideoUI();
     } else {
       hcRefreshNotifUI();
     }
   }catch(e){}
+}
+
+// ---- Pedidos de video (alumno) ----
+// El alumno sube el video a su carpeta de Drive y toca "Marcar como enviado": la app no guarda videos ni links.
+let hcOwnVideos=null;       // ver K.HC_VIDEOS
+let hcVidHistOpen=false;
+let hcVidBusy={};
+function hcVidNotifKeys(v){
+  const keys=[{ k:'req_'+v.id, ts:v.createdAt||0 }];
+  if(v.status==='reviewed' && v.reviewedAt) keys.push({ k:'fb_'+v.id+'_'+v.reviewedAt, ts:v.reviewedAt });
+  return keys;
+}
+// Registra pedidos y devoluciones nuevas en hcNotifs.videos. markRead: la primera vez todo queda como leído.
+function hcSyncVideoNotifs(markRead){
+  if(!hcNotifs) return false;
+  hcNotifs.videos=hcNotifs.videos||{};
+  let changed=false;
+  (hcOwnVideos||[]).forEach(v=>hcVidNotifKeys(v).forEach(n=>{
+    if(!hcNotifs.videos[n.k]){ hcNotifs.videos[n.k]={ ts:n.ts||Date.now(), read:!!markRead }; changed=true; }
+  }));
+  return changed;
+}
+function hcOwnDriveLink(){ return session?hcDriveLink(session.uid):''; }
+function hcOpenOwnDrive(){
+  const url=hcOwnDriveLink();
+  if(!url){ showToast('Tu profe todavía no configuró tu carpeta'); return; }
+  window.open(url,'_blank','noopener');
+}
+function hcVidSortActive(a,b){ return (a.dueDate||'9999').localeCompare(b.dueDate||'9999') || (b.createdAt||0)-(a.createdAt||0); }
+function hcVidFolderBtnHTML(){
+  const url=hcOwnDriveLink();
+  return url
+    ? `<a class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;gap:8px;text-decoration:none;padding:10px" href="${escH(url)}" target="_blank" rel="noopener">${hcDriveLogo(15)} Abrir mi carpeta</a>`
+    : `<button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;gap:8px;padding:10px;opacity:.7;font-size:11px;line-height:1.3" onclick="showToast('Avisale a tu profe para que la configure')">${hcDriveLogo(15)} Tu profe todavia no configuro tu carpeta</button>`;
+}
+function hcVidActiveItemHTML(v){
+  const sent=v.status==='sent';
+  const overdue=!sent && v.dueDate && v.dueDate<new Date().toISOString().slice(0,10);
+  const chip=sent
+    ? `<span style="font-size:10px;font-weight:700;color:var(--green);background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:2px 8px;flex-shrink:0">Enviado</span>`
+    : `<span style="font-size:10px;font-weight:700;color:#ff7a6b;background:rgba(255,122,107,0.12);border:1px solid rgba(255,122,107,0.3);border-radius:10px;padding:2px 8px;flex-shrink:0">Pendiente</span>`;
+  const busy=!!hcVidBusy[v.id];
+  return `<div class="cc-item">
+    <div class="cc-item-top" style="align-items:flex-start;margin-bottom:6px">
+      <div style="min-width:0"><div style="font-size:14px;font-weight:700;color:var(--text)">${escH(v.movement)}</div>${v.group?`<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">${escH(v.group)}</div>`:''}</div>
+      ${chip}
+    </div>
+    ${v.instruction?`<div style="font-size:12px;color:var(--text2);line-height:1.5;white-space:pre-line;margin-bottom:8px">${escH(v.instruction)}</div>`:''}
+    ${v.dueDate?`<div style="font-size:11px;color:${overdue?'var(--red)':'var(--text3)'};margin-bottom:10px;display:flex;align-items:center;gap:6px">${hcIcon('calendar',12)} Fecha limite: ${escH(hcFmtDueDate(v.dueDate))}${overdue?' (vencida)':''}</div>`:''}
+    ${sent?`<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Lo marcaste como enviado el ${escH(hcFmtShortDate(v.sentAt))}. Tu profe lo va a revisar.</div>`:''}
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${hcVidFolderBtnHTML()}
+      ${sent
+        ? `<button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;gap:6px;padding:10px" ${busy?'disabled':''} title="Tocá para deshacer" onclick="hcToggleVideoSent('${v.id}')">${hcIcon('undo',14)} Deshacer enviado</button>`
+        : `<button class="adm-btn adm-btn-orange" style="flex:1;justify-content:center;gap:6px;padding:10px" ${busy?'disabled':''} onclick="hcToggleVideoSent('${v.id}')">${hcIcon('check',14,'#1a1a00')} Marcar como enviado</button>`}
+    </div>
+  </div>`;
+}
+function hcVidReviewedItemHTML(v){
+  return `<div class="cc-item">
+    <div class="cc-item-top" style="align-items:flex-start;margin-bottom:8px">
+      <div style="min-width:0"><div style="font-size:14px;font-weight:700;color:var(--text)">${escH(v.movement)}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">Revisado el ${escH(hcFmtShortDate(v.reviewedAt))}</div></div>
+      <span style="font-size:10px;font-weight:700;color:#1a1a00;background:#FFEC03;border-radius:10px;padding:2px 8px;flex-shrink:0">Con devolucion</span>
+    </div>
+    <div style="font-size:12px;color:var(--text);line-height:1.5;white-space:pre-line;background:var(--surface3);border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:flex-start"><span style="flex-shrink:0;margin-top:2px">${hcIcon('chat',13,'#FFEC03')}</span><span>${v.feedback?escH(v.feedback):'<span style="color:var(--text3)">Tu profe lo revisó sin dejar comentarios.</span>'}</span></div>
+  </div>`;
+}
+function hcToggleVidHist(){ hcVidHistOpen=!hcVidHistOpen; hcRefreshVideoUI(); }
+// Tarjeta "Pedidos de video" arriba de la pestaña Plan (solo si hay pedidos)
+function hcVideoCardHTML(){
+  const vids=hcOwnVideos||[];
+  if(!vids.length) return '';
+  const active=vids.filter(v=>v.status!=='reviewed').sort(hcVidSortActive);
+  const reviewed=vids.filter(v=>v.status==='reviewed').sort((a,b)=>(b.reviewedAt||0)-(a.reviewedAt||0));
+  const recent=reviewed.slice(0,2), older=reviewed.slice(2);
+  const sub=(t)=>`<div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin:12px 0 8px">${t}</div>`;
+  return `<div class="cc-box" style="padding:14px;margin-bottom:16px">
+    <div class="cc-head" style="margin-bottom:${active.length?'10px':'0'}">
+      <div class="cc-head-ic" style="background:rgba(255,122,107,0.14)">${hcIcon('video',18,'#ff7a6b')}</div>
+      <div style="flex:1;min-width:0"><div class="cc-title">Pedidos de video</div><div style="font-size:11px;color:var(--text3)">${active.length?`Subí el video a tu carpeta de Drive y marcalo como enviado.`:'No tenés videos pendientes.'}</div></div>
+    </div>
+    ${active.map(hcVidActiveItemHTML).join('')}
+    ${recent.length?sub('Con devolucion')+recent.map(hcVidReviewedItemHTML).join(''):''}
+    ${older.length?`<button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;margin-top:4px;font-size:12px" onclick="hcToggleVidHist()">${hcVidHistOpen?'Ocultar historial':`Ver historial (${older.length})`}</button>${hcVidHistOpen?`<div style="margin-top:8px">${older.map(hcVidReviewedItemHTML).join('')}</div>`:''}`:''}
+  </div>`;
+}
+// Aviso en Inicio cuando hay videos sin enviar
+function hcVideoHomeHTML(){
+  const n=(hcOwnVideos||[]).filter(v=>v.status==='pending').length;
+  if(!n) return '';
+  return `<div style="background:rgba(255,122,107,0.08);border:1px solid rgba(255,122,107,0.35);border-radius:14px;padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="hcOpenPlan()">
+    <div style="width:40px;height:40px;border-radius:10px;background:rgba(255,122,107,0.16);display:flex;align-items:center;justify-content:center;flex-shrink:0">${hcIcon('video',20,'#ff7a6b')}</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:700;color:var(--text)">Tu profe te pidio ${n===1?'un video':n+' videos'}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:2px">Subilo a tu carpeta de Drive y marcalo como enviado en Plan.</div>
+    </div>
+    <div style="color:var(--text3);display:flex">${hcIcon('arrowRight',16)}</div>
+  </div>`;
+}
+// Refresca solo la tarjeta, el aviso y la campanita (no pisa lo que el alumno esté escribiendo)
+function hcRefreshVideoUI(){
+  const c=document.getElementById('hc-vid-card'); if(c) c.innerHTML=hcVideoCardHTML();
+  const h=document.getElementById('hc-vid-home'); if(h) h.innerHTML=hcVideoHomeHTML();
+  hcRefreshNotifUI();
+}
+async function hcToggleVideoSent(id){
+  if(hcVidBusy[id]) return;
+  const cur=(hcOwnVideos||[]).find(v=>v.id===id);
+  if(!cur || cur.status==='reviewed') return;
+  const toSent=cur.status!=='sent';
+  const prev=JSON.parse(JSON.stringify(hcOwnVideos));
+  cur.status=toSent?'sent':'pending'; cur.sentAt=toSent?Date.now():null;
+  hcVidBusy[id]=true; hcRefreshVideoUI();
+  try{
+    let blocked=false;
+    const list=await hcVideosMutate(session.uid, l=>{
+      const v=l.find(x=>x.id===id);
+      if(!v || v.status==='reviewed'){ blocked=true; return false; }
+      v.status=cur.status; v.sentAt=cur.sentAt;
+    }, prev);
+    if(list) hcOwnVideos=list;
+    if(blocked){
+      hcOwnVideos=await personalGet(K.HC_VIDEOS(session.uid)) || [];
+      showToast('Este pedido ya fue revisado o cancelado por tu profe');
+    } else if(toSent) showToast('Listo, le avisamos a tu profe');
+  }catch(e){ hcOwnVideos=prev; alert('No se pudo guardar: '+e.message); }
+  finally{
+    delete hcVidBusy[id];
+    if(hcSyncVideoNotifs(false)) hcSaveNotifs();
+    hcRefreshVideoUI();
+  }
 }
 
 // ---- Chat alumno ↔ profe ----
@@ -2653,6 +2819,9 @@ function renderHcTracSheet(){
 
 function renderHcPlanBody(){
   if(hcArchView.open) return renderHcArchivedBrowser();
+  return `<div id="hc-vid-card">${hcVideoCardHTML()}</div>`+renderHcPlanMain();
+}
+function renderHcPlanMain(){
 
   const plan=hcOwnPlan||[];
   const archButton = `<button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;margin-bottom:16px" onclick="hcToggleArchivedList()">${hcIcon('archive',15)} Bloques anteriores${hcOwnArchived&&hcOwnArchived.length?' ('+hcOwnArchived.length+')':''}</button>`;
@@ -2717,7 +2886,7 @@ function renderHybridHome(){
     ? renderHcMetricsBody()
     : hcState.tab==='calc'
     ? renderHcCalcBody()
-    : annHTML+hcStreakBannerHTML()+hcGoalHeroHTML()+hcOwnCallHTML()+welcomeHTML;
+    : annHTML+`<div id="hc-vid-home">${hcVideoHomeHTML()}</div>`+hcStreakBannerHTML()+hcGoalHeroHTML()+hcOwnCallHTML()+welcomeHTML;
   return `${navBarHTML(false,'')}
   <div class="page" style="padding:20px 16px ${hcState.tab==='chat'?'12px':'90px'}">${body}</div>
   ${hcTabBarHTML()}`;
@@ -3590,7 +3759,7 @@ function goBackToUserList(){
 // ============================================================
 // ADMIN HYBRID CLUB — pestañas, datos de atletas y Centro de Control
 // ============================================================
-let hcAthleteData=null;   // {[uid]:{plan,done,trac,chat,goal,blockName}} — cache del admin, se refresca al cambiar de pestaña
+let hcAthleteData=null;   // {[uid]:{plan,done,trac,chat,goal,blockName,videos}} — cache del admin, se refresca al cambiar de pestaña
 let hcAthleteLoading=false;
 let hcAdmReviewed=null;   // {trac:{},sessions:{}} — ver K.HC_ADM_REVIEWED
 
@@ -3601,7 +3770,321 @@ function hcAdmStudents(includeBlocked){
 }
 function hcInitials(name){ return (name||'').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(); }
 
-// Lee en paralelo plan, sesiones marcadas, TRAC, chat, objetivo y bloque de cada atleta.
+// ---- Carpetas de Google Drive (canal de videos de cada alumno) ----
+// La app solo guarda el link de la carpeta; los videos viven en Drive.
+let hcDriveLinks=null;    // {[uid]: url} — ver K.HC_DRIVE_LINKS
+async function hcLoadDriveLinks(){ hcDriveLinks=await sharedGet(K.HC_DRIVE_LINKS)||{}; return hcDriveLinks; }
+function hcDriveLink(uid){ return (hcDriveLinks&&hcDriveLinks[uid])||''; }
+function hcValidDriveUrl(url){ return /^https?:\/\/\S+$/i.test((url||'').trim()); }
+async function hcSaveDriveLink(uid,url){
+  url=(url||'').trim();
+  if(url && !hcValidDriveUrl(url)){ alert('El link tiene que empezar con http:// o https://'); return false; }
+  try{
+    // Releer antes de escribir para no pisar el link de otro alumno cargado desde otro dispositivo
+    const remote=await sharedGet(K.HC_DRIVE_LINKS)||{};
+    if(url) remote[uid]=url; else delete remote[uid];
+    hcDriveLinks=remote;
+    const ok=await sharedSet(K.HC_DRIVE_LINKS,remote);
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+    showToast(url?'Carpeta de Drive guardada':'Carpeta de Drive quitada');
+    return true;
+  }catch(e){ alert('No se pudo guardar: '+e.message); return false; }
+}
+// Botón de Drive de las cards de Planificaciones: abre la carpeta, o pide el link si todavía no hay.
+async function hcPromptDriveLink(uid){
+  const u=getUserById(uid);
+  const url=prompt('Pegá el link de la carpeta de Google Drive de '+(u?u.name:'este alumno')+':','https://drive.google.com/');
+  if(url===null) return;
+  if(!url.trim() || url.trim()==='https://drive.google.com/') return;
+  if(await hcSaveDriveLink(uid,url)) renderModal();
+}
+function hcDriveBtnHTML(uid,count){
+  const url=hcDriveLink(uid);
+  const badge=count?`<span class="cnt">${count>9?'9+':count}</span>`:'';
+  return url
+    ? `<a class="ic-btn" href="${escH(url)}" target="_blank" rel="noopener" title="Abrir carpeta de Drive${count?` · ${count} video${count===1?'':'s'} por revisar`:''}">${hcDriveLogo(15)}${badge}</a>`
+    : `<button class="ic-btn" title="Cargar carpeta de Drive" onclick="hcPromptDriveLink('${uid}')">${hcDriveLogo(15)}${badge}</button>`;
+}
+// Campo "Carpeta de Drive" del encabezado del editor del plan
+function hcPlanDriveInput(val){ adminState.driveDraft=val; }
+async function hcPlanDriveSave(){
+  const uid=adminState.viewPlanUid; if(!uid) return;
+  if(await hcSaveDriveLink(uid,adminState.driveDraft)){ adminState.driveDraft=null; renderModal(); }
+}
+async function hcPlanDriveRemove(){
+  const uid=adminState.viewPlanUid; if(!uid) return;
+  if(!confirm('¿Quitar el link de la carpeta de Drive de este alumno? La carpeta en Drive no se toca.')) return;
+  if(await hcSaveDriveLink(uid,'')){ adminState.driveDraft=null; renderModal(); }
+}
+function hcPlanDriveHTML(uid){
+  const saved=hcDriveLink(uid);
+  const val=adminState.driveDraft!=null?adminState.driveDraft:saved;
+  return `<div style="display:flex;align-items:center;gap:8px">
+    <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;flex-shrink:0">${hcDriveLogo(13)} Carpeta de Drive</div>
+  </div>
+  <div style="display:flex;gap:6px;margin-top:6px">
+    <input class="adm-inp" style="margin:0;flex:1;min-width:0;font-size:12px;height:34px" value="${escH(val)}" placeholder="https://drive.google.com/..." oninput="hcPlanDriveInput(this.value)">
+    <button class="adm-btn adm-btn-ghost" style="padding:6px 10px;flex-shrink:0" title="Guardar link" onclick="hcPlanDriveSave()">${hcIcon('save',14)}</button>
+    ${saved?`<a class="adm-btn adm-btn-ghost" style="padding:6px 10px;flex-shrink:0;text-decoration:none" href="${escH(saved)}" target="_blank" rel="noopener" title="Abrir carpeta">${hcIcon('arrowRight',14)}</a>
+    <button class="adm-btn adm-btn-red" style="padding:6px 8px;flex-shrink:0" title="Quitar link" onclick="hcPlanDriveRemove()">${IC.trash}</button>`:''}
+  </div>`;
+}
+
+// ---- Pedidos de video ----
+// La app no guarda videos ni links de videos: solo el pedido, el aviso de "enviado" y la devolución.
+const HC_VID_DEFAULT_SHOT='Vista lateral, cuerpo completo.';
+function hcVidFileHint(name){ return 'Nombrá el archivo: '+(name||'').trim()+'.'; }
+function hcVideoCatalogDefault(){
+  const m=(id,name,txt)=>({ id, name, instruction:txt+' '+hcVidFileHint(name) });
+  return { groups:[
+    { id:'g_fuerza', name:'Fuerza', movements:[
+      m('m_sentadilla','Sentadilla','Vista lateral, cuerpo completo, cámara a la altura de la cadera. Una serie liviana y una con la carga de trabajo.'),
+      m('m_pesomuerto','Peso muerto','Vista lateral, cuerpo completo y la barra siempre a la vista. Una serie liviana y una con la carga de trabajo.'),
+      m('m_press','Press','Vista lateral (y si podés, otra de frente), cuerpo completo. Una serie liviana y una con la carga de trabajo.'),
+      m('m_dominadas','Dominadas','Vista de frente o de espalda, cuerpo completo desde brazos extendidos. Una serie completa.')
+    ]},
+    { id:'g_hyrox', name:'Estaciones HYROX', movements:[
+      m('m_skierg','SkiErg','Vista lateral, cuerpo completo y la máquina entera en cuadro. 20 a 30 segundos a ritmo de carrera.'),
+      m('m_sledpush','Sled push','Vista lateral, cuerpo completo. Una pasada liviana y una con la carga de trabajo.'),
+      m('m_sledpull','Sled pull','Vista lateral, cuerpo completo y la soga a la vista. Un tramo completo con la carga de trabajo.'),
+      m('m_bbj','Burpee broad jumps','Vista lateral, cuerpo completo. 5 repeticiones seguidas a ritmo de carrera.'),
+      m('m_remo','Remo','Vista lateral, cuerpo completo y la máquina entera en cuadro. 20 a 30 segundos a ritmo de carrera.'),
+      m('m_farmers','Farmers carry','Vista de frente o lateral, cuerpo completo. Un tramo de 20 a 25 m con la carga de trabajo.'),
+      m('m_lunges','Sandbag lunges','Vista lateral, cuerpo completo. 6 a 8 pasos con la bolsa a ritmo de carrera.'),
+      m('m_wallballs','Wall balls','Vista lateral, cuerpo completo y el objetivo a la vista. 10 repeticiones seguidas.')
+    ]},
+    { id:'g_carrera', name:'Carrera', movements:[
+      m('m_tecnica','Tecnica de carrera','Vista lateral, cuerpo completo. 10 a 15 segundos a ritmo cómodo y otros 10 a 15 a ritmo de carrera.')
+    ]}
+  ]};
+}
+let hcVideoCatalog=null;   // ver K.HC_VIDEO_CATALOG
+async function hcLoadVideoCatalog(){
+  const remote=await sharedGet(K.HC_VIDEO_CATALOG);
+  hcVideoCatalog=(remote&&Array.isArray(remote.groups))?remote:hcVideoCatalogDefault();
+  return hcVideoCatalog;
+}
+function hcVidCatalog(){ return hcVideoCatalog||hcVideoCatalogDefault(); }
+function hcVidNewId(p){ return (p||'v_')+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+// Busca un movimiento del catálogo por nombre (sin distinguir mayúsculas ni tildes)
+function hcVidNorm(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); }
+function hcVidFindMovement(name){
+  const n=hcVidNorm(name);
+  for(const g of hcVidCatalog().groups) for(const m of g.movements) if(hcVidNorm(m.name)===n) return { g, m };
+  return null;
+}
+// Lee la lista fresca del alumno, aplica el cambio y la guarda (alumno y admin escriben la misma key).
+// Si la lectura falla y hay una copia local, se usa esa para no pisar pedidos existentes.
+async function hcVideosMutate(uid,fn,localCopy){
+  const remote=await personalGet(K.HC_VIDEOS(uid));
+  const list=Array.isArray(remote)?remote:(localCopy?JSON.parse(JSON.stringify(localCopy)):[]);
+  if(fn(list)===false) return null;
+  const ok=await personalSet(K.HC_VIDEOS(uid),list);
+  if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+  return list;
+}
+// Actualiza las copias del admin (Centro de Control y editor del plan) después de escribir
+function hcVidSetAdminCache(uid,list){
+  if(hcAthleteData && hcAthleteData[uid]) hcAthleteData[uid].videos=list;
+  if(adminState.viewPlanUid===uid) hcPlanVideos=list;
+}
+function hcVidAdminList(uid){
+  if(adminState.viewPlanUid===uid && hcPlanVideos) return hcPlanVideos;
+  return (hcAthleteData && hcAthleteData[uid] && hcAthleteData[uid].videos)||null;
+}
+function hcFmtShortDate(ts){ return ts?new Date(ts).toLocaleDateString('es-AR',{day:'2-digit',month:'short'}):''; }
+function hcFmtDueDate(d){ return d?new Date(d+'T00:00:00').toLocaleDateString('es-AR',{weekday:'short',day:'2-digit',month:'short'}):''; }
+
+// ── Formulario "Pedir video" (admin) — hoja que se abre arriba del panel ──
+let hcVidReq=null;   // {uid, lockUid, group, movement, instruction, dueDate, sending}
+async function hcOpenVidReq(uid,movementName){
+  if(!hcVideoCatalog) await hcLoadVideoCatalog();
+  hcVidReq={ uid:uid||'', lockUid:!!uid, group:'', movement:'', instruction:'', dueDate:'', sending:false };
+  if(movementName){
+    const f=hcVidFindMovement(movementName);
+    hcVidReq.movement=f?f.m.name:movementName.trim();
+    hcVidReq.group=f?f.g.name:'Plan';
+    hcVidReq.instruction=f?f.m.instruction:HC_VID_DEFAULT_SHOT+' '+hcVidFileHint(movementName);
+  }
+  hcRenderVidSheet();
+}
+function hcOpenVidReqFromEx(wi,di,ei){
+  const ex=hcPlanEditing && hcPlanEditing[wi] && hcPlanEditing[wi].days[di].exercises[ei];
+  hcOpenVidReq(adminState.viewPlanUid, ex?ex.name:'');
+}
+function hcCloseVidReq(){ hcVidReq=null; hcRenderVidSheet(); }
+function hcVidReqSet(field,val){ if(hcVidReq) hcVidReq[field]=val; }
+function hcVidReqPick(gi,mi){
+  const g=hcVidCatalog().groups[gi], m=g&&g.movements[mi];
+  if(!m) return;
+  hcVidReq.group=g.name; hcVidReq.movement=m.name; hcVidReq.instruction=m.instruction||'';
+  hcRenderVidSheet();
+}
+async function hcVidReqSend(){
+  const r=hcVidReq; if(!r||r.sending) return;
+  if(!r.uid){ alert('Elegí el alumno.'); return; }
+  if(!r.movement.trim()){ alert('Elegí o escribí el movimiento.'); return; }
+  const item={ id:hcVidNewId(), group:r.group||'', movement:r.movement.trim(), instruction:(r.instruction||'').trim(), dueDate:r.dueDate||'', createdAt:Date.now(), status:'pending', sentAt:null, feedback:'', reviewedAt:null };
+  r.sending=true; hcRenderVidSheet();
+  try{
+    const list=await hcVideosMutate(r.uid, l=>{ l.push(item); }, hcVidAdminList(r.uid));
+    hcVidSetAdminCache(r.uid,list);
+    hcVidReq=null; hcRenderVidSheet();
+    renderModal();
+    showToast('Pedido de video enviado');
+  }catch(e){ r.sending=false; hcRenderVidSheet(); alert('No se pudo enviar el pedido: '+e.message); }
+}
+function hcRenderVidSheet(){
+  let root=document.getElementById('hc-vreq-root');
+  if(!hcVidReq){ if(root) root.remove(); return; }
+  if(!root){ root=document.createElement('div'); root.id='hc-vreq-root'; document.body.appendChild(root); }
+  const old=root.querySelector('.summary-sheet'); const keep=old?old.scrollTop:0;
+  root.innerHTML=renderHcVidReqSheet();
+  const nw=root.querySelector('.summary-sheet'); if(nw) nw.scrollTop=keep;
+}
+function renderHcVidReqSheet(){
+  const r=hcVidReq; if(!r) return '';
+  const u=r.uid?getUserById(r.uid):null;
+  const studentSel = r.lockUid
+    ? `<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <div class="user-row-avatar" style="width:32px;height:32px;font-size:12px">${hcInitials(u?u.name:'')}</div>
+        <div class="user-row-name">${escH(u?u.name:'')}</div>
+      </div>`
+    : `<div class="ath-label">Alumno</div>
+      <select class="adm-inp" style="margin-bottom:14px" onchange="hcVidReqSet('uid',this.value)">
+        <option value="">Elegí un alumno...</option>
+        ${hcAdmStudents(false).map(s=>`<option value="${s.id}" ${r.uid===s.id?'selected':''}>${escH(s.name)}</option>`).join('')}
+      </select>`;
+  const chips=hcVidCatalog().groups.map((g,gi)=>`<div style="margin-bottom:10px">
+      <div style="font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px">${escH(g.name)}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${g.movements.map((m,mi)=>`<button class="cc-chip ${r.movement===m.name&&r.group===g.name?'active':''}" onclick="hcVidReqPick(${gi},${mi})">${escH(m.name)}</button>`).join('')}</div>
+    </div>`).join('');
+  return `<div class="summary-overlay" onclick="hcCloseVidReq()"><div class="summary-sheet" onclick="event.stopPropagation()" style="padding:0 0 24px">
+    <div class="summary-handle"></div>
+    <div style="padding:16px 20px 0">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="cc-head-ic" style="background:rgba(255,122,107,0.14)">${hcIcon('video',18,'#ff7a6b')}</div>
+          <div class="cc-title">Pedir video</div>
+        </div>
+        <button class="modal-close" onclick="hcCloseVidReq()">✕</button>
+      </div>
+      ${studentSel}
+      <div class="ath-label">Movimiento</div>
+      ${chips}
+      <input class="adm-inp" style="margin:4px 0 14px" value="${escH(r.movement)}" placeholder="O escribí otro movimiento..." oninput="hcVidReqSet('movement',this.value)">
+      <div class="ath-label">Consigna para el alumno</div>
+      <textarea class="auth-inp" style="height:96px;padding:10px 14px;resize:vertical;margin-bottom:14px" placeholder="Ej: vista lateral, cuerpo completo... Nombrá el archivo: Sled push." oninput="hcVidReqSet('instruction',this.value)">${escH(r.instruction)}</textarea>
+      <div class="ath-label">Fecha limite (opcional)</div>
+      <input class="adm-inp" type="date" style="margin-bottom:16px" value="${escH(r.dueDate)}" oninput="hcVidReqSet('dueDate',this.value)">
+      <div style="font-size:11px;color:var(--text3);line-height:1.5;margin-bottom:12px">El alumno sube el video a su carpeta de Drive y toca "Marcar como enviado". Te aparece en el Centro de Control, en "Videos por Revisar".</div>
+      <button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;padding:12px" ${r.sending?'disabled':''} onclick="hcVidReqSend()">${hcIcon('send',15)} ${r.sending?'Enviando...':'Enviar pedido'}</button>
+    </div>
+  </div></div>`;
+}
+
+// ── Editor del catálogo de movimientos (mismo patrón que el editor de preguntas TRAC) ──
+let hcVidCatDraft=null;
+async function hcOpenVidCatEditor(){
+  await hcLoadVideoCatalog();
+  hcVidCatDraft=JSON.parse(JSON.stringify(hcVidCatalog()));
+  adminState.vidCatEditOpen=true;
+  renderModal();
+}
+function hcCancelVidCatEditor(){ adminState.vidCatEditOpen=false; hcVidCatDraft=null; renderModal(); }
+function hcVidCatEdGroup(gi,val){ hcVidCatDraft.groups[gi].name=val; }
+function hcVidCatEdMov(gi,mi,field,val){ hcVidCatDraft.groups[gi].movements[mi][field]=val; }
+function hcVidCatAddMov(gi){ hcVidCatDraft.groups[gi].movements.push({ id:hcVidNewId('m_'), name:'Nuevo movimiento', instruction:HC_VID_DEFAULT_SHOT }); renderModal(); }
+function hcVidCatDelMov(gi,mi){
+  if(!confirm('¿Eliminar este movimiento del catálogo? Los pedidos ya hechos no cambian.')) return;
+  hcVidCatDraft.groups[gi].movements.splice(mi,1); renderModal();
+}
+function hcVidCatMoveMov(gi,mi,dir){
+  const ms=hcVidCatDraft.groups[gi].movements, j=mi+dir;
+  if(j<0||j>=ms.length) return;
+  [ms[mi],ms[j]]=[ms[j],ms[mi]]; renderModal();
+}
+function hcVidCatAddGroup(){ hcVidCatDraft.groups.push({ id:hcVidNewId('g_'), name:'Nuevo grupo', movements:[{ id:hcVidNewId('m_'), name:'Nuevo movimiento', instruction:HC_VID_DEFAULT_SHOT }] }); renderModal(); }
+function hcVidCatDelGroup(gi){
+  if(!confirm('¿Eliminar este grupo con todos sus movimientos? Los pedidos ya hechos no cambian.')) return;
+  hcVidCatDraft.groups.splice(gi,1); renderModal();
+}
+function hcVidCatMoveGroup(gi,dir){
+  const gs=hcVidCatDraft.groups, j=gi+dir;
+  if(j<0||j>=gs.length) return;
+  [gs[gi],gs[j]]=[gs[j],gs[gi]]; renderModal();
+}
+async function hcSaveVidCatEditor(){
+  const cat=hcVidCatDraft;
+  cat.groups.forEach(g=>{
+    g.name=(g.name||'').trim()||'Grupo';
+    g.movements=g.movements.filter(m=>(m.name||'').trim());
+    g.movements.forEach(m=>{
+      m.name=m.name.trim();
+      m.instruction=(m.instruction||'').trim();
+      // Toda consigna termina pidiendo el nombre del archivo
+      if(!/nombr[aá] el archivo/i.test(m.instruction)) m.instruction=(m.instruction?m.instruction+' ':'')+hcVidFileHint(m.name);
+    });
+  });
+  cat.groups=cat.groups.filter(g=>g.movements.length);
+  if(!cat.groups.length){ alert('El catálogo necesita al menos un movimiento.'); return; }
+  try{
+    // Releer antes de escribir: si otro admin lo cambió mientras editabas, avisar
+    const remote=await sharedGet(K.HC_VIDEO_CATALOG);
+    const base=hcVideoCatalog&&hcVideoCatalog.updatedAt||0;
+    if(remote && (remote.updatedAt||0)>base && !confirm('El catálogo se modificó desde otro dispositivo mientras lo editabas. ¿Guardar igual y reemplazarlo con tu versión?')) return;
+    cat.updatedAt=Date.now();
+    const ok=await sharedSet(K.HC_VIDEO_CATALOG,cat);
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+    hcVideoCatalog=cat;
+    adminState.vidCatEditOpen=false; hcVidCatDraft=null;
+    renderModal();
+    showToast('Catálogo de movimientos guardado');
+  }catch(e){ alert('No se pudo guardar el catálogo: '+e.message); }
+}
+function renderHcVidCatEditor(){
+  const d=hcVidCatDraft; if(!d) return '';
+  const groups=d.groups.map((g,gi)=>`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:12px">
+    <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center">
+      <input class="adm-inp" style="margin:0;flex:1;font-weight:600" value="${escH(g.name)}" placeholder="Nombre del grupo" oninput="hcVidCatEdGroup(${gi},this.value)">
+      <button class="adm-btn adm-btn-ghost" style="padding:4px 8px;flex-shrink:0" onclick="hcVidCatMoveGroup(${gi},-1)">▲</button>
+      <button class="adm-btn adm-btn-ghost" style="padding:4px 8px;flex-shrink:0" onclick="hcVidCatMoveGroup(${gi},1)">▼</button>
+      <button class="adm-btn adm-btn-red" style="padding:6px 8px;flex-shrink:0" title="Eliminar grupo" onclick="hcVidCatDelGroup(${gi})">${IC.trash}</button>
+    </div>
+    ${g.movements.map((m,mi)=>`<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px">
+      <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+        <input class="adm-inp" style="margin:0;flex:1" value="${escH(m.name)}" placeholder="Movimiento" oninput="hcVidCatEdMov(${gi},${mi},'name',this.value)">
+        <button class="adm-btn adm-btn-ghost" style="padding:4px 8px;flex-shrink:0" onclick="hcVidCatMoveMov(${gi},${mi},-1)">▲</button>
+        <button class="adm-btn adm-btn-ghost" style="padding:4px 8px;flex-shrink:0" onclick="hcVidCatMoveMov(${gi},${mi},1)">▼</button>
+        <button class="adm-btn adm-btn-red" style="padding:4px 8px;flex-shrink:0" onclick="hcVidCatDelMov(${gi},${mi})">${IC.trash}</button>
+      </div>
+      <textarea class="auth-inp" style="height:70px;padding:8px 12px;resize:vertical;margin:0;font-size:12px" placeholder="Consigna por defecto" oninput="hcVidCatEdMov(${gi},${mi},'instruction',this.value)">${escH(m.instruction||'')}</textarea>
+    </div>`).join('')}
+    <button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center" onclick="hcVidCatAddMov(${gi})">${IC.plus} Movimiento</button>
+  </div>`).join('');
+  return `<div style="border:1px dashed var(--border2);border-radius:var(--radius-sm);padding:12px;margin-bottom:16px">
+    <div class="admin-section-title" style="margin-bottom:4px">CATALOGO DE MOVIMIENTOS</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:12px;line-height:1.4">Son las opciones que aparecen al pedir un video. Si una consigna no termina pidiendo el nombre del archivo, se agrega sola al guardar. Los pedidos ya hechos no cambian.</div>
+    ${groups}
+    <button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;margin-bottom:12px" onclick="hcVidCatAddGroup()">${IC.plus} Grupo</button>
+    <div style="display:flex;gap:8px">
+      <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;padding:10px" onclick="hcCancelVidCatEditor()">Cancelar</button>
+      <button class="adm-btn adm-btn-orange" style="flex:1;justify-content:center;padding:10px" onclick="hcSaveVidCatEditor()">${hcIcon('save',15)} Guardar catalogo</button>
+    </div>
+  </div>`;
+}
+
+// Sección de videos del editor del plan del alumno
+let hcPlanVideos=null;      // pedidos de video del alumno abierto en el editor (ver K.HC_VIDEOS)
+function hcVidActionsHTML(uid){
+  return `<div style="display:flex;gap:8px;margin-bottom:${adminState.vidCatEditOpen?'12px':'16px'}">
+    <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;gap:8px" onclick="hcOpenVidReq(${uid?`'${uid}'`:''})">${hcIcon('video',15,'#ff7a6b')} Pedir video</button>
+    <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;gap:8px" onclick="${adminState.vidCatEditOpen?'hcCancelVidCatEditor()':'hcOpenVidCatEditor()'}">${hcIcon('pencil',14)} ${adminState.vidCatEditOpen?'Cerrar catalogo':'Catalogo'}</button>
+  </div>${adminState.vidCatEditOpen?renderHcVidCatEditor():''}`;
+}
+function hcPlanVideosHTML(uid){ return renderHcAdminVideoHistory()+hcVidActionsHTML(uid); }
+
+// Lee en paralelo plan, sesiones marcadas, TRAC, chat, objetivo, bloque y pedidos de video de cada atleta.
 async function hcLoadAthleteData(force){
   if(hcAthleteLoading || (hcAthleteData && !force)) return;
   hcAthleteLoading=true;
@@ -3610,13 +4093,14 @@ async function hcLoadAthleteData(force){
     if(!hcCalls) await loadHcCalls();
     const data={};
     await Promise.all(hcAdmStudents(true).map(async u=>{
-      const [plan,done,trac,chat,goal,blockName]=await Promise.all([
+      const [plan,done,trac,chat,goal,blockName,videos]=await Promise.all([
         personalGet(K.HC_PLAN(u.id)), personalGet(K.HC_DONE(u.id)), personalGet(K.HC_TRAC(u.id)),
-        personalGet(K.HC_CHAT(u.id)), personalGet(K.HC_GOAL(u.id)), personalGet(K.HC_BLOCK_NAME(u.id))
+        personalGet(K.HC_CHAT(u.id)), personalGet(K.HC_GOAL(u.id)), personalGet(K.HC_BLOCK_NAME(u.id)),
+        personalGet(K.HC_VIDEOS(u.id))
       ]);
-      data[u.id]={ plan:hcNormalizePlan(plan||[]), done:done||{}, trac:trac||[], chat:chat||[], goal:hcNormalizeGoal(goal), blockName:blockName||'' };
+      data[u.id]={ plan:hcNormalizePlan(plan||[]), done:done||{}, trac:trac||[], chat:chat||[], goal:hcNormalizeGoal(goal), blockName:blockName||'', videos:Array.isArray(videos)?videos:[] };
     }));
-    const rev=await sharedGet(K.HC_ADM_REVIEWED);
+    const [rev]=await Promise.all([ sharedGet(K.HC_ADM_REVIEWED), hcLoadDriveLinks() ]);
     hcAdmReviewed={ trac:(rev&&rev.trac)||{}, sessions:(rev&&rev.sessions)||{} };
     hcAthleteData=data;
   }catch(e){
@@ -3698,19 +4182,25 @@ function renderHcTabDashboard(){
       <span style="font-size:13px;color:var(--yellow);font-weight:600;display:inline-flex;align-items:center;gap:8px">${hcIcon('hourglass',15)}${pending.length} solicitud${pending.length>1?'es':''} pendiente${pending.length>1?'s':''}</span>
       <button class="adm-btn adm-btn-ghost" style="padding:5px 12px;font-size:12px;gap:6px" onclick="hcGoPendingRequests()">Ver ${hcIcon('arrowRight',13)}</button>
     </div>`:'';
-  return `<div class="adm-dash-grid"><div>${statCards}${banner}${renderHcControlCenter()}</div><aside class="adm-dash-col">${renderHcDashboardRaces()}${renderHcDashboardCalls()}</aside></div>`;
+  const vidPend=hcAthleteData?hcCcItems().videos.pend.length:0;
+  const vidBanner=vidPend?`<div style="background:rgba(255,122,107,0.08);border:1px solid rgba(255,122,107,0.3);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <span style="font-size:13px;color:#ff7a6b;font-weight:600;display:inline-flex;align-items:center;gap:8px">${hcIcon('video',15)}${vidPend} video${vidPend>1?'s':''} por revisar</span>
+      <button class="adm-btn adm-btn-ghost" style="padding:5px 12px;font-size:12px;gap:6px" onclick="hcGoCcVideos()">Ver ${hcIcon('arrowRight',13)}</button>
+    </div>`:'';
+  return `<div class="adm-dash-grid"><div>${statCards}${banner}${vidBanner}${renderHcControlCenter()}</div><aside class="adm-dash-col">${renderHcDashboardRaces()}${renderHcDashboardCalls()}</aside></div>`;
 }
 function hcGoPendingRequests(){ adminState.userSubTab='pending'; adminState.userSearch=''; setAdminTab('atletas'); }
 
 // ---- CENTRO DE CONTROL Y TAREAS ----
 const HC_CC_TABS=[
-  {k:'trac',label:'Control de Fatiga / Dolor',ic:'activity'},
-  {k:'chat',label:'Feedback de Atletas',ic:'chat'},
-  {k:'ses',label:'Sesiones Incompletas',ic:'calendarX'}
+  {k:'trac',label:'Control de Fatiga / Dolor',short:'Fatiga',ic:'activity'},
+  {k:'chat',label:'Feedback de Atletas',short:'Feedback',ic:'chat'},
+  {k:'ses',label:'Sesiones Incompletas',short:'Sesiones',ic:'calendarX'},
+  {k:'videos',label:'Videos por Revisar',short:'Videos',ic:'video'}
 ];
 function hcCcItems(){
   const D=hcAthleteData||{}, R=hcAdmReviewed||{trac:{},sessions:{}};
-  const out={ trac:{pend:[],done:[]}, chat:{pend:[],done:[]}, ses:{pend:[],done:[]} };
+  const out={ trac:{pend:[],done:[]}, chat:{pend:[],done:[]}, ses:{pend:[],done:[]}, videos:{pend:[],done:[],unsent:[]} };
   hcAdmStudents(false).forEach(u=>{
     const d=D[u.id]; if(!d) return;
     d.trac.forEach(e=>out.trac[R.trac[e.id]?'done':'pend'].push({u,e,ts:e.ts||0}));
@@ -3725,39 +4215,48 @@ function hcCcItems(){
       const key=u.id+'_'+f.d.id;
       out.ses[R.sessions[key]?'done':'pend'].push({u,f,key,ts:R.sessions[key]||0});
     });
+    (d.videos||[]).forEach(v=>{
+      if(v.status==='sent') out.videos.pend.push({u,v,ts:v.sentAt||0});
+      else if(v.status==='reviewed') out.videos.done.push({u,v,ts:v.reviewedAt||0});
+      else out.videos.unsent.push({u,v,ts:v.createdAt||0});
+    });
     // Revisados por el admin que el atleta después marcó: siguen en Completadas
     d.plan.forEach((w,wi)=>w.days.forEach(day=>{
       const key=u.id+'_'+day.id;
       if(R.sessions[key] && !skippedIds.has(day.id)) out.ses.done.push({u,f:{d:day,week:w,wi},key,ts:R.sessions[key]});
     }));
   });
-  Object.values(out).forEach(g=>{ g.pend.sort((a,b)=>b.ts-a.ts); g.done.sort((a,b)=>b.ts-a.ts); });
+  Object.values(out).forEach(g=>{ g.pend.sort((a,b)=>b.ts-a.ts); g.done.sort((a,b)=>b.ts-a.ts); if(g.unsent) g.unsent.sort((a,b)=>b.ts-a.ts); });
   return out;
 }
 function hcSetCcTab(k){ adminState.ccTab=k; renderModal(); }
 function hcSetCcView(v){ adminState.ccView=v; renderModal(); }
 
 function renderHcControlCenter(){
-  const tab=adminState.ccTab||'trac', view=adminState.ccView||'pend';
+  const tab=adminState.ccTab||'trac';
+  let view=adminState.ccView||'pend';
+  if(view==='unsent' && tab!=='videos') view='pend';
   const head=`<div class="cc-head"><div class="cc-head-ic">${hcIcon('activity',18,'#FFEC03')}</div><div class="cc-title">Centro de Control y Tareas</div></div>
-    <div class="cc-sub">Fatiga y dolor reportados en el TRAC, mensajes de los atletas y sesiones que quedaron sin marcar.</div>`;
+    <div class="cc-sub">Fatiga y dolor reportados en el TRAC, mensajes de los atletas, sesiones que quedaron sin marcar y videos enviados.</div>`;
   if(!hcAthleteData) return `<div class="cc-box">${head}${hcAdmLoadingHTML()}</div>`;
   const items=hcCcItems();
-  const tabs=`<div class="cc-tabs">${HC_CC_TABS.map(t=>`<div class="cc-tab ${tab===t.k?'active':''}" onclick="hcSetCcTab('${t.k}')">${hcIcon(t.ic,14)}${t.label}<span class="cc-count">${items[t.k].pend.length}</span></div>`).join('')}</div>`;
+  const tabs=`<div class="cc-tabs">${HC_CC_TABS.map(t=>`<div class="cc-tab ${tab===t.k?'active':''}" onclick="hcSetCcTab('${t.k}')">${hcIcon(t.ic,14)}<span class="cc-lbl">${t.label}</span><span class="cc-lbl-s">${t.short}</span><span class="cc-count">${items[t.k].pend.length}</span></div>`).join('')}</div>`;
   const g=items[tab];
   const chips=`<div class="cc-chips">
     <button class="cc-chip ${view==='pend'?'active':''}" onclick="hcSetCcView('pend')">Pendientes (${g.pend.length})</button>
     <button class="cc-chip ${view==='done'?'active':''}" onclick="hcSetCcView('done')">Completadas (${g.done.length})</button>
+    ${tab==='videos'?`<button class="cc-chip ${view==='unsent'?'active':''}" onclick="hcSetCcView('unsent')">Sin enviar (${g.unsent.length})</button>`:''}
   </div>`;
   const list=g[view];
   const emptyMsg={
     trac:view==='pend'?'No hay cuestionarios TRAC sin revisar.':'Todavía no marcaste ningún TRAC como revisado.',
     chat:view==='pend'?'No hay mensajes de atletas sin leer.':'No hay conversaciones leídas todavía.',
-    ses:view==='pend'?'Ningún atleta dejó sesiones salteadas sin marcar.':'Todavía no marcaste ninguna sesión como revisada.'
+    ses:view==='pend'?'Ningún atleta dejó sesiones salteadas sin marcar.':'Todavía no marcaste ninguna sesión como revisada.',
+    videos:view==='pend'?'No hay videos enviados sin revisar.':view==='unsent'?'No hay pedidos esperando que el alumno envíe el video.':'Todavía no revisaste ningún video.'
   }[tab];
-  const render={trac:hcCcTracItem, chat:hcCcChatItem, ses:hcCcSesItem}[tab];
+  const render={trac:hcCcTracItem, chat:hcCcChatItem, ses:hcCcSesItem, videos:hcCcVideoItem}[tab];
   const body=list.length?list.map(it=>render(it,view)).join(''):`<div class="cc-empty">${hcIcon('check',22,'var(--green)')}<div style="margin-top:8px">${emptyMsg}</div></div>`;
-  return `<div class="cc-box">${head}${tabs}${chips}${body}</div>`;
+  return `<div class="cc-box">${head}${tabs}${tab==='videos'?hcVidActionsHTML(''):''}${chips}${body}</div>`;
 }
 function hcCcWho(u,sub){
   return `<div style="display:flex;align-items:center;gap:10px;min-width:0">
@@ -3805,6 +4304,7 @@ function hcCcSesItem(it,view){
   return `<div class="cc-item"><div class="cc-item-top">${hcCcWho(it.u,`Semana ${it.f.wi+1} · ${escH(it.f.d.name)}${stLbl}`)}${hcCcReviewBtn('sessions',it.key,view)}</div></div>`;
 }
 async function hcCcMarkReviewed(kind,id,on){
+  if(kind==='videos') return hcCcVidReview(id,on);
   try{
     // Releer antes de escribir para no pisar lo que haya marcado otro admin
     const remote=await sharedGet(K.HC_ADM_REVIEWED);
@@ -3814,6 +4314,131 @@ async function hcCcMarkReviewed(kind,id,on){
     const ok=await sharedSet(K.HC_ADM_REVIEWED,hcAdmReviewed);
     if(!ok) throw new Error('no se pudo sincronizar con el servidor');
   }catch(e){ alert('No se pudo guardar: '+e.message); }
+}
+
+// Videos por Revisar: el pedido vive en K.HC_VIDEOS del alumno; "Revisado" guarda la devolución ahí mismo.
+function hcCcVidFind(id){
+  const D=hcAthleteData||{};
+  for(const uid in D){ const v=(D[uid].videos||[]).find(x=>x.id===id); if(v) return { uid, v, list:D[uid].videos }; }
+  return null;
+}
+function hcCcVidFbVal(v){ const d=adminState.vidFb&&adminState.vidFb[v.id]; return d!=null?d:(v.feedback||''); }
+function hcCcVidFb(id,val){ adminState.vidFb=adminState.vidFb||{}; adminState.vidFb[id]=val; }
+async function hcCcVidRefresh(uid){
+  const fresh=await personalGet(K.HC_VIDEOS(uid));
+  if(Array.isArray(fresh)) hcVidSetAdminCache(uid,fresh);
+}
+async function hcCcVidReview(id,on){
+  const f=hcCcVidFind(id); if(!f) return;
+  const fb=hcCcVidFbVal(f.v).trim();
+  try{
+    let gone=false;
+    const list=await hcVideosMutate(f.uid, l=>{
+      const v=l.find(x=>x.id===id);
+      if(!v){ gone=true; return false; }
+      if(on){ v.status='reviewed'; v.feedback=fb; v.reviewedAt=Date.now(); }
+      else { v.status='sent'; v.reviewedAt=null; }   // la devolución queda guardada para editarla
+    }, f.list);
+    if(gone){ alert('Este pedido ya no existe.'); await hcCcVidRefresh(f.uid); }
+    else { hcVidSetAdminCache(f.uid,list); if(adminState.vidFb) delete adminState.vidFb[id]; }
+    renderModal();
+    if(on && !gone) showToast('Devolucion guardada');
+  }catch(e){ alert('No se pudo guardar: '+e.message); }
+}
+async function hcCcVidSaveFb(id){
+  const f=hcCcVidFind(id); if(!f) return;
+  const fb=hcCcVidFbVal(f.v).trim();
+  try{
+    const list=await hcVideosMutate(f.uid, l=>{ const v=l.find(x=>x.id===id); if(!v) return false; v.feedback=fb; }, f.list);
+    if(list){ hcVidSetAdminCache(f.uid,list); if(adminState.vidFb) delete adminState.vidFb[id]; showToast('Devolucion actualizada'); }
+    else await hcCcVidRefresh(f.uid);
+    renderModal();
+  }catch(e){ alert('No se pudo guardar: '+e.message); }
+}
+async function hcCcVidCancel(id){
+  const f=hcCcVidFind(id); if(!f) return;
+  if(!confirm('¿Cancelar el pedido de "'+f.v.movement+'"? El alumno deja de verlo.')) return;
+  try{
+    let sent=false;
+    const list=await hcVideosMutate(f.uid, l=>{
+      const i=l.findIndex(x=>x.id===id);
+      if(i<0) return false;
+      if(l[i].status!=='pending'){ sent=true; return false; }
+      l.splice(i,1);
+    }, f.list);
+    if(list) hcVidSetAdminCache(f.uid,list);
+    else { await hcCcVidRefresh(f.uid); if(sent) alert('El alumno ya lo marcó como enviado: ahora está en Pendientes.'); }
+    renderModal();
+  }catch(e){ alert('No se pudo cancelar: '+e.message); }
+}
+function hcCcFolderBtnHTML(uid){
+  const url=hcDriveLink(uid);
+  return url
+    ? `<a class="adm-btn adm-btn-ghost" style="padding:6px 10px;gap:6px;font-size:12px;text-decoration:none" href="${escH(url)}" target="_blank" rel="noopener">${hcDriveLogo(14)} Abrir carpeta</a>`
+    : `<button class="adm-btn adm-btn-ghost" style="padding:6px 10px;gap:6px;font-size:12px" onclick="hcPromptDriveLink('${uid}')">${hcDriveLogo(14)} Cargar carpeta</button>`;
+}
+function hcCcVideoItem(it,view){
+  const v=it.v;
+  const sub = view==='unsent'
+    ? `${escH(v.movement)} · Pedido el ${escH(hcFmtShortDate(v.createdAt))}${v.dueDate?' · Limite '+escH(hcFmtDueDate(v.dueDate)):''}`
+    : view==='pend'
+    ? `${escH(v.movement)} · Enviado el ${escH(hcFmtShortDate(v.sentAt))}`
+    : `${escH(v.movement)} · Revisado el ${escH(hcFmtShortDate(v.reviewedAt))}`;
+  if(view==='unsent') return `<div class="cc-item"><div class="cc-item-top">${hcCcWho(it.u,sub)}
+      <button class="adm-btn adm-btn-red" style="padding:6px 8px;flex-shrink:0" title="Cancelar pedido" onclick="hcCcVidCancel('${v.id}')">${IC.trash}</button>
+    </div></div>`;
+  return `<div class="cc-item">
+    <div class="cc-item-top" style="margin-bottom:10px">${hcCcWho(it.u,sub)}${hcCcReviewBtn('videos',v.id,view)}</div>
+    ${v.instruction?`<div style="font-size:11px;color:var(--text3);line-height:1.4;margin-bottom:8px;white-space:pre-line">${escH(v.instruction)}</div>`:''}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${hcCcFolderBtnHTML(it.u.id)}</div>
+    <textarea class="auth-inp" style="height:70px;padding:8px 12px;resize:vertical;margin:0;font-size:12px" placeholder="Devolucion para el alumno (que hizo bien, que corregir...)" oninput="hcCcVidFb('${v.id}',this.value)">${escH(hcCcVidFbVal(v))}</textarea>
+    ${view==='done'?`<div style="display:flex;justify-content:flex-end;margin-top:6px"><button class="adm-btn adm-btn-ghost" style="padding:6px 10px;gap:6px;font-size:12px" onclick="hcCcVidSaveFb('${v.id}')">${hcIcon('save',13)} Guardar devolucion</button></div>`:''}
+  </div>`;
+}
+function hcGoCcVideos(){
+  adminState.ccTab='videos'; adminState.ccView='pend';
+  renderModal();
+  setTimeout(()=>{ const b=document.querySelector('#modal-root .cc-box'); if(b) b.scrollIntoView({behavior:'smooth',block:'start'}); },60);
+}
+
+// Historial por movimiento (editor del plan del alumno)
+function hcToggleVidHistory(){ adminState.vidHistoryOpen=!adminState.vidHistoryOpen; renderModal(); }
+function hcVidStatusTag(v){
+  const st={ pending:['Sin enviar','#ff7a6b','rgba(255,122,107,0.12)'], sent:['Enviado','var(--green)','rgba(34,197,94,0.12)'], reviewed:['Revisado','#1a1a00','#FFEC03'] }[v.status]||['','var(--text3)','transparent'];
+  return `<span style="font-size:10px;font-weight:700;color:${st[1]};background:${st[2]};border-radius:10px;padding:2px 8px;flex-shrink:0">${st[0]}</span>`;
+}
+function renderHcAdminVideoHistory(){
+  const vids=hcPlanVideos||[];
+  const header=`<div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:10px;cursor:pointer" onclick="hcToggleVidHistory()">
+    <div style="display:flex;align-items:center;gap:8px">
+      ${hcIcon('video',16,'#ff7a6b')}
+      <div style="font-size:13px;font-weight:600">Videos y devoluciones${vids.length?` (${vids.length})`:''}</div>
+    </div>
+    <div style="font-size:12px;color:var(--text3)">${vids.length?(adminState.vidHistoryOpen?'Ocultar ▲':'Ver ▼'):'Sin pedidos'}</div>
+  </div>`;
+  if(!adminState.vidHistoryOpen || !vids.length) return header;
+  const groups={};
+  vids.forEach(v=>{ const k=hcVidNorm(v.movement); (groups[k]=groups[k]||{ name:v.movement, items:[] }).items.push(v); });
+  const when=v=>v.reviewedAt||v.sentAt||v.createdAt||0;
+  const list=Object.values(groups).map(g=>{ g.items.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)); g.last=Math.max(...g.items.map(when)); return g; }).sort((a,b)=>b.last-a.last);
+  const rows=list.map(g=>`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:700">${escH(g.name)}</div>
+        <div style="font-size:10px;color:var(--text3);background:var(--surface3);border-radius:4px;padding:2px 8px">${g.items.length} pedido${g.items.length===1?'':'s'}</div>
+      </div>
+      <div style="border-left:2px solid var(--border2);margin-left:5px;padding-left:14px">
+        ${g.items.map(v=>`<div style="position:relative;margin-bottom:12px">
+          <span style="position:absolute;left:-20px;top:3px;width:10px;height:10px;border-radius:50%;background:${v.status==='reviewed'?'#FFEC03':v.status==='sent'?'var(--green)':'var(--surface3)'};border:2px solid var(--surface2)"></span>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px">
+            <div style="font-size:12px;font-weight:600">${escH(new Date(v.createdAt||0).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'}))}</div>
+            ${hcVidStatusTag(v)}
+          </div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:${v.feedback?'6px':'0'}">${[v.dueDate?'Limite '+hcFmtDueDate(v.dueDate):'', v.sentAt?'Enviado '+hcFmtShortDate(v.sentAt):'', v.reviewedAt?'Revisado '+hcFmtShortDate(v.reviewedAt):''].filter(Boolean).map(escH).join(' · ')||'Esperando el video'}</div>
+          ${v.feedback?`<div style="font-size:11px;color:var(--text2);line-height:1.4;background:var(--surface3);border-radius:6px;padding:8px 10px;display:flex;gap:6px;align-items:flex-start;white-space:pre-line"><span style="flex-shrink:0;margin-top:1px">${hcIcon('chat',12)}</span><span>${escH(v.feedback)}</span></div>`:''}
+        </div>`).join('')}
+      </div>
+    </div>`).join('');
+  return `${header}<div style="margin-bottom:10px">${rows}</div>`;
 }
 
 // ---- ATLETAS ----
@@ -3896,6 +4521,7 @@ function hcPlanesListHTML(){
         <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1">
           <div class="user-row-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH(u.name)}</div>
           <button class="ic-btn" title="Chat de feedback" onclick="viewUserChat('${u.id}')">${hcIcon('chat',14)}${unread?'<span class="dot"></span>':''}</button>
+          ${hcDriveBtnHTML(u.id,(d.videos||[]).filter(v=>v.status==='sent').length)}
         </div>
       </div>
       <div>
@@ -4201,11 +4827,14 @@ async function viewUserPlan(uid){
   hcPlanArchived = await personalGet(K.HC_BLOCKS(uid)) || [];
   hcPlanDone = await personalGet(K.HC_DONE(uid)) || {};
   hcPlanTrac = await personalGet(K.HC_TRAC(uid)) || [];
+  hcPlanVideos = await personalGet(K.HC_VIDEOS(uid)) || [];
+  adminState.driveDraft=null;
+  if(!hcDriveLinks) await hcLoadDriveLinks();
   renderModal();
 }
 function goBackFromPlan(){
   adminState.viewPlanUid=null;
-  hcPlanEditing=null; hcPlanArchived=null; hcPlanDone=null; hcPlanTrac=null; adminState.planCopyPickerOpen=false; adminState.tracHistoryOpen=false; adminState.tracEditOpen=false; hcTracDraft=null;
+  hcPlanEditing=null; hcPlanArchived=null; hcPlanDone=null; hcPlanTrac=null; hcPlanVideos=null; adminState.vidHistoryOpen=false; adminState.planCopyPickerOpen=false; adminState.tracHistoryOpen=false; adminState.tracEditOpen=false; hcTracDraft=null; adminState.driveDraft=null;
   renderModal();
   requestAnimationFrame(()=>{
     const modal=admScrollEl();
@@ -4390,6 +5019,7 @@ function renderHcExCard(wi,di,ei,ex){
     <div class="ex-edit-card-header">
       <span class="ex-edit-title">EJERCICIO ${ei+1}</span>
       <div style="display:flex;gap:4px">
+        ${adminState.viewPlanUid?`<button class="adm-btn adm-btn-ghost" style="padding:6px 8px;gap:4px;font-size:11px" title="Pedir video de este ejercicio" onclick="hcOpenVidReqFromEx(${wi},${di},${ei})">${hcIcon('video',13,'#ff7a6b')} Pedir video</button>`:''}
         <button class="adm-btn adm-btn-ghost" style="padding:6px 8px" title="Subir" ${ei===0?'disabled':''} onclick="hcMoveExercise(${wi},${di},${ei},-1)"><span style="display:inline-block;transform:rotate(-90deg)">${IC.chevron}</span></button>
         <button class="adm-btn adm-btn-ghost" style="padding:6px 8px" title="Bajar" ${ei===total-1?'disabled':''} onclick="hcMoveExercise(${wi},${di},${ei},1)"><span style="display:inline-block;transform:rotate(90deg)">${IC.chevron}</span></button>
         <button class="adm-btn adm-btn-red" onclick="hcRemoveExercise(${wi},${di},${ei})">${IC.trash}</button>
@@ -4660,6 +5290,8 @@ function renderAdminPlan(){
       <div class="user-row-avatar" style="width:46px;height:46px;font-size:17px;flex-shrink:0">${ini}</div>
       <div><div style="font-family:var(--font-display);font-size:16px;font-weight:700">${escH(u.name)}</div></div>
     </div>
+    <div style="padding:0 2px 14px">${hcPlanDriveHTML(u.id)}</div>
+    ${hcPlanVideosHTML(u.id)}
 
     ${tracHistoryHTML}
 
