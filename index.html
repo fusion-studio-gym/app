@@ -540,6 +540,7 @@ const K = {
   HC_ANNOUNCEMENT: 'hc_announcement_v1',  // shared: {id,text,ts} | null — mensaje para todos los alumnos
   HC_ANN_DISMISSED: (uid) => `hc_ann_dismissed_${uid}_v1`,  // personal: id del último aviso que el alumno cerró
   HC_TEMPLATES: 'hc_templates_v1',  // shared: [{id,name,plan}] — plantillas de planificación reutilizables
+  HC_BLOCK_CATS: 'hc_block_cats_v1',  // shared: [name] — categorías de bloques creadas por el admin (se suman a las fijas)
   HC_BLOCK_LIBRARY: 'hc_block_library_v1',  // shared: [{id,name,category,exercises:[...],createdAt}] — biblioteca de bloques (Movilidad, Principal...) para insertar en un día
   HC_DOCS_INDEX: 'hc_docs_index_v1',  // shared: [{id,name,category,size,uploadedAt}] — metadata liviana de documentos
   HC_DOC_FILE: (id) => `hc_doc_file_${id}_v1`,  // shared: {dataUrl} — el archivo en sí, uno por doc (evita el límite de 1MB agregado)
@@ -899,8 +900,19 @@ async function loadHcTemplates(){
 async function saveHcTemplates(){ const ok=await sharedSet(K.HC_TEMPLATES,hcTemplates); lsSet(K.HC_TEMPLATES,hcTemplates); return ok; }
 
 const HC_BLOCK_CATS=['Movilidad','Fuerza','Resistencia','Otro'];
+let hcBlockCustomCats=[]; // categorías agregadas por el admin
+async function loadHcBlockCats(){
+  const remote = await sharedGet(K.HC_BLOCK_CATS);
+  if(Array.isArray(remote)){ hcBlockCustomCats=remote; lsSet(K.HC_BLOCK_CATS,remote); }
+  else { hcBlockCustomCats=lsGet(K.HC_BLOCK_CATS)||[]; }
+}
+// Fijas + propias (Otro siempre al final)
+function hcBlockCats(){ return HC_BLOCK_CATS.slice(0,-1).concat(hcBlockCustomCats, ['Otro']); }
+// Los chips pasan un índice (no el nombre) para que comillas en el nombre no rompan el onclick
+function hcCatName(i,withAll){ return ((withAll?['Todas']:[]).concat(hcBlockCats()))[i]; }
 let hcBlockLib=null; // [{id,name,category,exercises,createdAt}]
 async function loadHcBlockLib(){
+  await loadHcBlockCats();
   const remote = await sharedGet(K.HC_BLOCK_LIBRARY);
   if(Array.isArray(remote)){ hcBlockLib=remote; lsSet(K.HC_BLOCK_LIBRARY,remote); }
   else { hcBlockLib=lsGet(K.HC_BLOCK_LIBRARY)||[]; }
@@ -1297,6 +1309,7 @@ const HC_ICONS={
   grid:'<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
   users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
   clipboardList:'<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4M12 16h4M8 11h.01M8 16h.01"/>',
+  close:'<path d="M18 6 6 18M6 6l12 12"/>',
   stack:'<path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
   template:'<rect x="3" y="3" width="18" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
   settings:'<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
@@ -4695,15 +4708,67 @@ function renderHcTplPlanes(){
 }
 // ---- BIBLIOTECA DE BLOQUES ----
 function hcBlockCatChipsHTML(sel,onclickFn,withAll){
-  const cats=(withAll?['Todas']:[]).concat(HC_BLOCK_CATS);
-  return `<div style="display:flex;gap:6px;flex-wrap:wrap">${cats.map(c=>`<div class="admin-tab ${sel===c?'active':''}" style="font-size:11px;padding:5px 12px" onclick="${onclickFn}('${c}')">${c}</div>`).join('')}</div>`;
+  const cats=(withAll?['Todas']:[]).concat(hcBlockCats());
+  return `<div style="display:flex;gap:6px;flex-wrap:wrap">${cats.map((c,i)=>`<div class="admin-tab ${sel===c?'active':''}" style="font-size:11px;padding:5px 12px" onclick="${onclickFn}(hcCatName(${i},${withAll?1:0}))">${escH(c)}</div>`).join('')}</div>`;
+}
+// Etiqueta de categoría (solo lectura): amarillo con texto negro
+function hcBlockCatBadge(c){
+  return `<span style="display:inline-block;background:#FFEC03;color:#000;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;border-radius:4px;padding:2px 7px;vertical-align:1px">${escH(c||'Otro')}</span>`;
+}
+// ---- Categorías propias (Plantillas > Bloques > Categorías) ----
+function hcToggleCatsPanel(){ adminState.libCatsOpen=!adminState.libCatsOpen; adminState.libNewCat=''; renderModal(); }
+function hcCatsPanelHTML(){
+  const used=c=>(hcBlockLib||[]).filter(b=>b.category===c).length;
+  return `<div style="background:var(--surface2);border:1px dashed var(--border2);border-radius:var(--radius-sm);padding:12px;margin-bottom:14px">
+    <div class="admin-section-title" style="margin-bottom:8px">CATEGORIAS</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:10px;line-height:1.4">Movilidad, Fuerza, Resistencia y Otro vienen fijas. Las que agregues aparecen en los filtros y al guardar o mover un bloque.</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+      ${HC_BLOCK_CATS.map(c=>`<div class="admin-tab" style="font-size:11px;padding:5px 12px;cursor:default">${c}</div>`).join('')}
+      ${hcBlockCustomCats.map((c,i)=>`<div class="admin-tab" style="font-size:11px;padding:5px 6px 5px 12px;display:flex;align-items:center;gap:6px;cursor:default">${escH(c)}${used(c)?` <span style="color:var(--text3)">(${used(c)})</span>`:''}<button class="adm-btn adm-btn-ghost" style="padding:2px 4px;border:none" title="Eliminar categoría" onclick="hcDeleteBlockCat(${i})">${hcIcon('close',12)}</button></div>`).join('')}
+    </div>
+    <div style="display:flex;gap:8px">
+      <input class="adm-inp" style="margin:0;flex:1" value="${escH(adminState.libNewCat||'')}" placeholder="Nueva categoría (ej: Core)" oninput="adminState.libNewCat=this.value" onkeydown="if(event.key==='Enter')hcAddBlockCat()">
+      <button class="adm-btn adm-btn-orange" style="flex-shrink:0;padding:0 14px;gap:6px" onclick="hcAddBlockCat()">${hcIcon('plus',14)} Agregar</button>
+    </div>
+  </div>`;
+}
+// Releer antes de escribir, igual que la biblioteca
+async function hcAddBlockCat(){
+  const name=(adminState.libNewCat||'').trim();
+  if(!name) return;
+  try{
+    await loadHcBlockCats();
+    if(['Todas'].concat(hcBlockCats()).some(c=>c.toLowerCase()===name.toLowerCase())){ alert('Esa categoría ya existe.'); return; }
+    hcBlockCustomCats.push(name);
+    const ok=await sharedSet(K.HC_BLOCK_CATS,hcBlockCustomCats); lsSet(K.HC_BLOCK_CATS,hcBlockCustomCats);
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+    adminState.libNewCat='';
+    showToast('Categoría agregada'); renderModal();
+  }catch(e){ alert('Error: '+e.message); }
+}
+async function hcDeleteBlockCat(i){
+  const name=hcBlockCustomCats[i]; if(name==null) return;
+  try{
+    await loadHcBlockLib();
+    const n=hcBlockLib.filter(b=>b.category===name).length;
+    if(n){ alert('La categoría "'+name+'" tiene '+n+' bloque'+(n===1?'':'s')+'. Primero movelos a otra categoría (desde Ver).'); renderModal(); return; }
+    if(!confirm('¿Eliminar la categoría "'+name+'"?')) return;
+    hcBlockCustomCats=hcBlockCustomCats.filter(c=>c!==name);
+    const ok=await sharedSet(K.HC_BLOCK_CATS,hcBlockCustomCats); lsSet(K.HC_BLOCK_CATS,hcBlockCustomCats);
+    if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+    if(adminState.libCat===name) adminState.libCat='Todas';
+    showToast('Categoría eliminada'); renderModal();
+  }catch(e){ alert('Error: '+e.message); }
 }
 function renderHcTplBloques(){
   const intro=`<div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:12px">Bloques sueltos (movilidad, entrada en calor, vuelta a la calma...) para insertar en el día de cualquier atleta. Se guardan desde el editor con <b>Guardar bloque</b>, en el encabezado de cada sección.</div>`;
   if(!hcBlockLib) return intro+`<div class="cc-empty">Cargando bloques...</div>`;
   const cat=adminState.libCat||'Todas';
   const list=hcBlockLib.filter(b=>cat==='Todas'||b.category===cat);
-  const filters=`<div style="margin-bottom:14px">${hcBlockCatChipsHTML(cat,'hcSetLibCat',true)}</div>`;
+  const filters=`<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:14px">
+      <div style="flex:1;min-width:0">${hcBlockCatChipsHTML(cat,'hcSetLibCat',true)}</div>
+      <button class="adm-btn ${adminState.libCatsOpen?'adm-btn-orange':'adm-btn-ghost'}" style="flex-shrink:0;padding:6px 10px;gap:6px;font-size:11px" onclick="hcToggleCatsPanel()">${hcIcon('settings',13)} Categorías</button>
+    </div>${adminState.libCatsOpen?hcCatsPanelHTML():''}`;
   if(!hcBlockLib.length) return intro+`<div class="cc-box" style="text-align:center;padding:32px 16px">
     <div style="color:var(--text3);margin-bottom:10px;display:flex;justify-content:center">${hcIcon('stack',30)}</div>
     <div style="font-weight:700;font-size:15px;margin-bottom:4px">Todavía no hay bloques</div>
@@ -4716,7 +4781,7 @@ function renderHcTplBloques(){
     return `<div class="ath-card">
       <div class="ath-card-top">
         <div class="cc-head-ic">${hcIcon('stack',16,'#FFEC03')}</div>
-        <div class="user-row-info"><div class="user-row-name">${escH(b.name)}</div><div class="user-row-email">${escH(b.category||'Otro')} · ${n} ejercicio${n===1?'':'s'}</div></div>
+        <div class="user-row-info"><div class="user-row-name">${escH(b.name)}</div><div class="user-row-email" style="margin-top:3px">${hcBlockCatBadge(b.category)} · ${n} ejercicio${n===1?'':'s'}</div></div>
         <button class="adm-btn adm-btn-red" style="padding:7px 9px" title="Eliminar" onclick="hcDeleteLibBlock('${b.id}')">${IC.trash}</button>
       </div>
       <div style="display:flex;gap:6px">
@@ -4724,8 +4789,10 @@ function renderHcTplBloques(){
         <button class="adm-btn ${open?'adm-btn-orange':'adm-btn-ghost'}" style="flex:1;justify-content:center;padding:9px;gap:6px" onclick="hcToggleLibBlock('${b.id}')">${hcIcon('eye',14)} ${open?'Cerrar':'Ver'}</button>
       </div>
       ${open?`<div style="border-top:1px solid var(--border);padding-top:10px">
-        <div class="ath-label">Categoría</div>
-        <div style="margin-bottom:12px">${hcBlockCatChipsHTML(b.category||'Otro',`hcSetLibBlockCat.bind(null,'${b.id}')`,false)}</div>
+        <div class="ath-label">Mover a otra categoría</div>
+        <select class="adm-inp" style="margin-bottom:12px" onchange="hcSetLibBlockCat('${b.id}',hcCatName(this.selectedIndex,0))">
+          ${hcBlockCats().map(c=>`<option ${c===(b.category||'Otro')?'selected':''}>${escH(c)}</option>`).join('')}
+        </select>
         <div class="ath-label">Ejercicios</div>
         ${b.exercises.map(ex=>hcExReadOnlyHTML(ex)).join('')||'<div style="font-size:12px;color:var(--text3)">Sin ejercicios</div>'}
       </div>`:''}
@@ -4746,6 +4813,7 @@ async function hcRenameLibBlock(id){
 async function hcSetLibBlockCat(id,cat){
   try{
     await hcBlockLibMutate(lib=>{ const x=lib.find(y=>y.id===id); if(x) x.category=cat; });
+    showToast('Bloque movido a '+cat);
     renderModal();
   }catch(e){ alert('Error: '+e.message); }
 }
