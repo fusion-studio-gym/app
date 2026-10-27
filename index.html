@@ -5022,6 +5022,17 @@ function hcRemoveDay(wi,di){
   adminState.planDayIdx=Math.max(0,di-1);
   renderModal();
 }
+// Mueve el día completo (con sus ejercicios) una posición. Conserva id y nombre, así el estado completado viaja con el día.
+function hcMoveDay(wi,di,dir){
+  const days=hcPlanEditing[wi].days;
+  const target=di+dir;
+  if(target<0||target>=days.length) return;
+  // Días viejos sin id usan un id por posición ('w0_d1') para el estado: se lo fijamos antes de moverlos para no perderlo.
+  [di,target].forEach(i=>{ if(!days[i].id) days[i].id='w'+wi+'_d'+i; });
+  const tmp=days[di]; days[di]=days[target]; days[target]=tmp;
+  adminState.planDayIdx=target;
+  renderModal();
+}
 function hcUpdateDayName(wi,di,val){ hcPlanEditing[wi].days[di].name=val; }
 function hcAddExercise(wi,di){ hcPlanEditing[wi].days[di].exercises.push(hcNewExercise()); renderModal(); }
 function hcRemoveExercise(wi,di,ei){ hcPlanEditing[wi].days[di].exercises.splice(ei,1); renderModal(); }
@@ -5290,7 +5301,7 @@ function hcPlanEditorCoreHTML(weekSummary){
     </div>
 
     <div class="admin-section-title" style="margin-bottom:8px">DÍAS — SEMANA ${wi+1}</div>
-    <div style="display:flex;gap:6px;margin-bottom:12px;align-items:center">${dayTabs}<button class="adm-btn adm-btn-ghost" style="flex-shrink:0;padding:4px 10px" onclick="hcAddDay(${wi})">${IC.plus} Día</button></div>
+    <div style="display:flex;gap:6px;margin-bottom:12px;align-items:center">${dayTabs}${week.days.length>1?`<button class="adm-btn adm-btn-ghost" style="flex-shrink:0;padding:6px 8px" title="Mover día antes" ${di===0?'disabled':''} onclick="hcMoveDay(${wi},${di},-1)"><span style="display:inline-block;transform:rotate(180deg)">${IC.chevron}</span></button><button class="adm-btn adm-btn-ghost" style="flex-shrink:0;padding:6px 8px" title="Mover día después" ${di===week.days.length-1?'disabled':''} onclick="hcMoveDay(${wi},${di},1)">${IC.chevron}</button>`:''}<button class="adm-btn adm-btn-ghost" style="flex-shrink:0;padding:4px 10px" onclick="hcAddDay(${wi})">${IC.plus} Día</button></div>
     <input class="adm-inp" value="${escH(day.name)}" oninput="hcUpdateDayName(${wi},${di},this.value)" style="margin-bottom:12px">
 
     ${exercisesHTML}
