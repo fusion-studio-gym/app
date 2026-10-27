@@ -540,7 +540,7 @@ const K = {
   HC_ADM_REVIEWED: 'hc_admin_reviewed_v1',  // shared: {trac:{[entryId]:ts}, sessions:{[uid+'_'+dayId]:ts}} — lo que el admin ya marcó como revisado en el Centro de Control
   HC_DRIVE_LINKS: 'hc_drive_links_v1',  // shared: {[uid]: url} — link de la carpeta de Google Drive de cada alumno (canal de videos)
   HC_VIDEO_CATALOG: 'hc_video_catalog_v1',  // shared: {groups:[{id,name,movements:[{id,name,instruction}]}], updatedAt} — movimientos que el admin puede pedir en video
-  HC_VIDEOS: (uid) => `hc_videos_${uid}_v1`,  // personal: [{id,group,movement,instruction,dueDate,createdAt,status:'pending'|'sent'|'reviewed',sentAt,feedback,reviewedAt}] — pedidos de video (sin links: los videos van a la carpeta de Drive)
+  HC_VIDEOS: (uid) => `hc_videos_${uid}_v1`,  // personal: [{id,group,movement,instruction,dueDate,createdAt,status:'pending'|'sent'|'reviewed',sentAt,feedback,reviewedAt,dismissedByStudent,dismissedAt}] — pedidos de video (sin links: los videos van a la carpeta de Drive)
 };
 const DEFAULT_ADMIN_PW = 'fusion2025';
 const DEFAULT_ADMIN_PW_HYBRID = 'hybrid2025';
@@ -1944,7 +1944,6 @@ async function hcEnsurePlanData(){
     hcOwnPlanUid = session.uid;
     const [vids]=await Promise.all([ personalGet(K.HC_VIDEOS(session.uid)), hcLoadDriveLinks() ]);
     hcOwnVideos = Array.isArray(vids)?vids:[];
-    hcVidHistOpen=false;
     hcNotifs = await personalGet(K.HC_NOTIFS(session.uid)) || null;
     const firstNotifs=!hcNotifs;
     const planCh=hcSyncPlanNotifs();
@@ -2140,7 +2139,6 @@ async function hcPollNotifs(){
 // ---- Pedidos de video (alumno) ----
 // El alumno sube el video a su carpeta de Drive y toca "Marcar como enviado": la app no guarda videos ni links.
 let hcOwnVideos=null;       // ver K.HC_VIDEOS
-let hcVidHistOpen=false;
 let hcVidBusy={};
 function hcVidNotifKeys(v){
   const keys=[{ k:'req_'+v.id, ts:v.createdAt||0 }];
@@ -2171,54 +2169,49 @@ function hcVidFolderBtnHTML(){
     : `<button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;gap:8px;padding:10px;opacity:.7;font-size:11px;line-height:1.3" onclick="showToast('Avisale a tu profe para que la configure')">${hcDriveLogo(15)} Tu profe todavia no configuro tu carpeta</button>`;
 }
 function hcVidActiveItemHTML(v){
-  const sent=v.status==='sent';
-  const overdue=!sent && v.dueDate && v.dueDate<new Date().toISOString().slice(0,10);
-  const chip=sent
-    ? `<span style="font-size:10px;font-weight:700;color:var(--green);background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:2px 8px;flex-shrink:0">Enviado</span>`
-    : `<span style="font-size:10px;font-weight:700;color:#ff7a6b;background:rgba(255,122,107,0.12);border:1px solid rgba(255,122,107,0.3);border-radius:10px;padding:2px 8px;flex-shrink:0">Pendiente</span>`;
+  const overdue=v.dueDate && v.dueDate<new Date().toISOString().slice(0,10);
   const busy=!!hcVidBusy[v.id];
   return `<div class="cc-item">
     <div class="cc-item-top" style="align-items:flex-start;margin-bottom:6px">
       <div style="min-width:0"><div style="font-size:14px;font-weight:700;color:var(--text)">${escH(v.movement)}</div>${v.group?`<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">${escH(v.group)}</div>`:''}</div>
-      ${chip}
+      <span style="font-size:10px;font-weight:700;color:#ff7a6b;background:rgba(255,122,107,0.12);border:1px solid rgba(255,122,107,0.3);border-radius:10px;padding:2px 8px;flex-shrink:0">Pendiente</span>
     </div>
     ${v.instruction?`<div style="font-size:12px;color:var(--text2);line-height:1.5;white-space:pre-line;margin-bottom:8px">${escH(v.instruction)}</div>`:''}
     ${v.dueDate?`<div style="font-size:11px;color:${overdue?'var(--red)':'var(--text3)'};margin-bottom:10px;display:flex;align-items:center;gap:6px">${hcIcon('calendar',12)} Fecha limite: ${escH(hcFmtDueDate(v.dueDate))}${overdue?' (vencida)':''}</div>`:''}
-    ${sent?`<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Lo marcaste como enviado el ${escH(hcFmtShortDate(v.sentAt))}. Tu profe lo va a revisar.</div>`:''}
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       ${hcVidFolderBtnHTML()}
-      ${sent
-        ? `<button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;gap:6px;padding:10px" ${busy?'disabled':''} title="Tocá para deshacer" onclick="hcToggleVideoSent('${v.id}')">${hcIcon('undo',14)} Deshacer enviado</button>`
-        : `<button class="adm-btn adm-btn-orange" style="flex:1;justify-content:center;gap:6px;padding:10px" ${busy?'disabled':''} onclick="hcToggleVideoSent('${v.id}')">${hcIcon('check',14,'#1a1a00')} Marcar como enviado</button>`}
+      <button class="adm-btn adm-btn-orange" style="flex:1;justify-content:center;gap:6px;padding:10px" ${busy?'disabled':''} onclick="hcMarkVideoSent('${v.id}')">${hcIcon('check',14,'#1a1a00')} Marcar como enviado</button>
     </div>
   </div>`;
 }
 function hcVidReviewedItemHTML(v){
+  const busy=!!hcVidBusy[v.id];
   return `<div class="cc-item">
     <div class="cc-item-top" style="align-items:flex-start;margin-bottom:8px">
       <div style="min-width:0"><div style="font-size:14px;font-weight:700;color:var(--text)">${escH(v.movement)}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">Revisado el ${escH(hcFmtShortDate(v.reviewedAt))}</div></div>
       <span style="font-size:10px;font-weight:700;color:#1a1a00;background:#FFEC03;border-radius:10px;padding:2px 8px;flex-shrink:0">Con devolucion</span>
     </div>
     <div style="font-size:12px;color:var(--text);line-height:1.5;white-space:pre-line;background:var(--surface3);border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:flex-start"><span style="flex-shrink:0;margin-top:2px">${hcIcon('chat',13,'#FFEC03')}</span><span>${v.feedback?escH(v.feedback):'<span style="color:var(--text3)">Tu profe lo revisó sin dejar comentarios.</span>'}</span></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:8px">
+      <button class="adm-btn adm-btn-ghost" style="padding:6px 12px;gap:6px;font-size:12px" ${busy?'disabled':''} onclick="hcDismissVideoFb('${v.id}')">${hcIcon('check',13)} Cerrar</button>
+    </div>
   </div>`;
 }
-function hcToggleVidHist(){ hcVidHistOpen=!hcVidHistOpen; hcRefreshVideoUI(); }
-// Tarjeta "Pedidos de video" arriba de la pestaña Plan (solo si hay pedidos)
+// Tarjeta "Pedidos de video" arriba de la pestaña Plan: solo pedidos sin enviar y devoluciones sin cerrar.
+// Los enviados se ocultan y el historial completo queda del lado admin.
 function hcVideoCardHTML(){
   const vids=hcOwnVideos||[];
-  if(!vids.length) return '';
-  const active=vids.filter(v=>v.status!=='reviewed').sort(hcVidSortActive);
-  const reviewed=vids.filter(v=>v.status==='reviewed').sort((a,b)=>(b.reviewedAt||0)-(a.reviewedAt||0));
-  const recent=reviewed.slice(0,2), older=reviewed.slice(2);
+  const active=vids.filter(v=>v.status==='pending').sort(hcVidSortActive);
+  const feedback=vids.filter(v=>v.status==='reviewed' && !v.dismissedByStudent).sort((a,b)=>(b.reviewedAt||0)-(a.reviewedAt||0));
+  if(!active.length && !feedback.length) return '';
   const sub=(t)=>`<div style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin:12px 0 8px">${t}</div>`;
   return `<div class="cc-box" style="padding:14px;margin-bottom:16px">
-    <div class="cc-head" style="margin-bottom:${active.length?'10px':'0'}">
+    <div class="cc-head" style="margin-bottom:10px">
       <div class="cc-head-ic" style="background:rgba(255,122,107,0.14)">${hcIcon('video',18,'#ff7a6b')}</div>
-      <div style="flex:1;min-width:0"><div class="cc-title">Pedidos de video</div><div style="font-size:11px;color:var(--text3)">${active.length?`Subí el video a tu carpeta de Drive y marcalo como enviado.`:'No tenés videos pendientes.'}</div></div>
+      <div style="flex:1;min-width:0"><div class="cc-title">Pedidos de video</div><div style="font-size:11px;color:var(--text3)">${active.length?`Subí el video a tu carpeta de Drive y marcalo como enviado.`:'Tu profe te dejó una devolución.'}</div></div>
     </div>
     ${active.map(hcVidActiveItemHTML).join('')}
-    ${recent.length?sub('Con devolucion')+recent.map(hcVidReviewedItemHTML).join(''):''}
-    ${older.length?`<button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;margin-top:4px;font-size:12px" onclick="hcToggleVidHist()">${hcVidHistOpen?'Ocultar historial':`Ver historial (${older.length})`}</button>${hcVidHistOpen?`<div style="margin-top:8px">${older.map(hcVidReviewedItemHTML).join('')}</div>`:''}`:''}
+    ${feedback.length?(active.length?sub('Con devolucion'):'')+feedback.map(hcVidReviewedItemHTML).join(''):''}
   </div>`;
 }
 // Aviso en Inicio cuando hay videos sin enviar
@@ -2240,32 +2233,61 @@ function hcRefreshVideoUI(){
   const h=document.getElementById('hc-vid-home'); if(h) h.innerHTML=hcVideoHomeHTML();
   hcRefreshNotifUI();
 }
-async function hcToggleVideoSent(id){
-  if(hcVidBusy[id]) return;
+// Toast con botón (ej. "Deshacer"). Se cierra solo a los ms indicados.
+let hcActionToastTimer=null;
+function hcShowActionToast(msg,btnLabel,onclickJS,ms){
+  let t=document.getElementById('hc-action-toast');
+  if(!t){ t=document.createElement('div'); t.id='hc-action-toast'; t.className='toast'; t.style.cssText='pointer-events:auto;display:flex;align-items:center;gap:14px;padding:8px 8px 8px 18px'; document.body.appendChild(t); }
+  t.innerHTML=`<span>${escH(msg)}</span><button class="adm-btn adm-btn-orange" style="padding:6px 14px;font-size:12px;border-radius:20px" onclick="${onclickJS}">${escH(btnLabel)}</button>`;
+  requestAnimationFrame(()=>t.classList.add('show'));
+  clearTimeout(hcActionToastTimer);
+  hcActionToastTimer=setTimeout(hcHideActionToast,ms||6000);
+}
+function hcHideActionToast(){
+  clearTimeout(hcActionToastTimer);
+  const t=document.getElementById('hc-action-toast'); if(t) t.classList.remove('show');
+}
+// Cambia el estado de un pedido propio releyendo la lista fresca. check(v) devuelve false si ya no corresponde.
+async function hcOwnVideoUpdate(id,check,apply){
+  hcVidBusy[id]=true;
+  const prev=JSON.parse(JSON.stringify(hcOwnVideos||[]));
   const cur=(hcOwnVideos||[]).find(v=>v.id===id);
-  if(!cur || cur.status==='reviewed') return;
-  const toSent=cur.status!=='sent';
-  const prev=JSON.parse(JSON.stringify(hcOwnVideos));
-  cur.status=toSent?'sent':'pending'; cur.sentAt=toSent?Date.now():null;
-  hcVidBusy[id]=true; hcRefreshVideoUI();
+  if(cur) apply(cur);
+  hcRefreshVideoUI();
+  let blocked=false;
   try{
-    let blocked=false;
     const list=await hcVideosMutate(session.uid, l=>{
       const v=l.find(x=>x.id===id);
-      if(!v || v.status==='reviewed'){ blocked=true; return false; }
-      v.status=cur.status; v.sentAt=cur.sentAt;
+      if(!v || !check(v)){ blocked=true; return false; }
+      apply(v);
     }, prev);
     if(list) hcOwnVideos=list;
-    if(blocked){
-      hcOwnVideos=await personalGet(K.HC_VIDEOS(session.uid)) || [];
-      showToast('Este pedido ya fue revisado o cancelado por tu profe');
-    } else if(toSent) showToast('Listo, le avisamos a tu profe');
-  }catch(e){ hcOwnVideos=prev; alert('No se pudo guardar: '+e.message); }
+    else hcOwnVideos=await personalGet(K.HC_VIDEOS(session.uid)) || prev;
+  }catch(e){ hcOwnVideos=prev; alert('No se pudo guardar: '+e.message); blocked=null; }
   finally{
     delete hcVidBusy[id];
     if(hcSyncVideoNotifs(false)) hcSaveNotifs();
     hcRefreshVideoUI();
   }
+  return blocked===false;
+}
+async function hcMarkVideoSent(id){
+  if(hcVidBusy[id]) return;
+  const ok=await hcOwnVideoUpdate(id, v=>v.status==='pending', v=>{ v.status='sent'; v.sentAt=Date.now(); });
+  if(ok) hcShowActionToast('Marcado como enviado','Deshacer',`hcUndoVideoSent('${id}')`,6000);
+  else if(ok===false) showToast('Este pedido ya fue revisado o cancelado por tu profe');
+}
+// Solo disponible mientras dura el toast, y si el admin todavía no lo revisó
+async function hcUndoVideoSent(id){
+  hcHideActionToast();
+  if(hcVidBusy[id]) return;
+  const ok=await hcOwnVideoUpdate(id, v=>v.status==='sent', v=>{ v.status='pending'; v.sentAt=null; });
+  if(!ok) showToast('Tu profe ya lo revisó, no se puede deshacer');
+}
+// Oculta la devolución de la tarjeta para siempre (el registro queda para el historial del admin)
+async function hcDismissVideoFb(id){
+  if(hcVidBusy[id]) return;
+  await hcOwnVideoUpdate(id, v=>v.status==='reviewed', v=>{ v.dismissedByStudent=true; v.dismissedAt=Date.now(); });
 }
 
 // ---- Chat alumno ↔ profe ----
@@ -4336,7 +4358,7 @@ async function hcCcVidReview(id,on){
     const list=await hcVideosMutate(f.uid, l=>{
       const v=l.find(x=>x.id===id);
       if(!v){ gone=true; return false; }
-      if(on){ v.status='reviewed'; v.feedback=fb; v.reviewedAt=Date.now(); }
+      if(on){ v.status='reviewed'; v.feedback=fb; v.reviewedAt=Date.now(); delete v.dismissedByStudent; delete v.dismissedAt; }  // devolución nueva: vuelve a mostrarse al alumno
       else { v.status='sent'; v.reviewedAt=null; }   // la devolución queda guardada para editarla
     }, f.list);
     if(gone){ alert('Este pedido ya no existe.'); await hcCcVidRefresh(f.uid); }
@@ -4383,7 +4405,7 @@ function hcCcVideoItem(it,view){
     ? `${escH(v.movement)} · Pedido el ${escH(hcFmtShortDate(v.createdAt))}${v.dueDate?' · Limite '+escH(hcFmtDueDate(v.dueDate)):''}`
     : view==='pend'
     ? `${escH(v.movement)} · Enviado el ${escH(hcFmtShortDate(v.sentAt))}`
-    : `${escH(v.movement)} · Revisado el ${escH(hcFmtShortDate(v.reviewedAt))}`;
+    : `${escH(v.movement)} · Revisado el ${escH(hcFmtShortDate(v.reviewedAt))}${v.dismissedByStudent?' · Leida por el alumno':''}`;
   if(view==='unsent') return `<div class="cc-item"><div class="cc-item-top">${hcCcWho(it.u,sub)}
       <button class="adm-btn adm-btn-red" style="padding:6px 8px;flex-shrink:0" title="Cancelar pedido" onclick="hcCcVidCancel('${v.id}')">${IC.trash}</button>
     </div></div>`;
@@ -4433,7 +4455,7 @@ function renderHcAdminVideoHistory(){
             <div style="font-size:12px;font-weight:600">${escH(new Date(v.createdAt||0).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'}))}</div>
             ${hcVidStatusTag(v)}
           </div>
-          <div style="font-size:10px;color:var(--text3);margin-bottom:${v.feedback?'6px':'0'}">${[v.dueDate?'Limite '+hcFmtDueDate(v.dueDate):'', v.sentAt?'Enviado '+hcFmtShortDate(v.sentAt):'', v.reviewedAt?'Revisado '+hcFmtShortDate(v.reviewedAt):''].filter(Boolean).map(escH).join(' · ')||'Esperando el video'}</div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:${v.feedback?'6px':'0'}">${[v.dueDate?'Limite '+hcFmtDueDate(v.dueDate):'', v.sentAt?'Enviado '+hcFmtShortDate(v.sentAt):'', v.reviewedAt?'Revisado '+hcFmtShortDate(v.reviewedAt):'', v.dismissedByStudent?'Cerrada por el alumno '+hcFmtShortDate(v.dismissedAt):''].filter(Boolean).map(escH).join(' · ')||'Esperando el video'}</div>
           ${v.feedback?`<div style="font-size:11px;color:var(--text2);line-height:1.4;background:var(--surface3);border-radius:6px;padding:8px 10px;display:flex;gap:6px;align-items:flex-start;white-space:pre-line"><span style="flex-shrink:0;margin-top:1px">${hcIcon('chat',12)}</span><span>${escH(v.feedback)}</span></div>`:''}
         </div>`).join('')}
       </div>
