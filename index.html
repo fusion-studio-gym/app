@@ -818,7 +818,7 @@ async function loadPlan(){
   else{ plan=lsGet(K.PLAN); }
   if(!plan) plan=buildDefaultRoutine();
 }
-async function savePlan(){ await sharedSet(K.PLAN,plan); lsSet(K.PLAN,plan); }
+async function savePlan(){ const ok=await sharedSet(K.PLAN,plan); lsSet(K.PLAN,plan); return ok; }
 
 async function loadBlockName(){
   const remote = await sharedGet(K.BLOCK_NAME);
@@ -1429,7 +1429,7 @@ function parseBlockText(text, opts){
     }
   });
   errors.sort((a,b)=>a.line-b.line); warnings.sort((a,b)=>a.line-b.line);
-  return {plan,name,errors,warnings,index};
+  return {plan,name,nameLine,errors,warnings,index};
 }
 
 // Agrupa series iguales seguidas: [{r:'6',rpe:'@6'} x4] -> [{n:4,r:'6',rpe:'@6'}]
@@ -3865,8 +3865,9 @@ function renderAdminBody(){
     return `<div class="adm-layout"><div class="admin-nav">${nav}</div><div class="adm-main">${renderHcAdminTab()}</div></div>`;
   }
   if(typeof adminState.tab!=='number') adminState.tab=0;
-  const tabs=[['grid','Dashboard'],['users','Usuarios'],['list','Ejercicios'],['calendar','Semanas'],['bookOpen','RPE'],['target','PRs'],['trendingUp','Grupo'],['key','Contraseña'],['search','Diagnóstico']];
-  const nav=tabs.map(([ic,label],i)=>`<div class="admin-tab ${adminState.tab===i?'active':''}" onclick="setAdminTab(${i})"><span class="adm-tab-ic">${hcIcon(ic,16)}${label}</span></div>`).join('');
+  // [índice, ícono, nombre] — los índices no cambian (otras partes del admin los usan); el orden es el visual
+  const tabs=[[0,'grid','Dashboard'],[1,'users','Usuarios'],[2,'list','Ejercicios'],[3,'calendar','Semanas'],[9,'pencil','Borrador'],[4,'bookOpen','RPE'],[5,'target','PRs'],[6,'trendingUp','Grupo'],[7,'key','Contraseña'],[8,'search','Diagnóstico']];
+  const nav=tabs.map(([i,ic,label])=>`<div class="admin-tab ${adminState.tab===i?'active':''}" onclick="setAdminTab(${i})"><span class="adm-tab-ic">${hcIcon(ic,16)}${label}</span></div>`).join('');
   let body='';
   if(adminState.tab===0) body=renderTabDashboard();
   else if(adminState.tab===1) body=renderTabUsers();
@@ -3876,6 +3877,7 @@ function renderAdminBody(){
   else if(adminState.tab===5) body=renderTabTracked();
   else if(adminState.tab===6) body='<div id="comparative-loading" style="text-align:center;padding:32px;color:var(--text3)">Cargando datos...</div>';
   else if(adminState.tab===7) body=renderTabPw();
+  else if(adminState.tab===9) body=renderTabDraft();
   else body=renderTabDiag();
   return `<div class="adm-layout"><div class="admin-nav">${nav}</div><div class="adm-main">${body}</div></div>`;
 }
@@ -6913,6 +6915,302 @@ async function deleteArchivedBlock(bid){
   archivedBlockView={blockId:null,blockPlan:null,weekIdx:null,block:null};
   render();
   window.scrollTo(0,0);
+}
+
+// ============================================================
+// BLOQUE COMO TEXTO — piezas de UI compartidas (Borrador, Plantillas, Editar como texto)
+// ============================================================
+const btPrevOpen={}; // {clave: Set(semanas abiertas)} — para que la vista previa no se cierre al tipear
+function btPrevToggle(key,wn,open){ if(!btPrevOpen[key]) btPrevOpen[key]=new Set(); if(open) btPrevOpen[key].add(wn); else btPrevOpen[key].delete(wn); }
+function btSetsPreview(sets){
+  let n=0;
+  return btGroupSets(sets).map(g=>{
+    const from=n+1; n+=g.n;
+    return `<div class="set-row" style="padding:8px 12px"><div class="set-row-top" style="margin-bottom:0">
+      <span class="set-label">${g.n>1?'SERIES '+from+'–'+n:'SERIE '+from}</span>
+      <span class="set-target">${escH(g.r)} <span class="set-target-rpe">${g.rpe!=='-'?escH(g.rpe):''}</span></span>
+    </div></div>`;
+  }).join('');
+}
+function btExPreview(ex){
+  if(ex.type==='single'){
+    return `<div class="ex-card"><div class="ex-header"><span class="ex-order">${ex.order}</span><div><div class="ex-name">${escH(ex.name)}</div></div></div><div class="sets-wrap">${btSetsPreview(ex.sets)}</div></div>`;
+  }
+  const parts=ex.parts.map(p=>`<div class="superset-part" style="padding:8px 12px"><div class="superset-part-name" style="margin-bottom:0"><span>${escH(p.name)}</span><span class="set-target" style="font-size:11px;flex:none">${escH(p.r)} <span class="set-target-rpe">${p.rpe!=='-'?escH(p.rpe):''}</span></span></div></div>`).join('');
+  return `<div class="ex-card"><div class="ex-header"><span class="ex-order">${ex.order}</span><div><span class="combined-tag">BLOQUE COMBINADO</span><div class="ex-name">${ex.parts.map(p=>escH(p.name)).join(' + ')}</div></div></div>
+    <div class="sets-wrap"><div class="superset-set-block"><div class="superset-set-header">${ex.count} ${ex.count===1?'SERIE':'SERIES'}</div>${parts}</div></div></div>`;
+}
+// Vista previa: semanas > días > partes > ejercicios, con los mismos componentes que ve el alumno.
+// opts: {key, messages:{[semana]:texto}, onMsg:'nombreFuncion'} — si hay onMsg, cada semana trae su cuadro de mensaje.
+function btPreviewHTML(p, opts){
+  opts=opts||{};
+  if(!p || !p.length) return `<div class="cc-empty">La vista previa aparece cuando escribís la primera SEMANA.</div>`;
+  const openSet=btPrevOpen[opts.key]||new Set();
+  return p.map((wd,wi)=>{
+    const wn=wi+1;
+    const msg=(opts.messages&&opts.messages[wn])||'';
+    const days=wd.days.map(d=>`
+      <div class="day-card" style="cursor:default">
+        <div class="day-icon-wrap">${iconFromData(d.icon,22)}</div>
+        <div class="day-info"><div class="day-name">${escH(d.name)}</div><div class="day-days">${escH(d.days)}</div></div>
+      </div>
+      ${d.blocks.map(b=>`<div class="block-card" style="cursor:default">
+          <div class="block-icon-wrap">${iconFromData(b.icon,26)}</div>
+          <div style="flex:1;min-width:0"><div class="block-name">${escH(b.name)}</div><div class="block-detail">${b.exercises.length} ejercicios</div></div>
+        </div>
+        ${b.exercises.map(btExPreview).join('')}`).join('')}`).join('');
+    const msgBox=opts.onMsg?`<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:5px">${hcIcon('chat',12)} Mensaje del profe · Semana ${wn}</div>
+        <textarea class="adm-inp" style="margin:0;width:100%;min-height:70px;resize:vertical;font-size:12px;line-height:1.5;padding:8px 10px" placeholder="Mensaje opcional para los alumnos esta semana (lo podés escribir más adelante)..." oninput="${opts.onMsg}(${wn},this.value)">${escH(msg)}</textarea>
+      </div>`:'';
+    return `<details class="ex-edit-card" ${openSet.has(wn)?'open':''} ontoggle="btPrevToggle('${opts.key}',${wn},this.open)">
+      <summary style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:32px">
+        <span class="ex-edit-title">SEMANA ${wn}</span>
+        <span style="font-size:11px;color:var(--text3);display:inline-flex;align-items:center;gap:5px">${wd.days.length} día${wd.days.length===1?'':'s'} · ${btExCount(wd)} ejercicios${opts.onMsg?(msg.trim()?' · '+hcIcon('chat',12):' · sin mensaje'):''}</span>
+      </summary>
+      <div style="margin-top:12px">${days}${msgBox}</div>
+    </details>`;
+  }).join('');
+}
+// Resumen de errores y advertencias. Tocar uno lleva el cursor a esa línea del editor.
+function btIssuesHTML(errors, warnings, taId){
+  if(!errors.length && !warnings.length) return `<div style="font-size:12px;color:var(--green);display:flex;align-items:center;gap:6px;margin-bottom:12px">${hcIcon('checkCircle',14)} Sin errores</div>`;
+  const MAX=25;
+  const item=(x,color)=>`<div onclick="btJumpToLine('${taId}',${x.line})" style="cursor:pointer;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;line-height:1.45;color:var(--text2)"><b style="color:${color}">Línea ${x.line}</b> · ${escH(x.msg)}</div>`;
+  const box=(list,title,color,bg,border)=>list.length?`<div style="background:${bg};border:1px solid ${border};border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:10px">
+      <div style="font-size:10px;font-weight:700;color:${color};letter-spacing:1px;text-transform:uppercase;padding:4px 0">${title} (${list.length})</div>
+      ${list.slice(0,MAX).map(x=>item(x,color)).join('')}
+      ${list.length>MAX?`<div style="font-size:11px;color:var(--text3);padding:6px 0">y ${list.length-MAX} más…</div>`:''}
+    </div>`:'';
+  return box(errors,'Errores — hay que corregirlos','var(--red)','rgba(239,68,68,0.08)','rgba(239,68,68,0.25)')
+    + box(warnings,'Advertencias — no bloquean','var(--yellow)','rgba(245,158,11,0.08)','rgba(245,158,11,0.25)');
+}
+function btJumpToLine(taId, line){
+  const ta=document.getElementById(taId); if(!ta) return;
+  const lines=ta.value.split('\n');
+  let pos=0; for(let i=0;i<line-1 && i<lines.length;i++) pos+=lines[i].length+1;
+  ta.focus();
+  try{ ta.setSelectionRange(pos, pos+((lines[line-1]||'').length)); }catch(e){}
+  const lh=parseFloat(getComputedStyle(ta).lineHeight)||20;
+  ta.scrollTop=Math.max(0,(line-3)*lh);
+  ta.scrollIntoView({block:'center',behavior:'smooth'});
+}
+function btEditorHTML(id, value, oninput){
+  return `<textarea id="${id}" class="adm-inp" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" wrap="soft"
+    style="margin:0;width:100%;height:auto;min-height:55vh;resize:vertical;padding:10px 12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;font-size:14px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere"
+    oninput="${oninput}(this.value)">${escH(value)}</textarea>`;
+}
+const BT_FORMAT_HELP=`NOMBRE: Bloque 6 - 2026
+
+SEMANA 1
+DIA 1 (LUNES / MARTES)
+PARTE: TREN SUPERIOR
+1) BANCO PLANO C/BARRA (PAUSA 1")
+1 x 1 @8
+3 x 4 @7
+2) SUPERSET x4
+a) PRESS MILITAR CON BARRA: 8 @2
+b) VUELOS FRONTALES: 12 @2
+
+PARTE: TREN INFERIOR
+1) BACK SQUAT
+4 x 6 @6
+2) COMBINADO x3
+a) ESTOCADAS: 6 c/l @2
+b) SALTOS AL CAJON: 6
+c) PLANCHA: 30"
+
+// las líneas con // se ignoran`;
+function btFormatHelpHTML(){
+  return `<details class="cc-item" style="margin-bottom:12px">
+    <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--text2);min-height:28px;display:flex;align-items:center;gap:6px">${hcIcon('bookOpen',14)} Cómo se escribe (formato)</summary>
+    <pre style="margin:10px 0 8px;white-space:pre-wrap;overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px">${escH(BT_FORMAT_HELP)}</pre>
+    <div style="font-size:11px;color:var(--text3);line-height:1.6">
+      • Series: <b>series x reps @rpe</b>. Varias líneas si cambian dentro del mismo ejercicio.<br>
+      • Reps: 6 · 4/8 · 6 c/l · 20"/30". El RPE es opcional (@7, @7.5, @8.5/@9).<br>
+      • SUPERSET y COMBINADO son lo mismo: <b>xN</b> = cantidad de series; partes a) b) c).<br>
+      • La numeración es orientativa: la app ordena sola. Los íconos de días y partes se ponen solos.<br>
+      • Usá siempre el mismo nombre para los ejercicios base (Banco Plano, Back Squat, Peso Muerto) así cuentan para los PRs.
+    </div>
+  </details>`;
+}
+
+// ============================================================
+// BORRADOR DEL PRÓXIMO BLOQUE (Fuerza) — no toca el plan activo hasta Publicar
+// ============================================================
+let fsDraft=null;        // {text,plan,name,messages:{[semana]:msg},bid,errorCount,updatedAt}
+let fsDraftParsed=null;  // resultado de parseBlockText sobre fsDraft.text
+let fsDraftLoading=false;
+let fsDraftSaveState=''; // '' | 'saving' | 'saved' | 'error'
+
+function fsEmptyDraft(){ return {text:'',plan:null,name:'',messages:{},bid:Date.now().toString(36),errorCount:0,updatedAt:0}; }
+async function loadDraft(){
+  const remote=await sharedGet(K.DRAFT);
+  const local=lsGet(K.DRAFT);
+  const d=(remote && typeof remote.text==='string') ? remote : ((local && typeof local.text==='string') ? local : null);
+  fsDraft=d || fsEmptyDraft();
+  if(!fsDraft.messages || typeof fsDraft.messages!=='object') fsDraft.messages={};
+  if(!fsDraft.bid) fsDraft.bid=Date.now().toString(36);
+  if(remote) lsSet(K.DRAFT,remote);
+  fsDraftReparse();
+}
+function fsDraftReparse(){ fsDraftParsed=parseBlockText(fsDraft.text,{bid:fsDraft.bid,tracked:tracked||DEFAULT_TRACKED}); }
+// Errores del texto + chequeos de publicación (el nombre tiene que ser nuevo: los PRs se separan por nombre de bloque)
+function fsDraftAllErrors(){
+  const P=fsDraftParsed; if(!P) return [];
+  const errs=P.errors.slice();
+  const nm=(P.name||'').trim().toLowerCase();
+  if(nm && Array.isArray(plan) && plan.length && nm===(currentBlockName||'').trim().toLowerCase())
+    errs.unshift({line:P.nameLine||1,msg:'El NOMBRE es igual al del bloque activo ("'+currentBlockName+'"). Poné el nombre del bloque nuevo.'});
+  else if(nm && archivedBlocks.some(b=>(b.name||'').trim().toLowerCase()===nm))
+    errs.unshift({line:P.nameLine||1,msg:'Ya hay un bloque archivado con el nombre "'+P.name+'". Usá un nombre distinto para no mezclar los PRs.'});
+  return errs;
+}
+async function saveDraftNow(){
+  clearTimeout(window._draftTimer);
+  if(!fsDraft) return false;
+  const P=fsDraftParsed||{plan:null,name:'',errors:[]};
+  fsDraft.plan=P.plan; fsDraft.name=P.name; fsDraft.errorCount=P.errors.length; fsDraft.updatedAt=Date.now();
+  fsDraftSaveState='saving'; fsDraftUpdateStatus();
+  const ok=await sharedSet(K.DRAFT,fsDraft);
+  lsSet(K.DRAFT,fsDraft);
+  fsDraftSaveState=ok?'saved':'error'; fsDraftUpdateStatus();
+  return ok;
+}
+function fsDraftScheduleSave(){
+  fsDraftSaveState='saving'; fsDraftUpdateStatus();
+  clearTimeout(window._draftTimer);
+  window._draftTimer=setTimeout(saveDraftNow,800);
+}
+function fsDraftStatusText(){
+  if(fsDraftSaveState==='saving') return 'Guardando…';
+  if(fsDraftSaveState==='error') return '<span style="color:var(--red)">No se pudo guardar. Revisá la conexión (el texto sigue acá).</span>';
+  if(fsDraft && fsDraft.updatedAt) return 'Guardado · '+new Date(fsDraft.updatedAt).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  return 'Se guarda solo mientras escribís.';
+}
+function fsDraftUpdateStatus(){ const el=document.getElementById('draft-status'); if(el) el.innerHTML=fsDraftStatusText(); }
+function fsDraftInput(v){
+  fsDraft.text=v;
+  fsDraftScheduleSave();
+  // Vista previa y errores con una pequeña pausa para que tipear en el celular sea fluido
+  clearTimeout(window._draftPrevTimer);
+  window._draftPrevTimer=setTimeout(()=>{ fsDraftReparse(); fsDraftRefreshLive(); },250);
+}
+function fsDraftMsg(wn,val){ fsDraft.messages[wn]=val; fsDraftScheduleSave(); }
+function fsDraftPublishHTML(){
+  if(!fsDraft.text.trim()) return '';
+  const errs=fsDraftAllErrors();
+  const hasActive=Array.isArray(plan)&&plan.length>0;
+  return `<button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;padding:14px;font-size:14px;${errs.length?'opacity:.45':''}" onclick="fsPublishDraft()">${hcIcon('send',16)} Publicar bloque</button>
+    <div style="font-size:10px;color:var(--text3);margin-top:5px;text-align:center;line-height:1.4">${errs.length?'Corregí los errores para poder publicar.':(hasActive?'Se archiva el bloque actual ('+escH(currentBlockName)+') y este pasa a ser el activo.':'Este pasa a ser el bloque activo.')}</div>`;
+}
+function fsDraftRefreshLive(){
+  const P=fsDraftParsed;
+  const iss=document.getElementById('draft-issues'); if(iss) iss.innerHTML=fsDraft.text.trim()?btIssuesHTML(fsDraftAllErrors(),P.warnings,'draft-text'):'';
+  const pub=document.getElementById('draft-publish'); if(pub) pub.innerHTML=fsDraftPublishHTML();
+  const prev=document.getElementById('draft-preview'); if(prev) prev.innerHTML=btPreviewHTML(P.plan,{key:'draft',messages:fsDraft.messages,onMsg:'fsDraftMsg'});
+}
+function renderTabDraft(){
+  if(!fsDraft){
+    if(!fsDraftLoading){ fsDraftLoading=true; loadDraft().then(()=>{ fsDraftLoading=false; renderModal(); }); }
+    return `<div class="cc-empty">Cargando borrador...</div>`;
+  }
+  fsDraftReparse();
+  const P=fsDraftParsed;
+  const btn='justify-content:center;text-align:center;padding:12px 8px;font-size:12px;line-height:1.3;min-height:44px';
+  return `<div>
+    <div class="admin-section-title">${hcSecTitle('pencil','Borrador del próximo bloque')}</div>
+    <div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:12px">Escribí el bloque siguiente como texto. Los alumnos no ven nada hasta que tocás <b>Publicar bloque</b>. Bloque activo hoy: <b style="color:var(--text2)">${escH(currentBlockName)}</b>.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <button class="adm-btn adm-btn-ghost" style="${btn}" onclick="fsDraftLoadActive()">${hcIcon('copy',14)} Cargar bloque activo como texto</button>
+      <button class="adm-btn adm-btn-red" style="${btn}" onclick="fsDraftDiscard()">${IC.trash} Descartar borrador</button>
+    </div>
+    ${btFormatHelpHTML()}
+    ${btEditorHTML('draft-text',fsDraft.text,'fsDraftInput')}
+    <div id="draft-status" style="font-size:10px;color:var(--text3);margin:5px 0 12px">${fsDraftStatusText()}</div>
+    <div id="draft-issues">${fsDraft.text.trim()?btIssuesHTML(fsDraftAllErrors(),P.warnings,'draft-text'):''}</div>
+    <div id="draft-publish">${fsDraftPublishHTML()}</div>
+    <div class="admin-section-title" style="margin-top:20px">Vista previa y mensajes semanales</div>
+    <div style="font-size:11px;color:var(--text3);line-height:1.5;margin:-4px 0 10px">Tocá una semana para verla como la ve el alumno. Abajo de cada semana podés escribir su mensaje cuando quieras.</div>
+    <div id="draft-preview">${btPreviewHTML(P.plan,{key:'draft',messages:fsDraft.messages,onMsg:'fsDraftMsg'})}</div>
+  </div>`;
+}
+// Mensajes de un plan como {semana: texto}
+function planMessagesMap(p){
+  const out={};
+  (p||[]).forEach((wd,i)=>{ const m=wd.message!=null?wd.message:weekMessages[i]; if(m) out[i+1]=m; });
+  return out;
+}
+// Reemplaza el contenido del borrador (pide confirmación si ya tiene algo)
+async function fsDraftReplace(text, messages, what){
+  if(!fsDraft) await loadDraft();
+  if(fsDraft.text.trim() && !confirm('El borrador ya tiene contenido. ¿Reemplazarlo por '+what+'?\n\nNo se publica nada: solo cambia el borrador.')) return false;
+  fsDraft={text,plan:null,name:'',messages:JSON.parse(JSON.stringify(messages||{})),bid:Date.now().toString(36),errorCount:0,updatedAt:0};
+  btPrevOpen.draft=new Set();
+  fsDraftReparse();
+  const ok=await saveDraftNow();
+  if(!ok) showToast('Ojo: no se pudo guardar en el servidor');
+  return true;
+}
+async function fsDraftLoadActive(){
+  if(!Array.isArray(plan)||!plan.length){ showToast('No hay bloque activo para cargar'); return; }
+  if(await fsDraftReplace(planToText(plan,{name:currentBlockName}),planMessagesMap(plan),'el bloque activo')){
+    showToast('Bloque activo cargado. Cambiale el NOMBRE antes de publicar');
+    renderModal();
+  }
+}
+async function fsDraftDiscard(){
+  if(!fsDraft || (!fsDraft.text.trim() && !Object.values(fsDraft.messages||{}).some(m=>m))){ showToast('El borrador ya está vacío'); return; }
+  if(!confirm('¿Descartar el borrador? Se borran el texto y sus mensajes semanales. El bloque activo no cambia.')) return;
+  clearTimeout(window._draftTimer);
+  fsDraft=fsEmptyDraft(); fsDraftReparse(); btPrevOpen.draft=new Set();
+  await sharedSet(K.DRAFT,null); lsSet(K.DRAFT,null);
+  fsDraftSaveState='';
+  showToast('Borrador descartado');
+  renderModal();
+}
+async function fsPublishDraft(){
+  if(getClub()!=='fuerza' || !fsDraft) return;
+  clearTimeout(window._draftPrevTimer);
+  fsDraftReparse(); fsDraftRefreshLive();
+  const errs=fsDraftAllErrors();
+  if(errs.length){ showToast('Hay '+errs.length+' error'+(errs.length>1?'es':'')+': corregilos antes de publicar'); btJumpToLine('draft-text',errs[0].line); return; }
+  const P=fsDraftParsed, newName=P.name.trim();
+  const hasActive=Array.isArray(plan)&&plan.length>0;
+  const msg=hasActive
+    ? 'Se archivará el bloque actual ("'+currentBlockName+'") y "'+newName+'" pasará a ser el bloque activo.\n\nLos pesos y PRs que los alumnos cargaron en el bloque actual quedan guardados en el archivo.\n\n¿Publicar ahora?'
+    : '"'+newName+'" pasará a ser el bloque activo. ¿Publicar ahora?';
+  if(!confirm(msg)) return;
+  try{
+    showToast('Publicando...');
+    clearTimeout(window._draftTimer);
+    await loadUsers();
+    // 1) Copia de seguridad del plan activo, por si hay que revertir
+    const okBackup=await sharedSet(K.PLAN_BACKUP,{plan,name:currentBlockName,weekMessages,savedAt:Date.now()});
+    if(!okBackup) throw new Error('no se pudo guardar la copia de seguridad del plan activo');
+    // 2) Archivar el bloque activo con el flujo de siempre (plan + progreso + PRs de cada alumno)
+    if(hasActive){ syncWeekMessagesFromPlan(); await archiveCurrentBlock(currentBlockName); }
+    // 3) El borrador pasa a ser el plan activo, con sus mensajes semanales
+    const newPlan=JSON.parse(JSON.stringify(P.plan));
+    newPlan.forEach((wd,i)=>{ wd.message=fsDraft.messages[i+1]||''; });
+    plan=newPlan;
+    if(!await savePlan()) throw new Error('no se pudo guardar el plan nuevo');
+    currentBlockName=newName;
+    await saveBlockName();
+    syncWeekMessagesFromPlan();
+    await saveWeekMessages();
+    // 4) Limpiar el borrador
+    await sharedSet(K.DRAFT,null); lsSet(K.DRAFT,null);
+    fsDraft=fsEmptyDraft(); fsDraftReparse(); btPrevOpen.draft=new Set(); fsDraftSaveState='';
+    if(session && session.uid!=='__pending__') loadActiveWeek();
+    showToast('Bloque "'+newName+'" publicado');
+    adminState.tab=0;
+    renderModal();
+    render();
+  }catch(e){
+    alert('Error al publicar: '+e.message+'\n\nEl plan anterior quedó en la copia de seguridad (fs_plan_backup_v1). Avisale a quien mantiene la app antes de reintentar.');
+    renderModal(); render();
+  }
 }
 
 // ---- TAB: DIAGNÓSTICO ----
