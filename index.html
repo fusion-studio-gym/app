@@ -528,7 +528,12 @@ const K = {
   ADMINPW:  (club) => club==='hybrid' ? 'fs_adminpw_hybrid_v1' : 'fs_adminpw_v1',
   RPE_INFO: 'fs_rpe_info_v1',
   BLOCK_NAME: 'fs_block_name_v1',  // shared: current block name string
-  WEEK_MSGS: 'fs_week_messages_v1',  // shared: {weekIndex: message string}
+  WEEK_MSGS: 'fs_week_messages_v1',  // shared: {weekIndex: message string} — espejo de compatibilidad; la fuente es plan[i].message
+  PRS_BLOCK: (uid,bid) => `fs_prs_${uid}_b${bid}_v1`,  // personal: snapshot de PRs al archivar un bloque
+  PLAN_BACKUP: 'fs_plan_backup_v1',  // shared: {plan,name,weekMessages,savedAt} — copia del plan activo antes de publicar/editar como texto
+  DRAFT: 'fs_draft_v1',  // shared: {text,plan,name,messages:{[semana]:msg},bid,errorCount,updatedAt} — borrador del próximo bloque
+  TEMPLATES: 'fs_templates_v1',  // shared: [{id,name,createdAt,updatedAt,weeks}] — índice liviano de plantillas de bloque
+  TPL: (id) => `fs_tpl_${id}`,  // shared: {id,name,text,messages:{[semana]:msg},createdAt,updatedAt} — una plantilla por documento
   HC_PROFILE: (uid) => `hc_profile_${uid}_v1`,  // personal: ficha completa del alumno (Hybrid Club)
   HC_RACES: 'hc_races_v1',  // shared: [{id,name,series,location,date}]
   HC_GOAL: (uid) => `hc_goal_${uid}_v1`,  // personal: {raceId} — carrera objetivo del alumno
@@ -731,6 +736,41 @@ async function loadWeekMessages(){
   else { weekMessages=lsGet(K.WEEK_MSGS)||{}; }
 }
 async function saveWeekMessages(){ await sharedSet(K.WEEK_MSGS,weekMessages); lsSet(K.WEEK_MSGS,weekMessages); }
+// Los mensajes semanales viajan con el bloque: cada semana del plan lleva su campo `message`.
+// weekMessages ({índice: texto}) se deriva del plan para que la pantalla del alumno siga igual,
+// y fs_week_messages_v1 queda como espejo para versiones viejas de la app.
+let weekMsgsMigrated=false; // true si se copiaron mensajes sueltos al plan y falta guardarlo
+function planHasMessages(p){ return Array.isArray(p) && p.some(w=>w && Object.prototype.hasOwnProperty.call(w,'message')); }
+function syncWeekMessagesFromPlan(){
+  if(!Array.isArray(plan)) return;
+  if(!planHasMessages(plan)){
+    // Plan viejo: copiar los mensajes sueltos al plan sin perder nada
+    if(Object.values(weekMessages||{}).some(m=>m)) weekMsgsMigrated=true;
+    plan.forEach((w,i)=>{ w.message=weekMessages[i]||''; });
+    return;
+  }
+  weekMessages={};
+  plan.forEach((w,i)=>{ if(w.message) weekMessages[i]=w.message; });
+}
+// Guarda en Firestore solo los mensajes (lee el plan remoto y le aplica los cambios),
+// así no se publican ediciones del plan que el admin todavía no guardó.
+async function patchPlanMessages(changes){
+  const remote=await sharedGet(K.PLAN);
+  const target=Array.isArray(remote)?remote:plan;
+  if(changes) Object.entries(changes).forEach(([i,v])=>{ if(target[i]) target[i].message=v; });
+  else target.forEach((w,i)=>{ w.message=(plan[i]&&plan[i].message)||''; });
+  await sharedSet(K.PLAN,target);
+  lsSet(K.PLAN,target);
+  await saveWeekMessages();
+}
+async function persistWeekMsgsMigration(){
+  if(!weekMsgsMigrated || getClub()!=='fuerza') return;
+  const remote=await sharedGet(K.PLAN);
+  if(Array.isArray(remote) && !planHasMessages(remote) && remote.length===plan.length){
+    await patchPlanMessages(null);
+  }
+  weekMsgsMigrated=false;
+}
 let prs = {};      // {exName: {rm1:{weight,week,newPr}, rm2:..., rm3:..., rm4:...}}
 let tracked = null; // [{name, matchTerms:[]}]
 
@@ -810,6 +850,9 @@ async function archiveCurrentBlock(name){
         // Save as block-specific progress snapshot
         await window.__fsCloudSet(K.PROG_BLOCK(u.id,bid), JSON.stringify(prog));
       }
+      // Snapshot de PRs del alumno (solo lectura, por si hay que revisar o revertir)
+      const userPrs = await personalGet(K.PRS(u.id));
+      if(userPrs && Object.keys(userPrs).length > 0) await personalSet(K.PRS_BLOCK(u.id,bid), userPrs);
     }catch(e){ console.error('Error snapshotting progress for', u.id, e); }
   }));
   return bid;
@@ -1262,11 +1305,17 @@ function detectActiveWeek(){
 function setActiveWeek(idx){
   ST.activeWeek=idx;
   lsSet('fs_active_week_'+session?.uid, idx);
+  lsSet('fs_active_week_blk_'+session?.uid, currentBlockName);
 }
 
 // Load saved active week preference, falling back to auto-detect
 function loadActiveWeek(){
-  const saved=lsGet('fs_active_week_'+session?.uid);
+  let saved=lsGet('fs_active_week_'+session?.uid);
+  // La semana elegida pertenece a un bloque: si se publicó uno nuevo, volver a detectarla
+  const blk=lsGet('fs_active_week_blk_'+session?.uid);
+  if(blk===null) lsSet('fs_active_week_blk_'+session?.uid, currentBlockName);
+  else if(blk!==currentBlockName) saved=null;
+  if(typeof saved==='number' && plan && saved>=plan.length) saved=null;
   ST.activeWeek = (saved!==null&&saved!==undefined) ? saved : detectActiveWeek();
 }
 
@@ -3441,6 +3490,7 @@ function openAdmin(){
     const u=(session && session.uid) ? getUserById(session.uid) : null;
     if(u && u.admin && (u.club||'fuerza')===club){
       adminState.pwOk=true; adminState.pwErr='';
+      persistWeekMsgsMigration();
       loadUsers().then(()=>{ renderModal(); loadUserActivityStatus().then(()=>renderModal()); });
     }
   }
@@ -3526,6 +3576,7 @@ async function checkAdminPw(){
   if(remote) lsSet(K.ADMINPW(club),remote); // keep local cache in sync
   if(hashStr(val)===stored){
     adminState.pwOk=true; adminState.pwErr='';
+    persistWeekMsgsMigration();
     await loadUsers();
     renderModal();
     await loadUserActivityStatus();
@@ -3591,12 +3642,40 @@ async function setAdminTab(i){
 
 // Load activity status for all active users (has anyone ever recorded anything?)
 let userActivityMap={};
+let userActiveWeekMap={}; // {uid: índice de la primera semana incompleta} — solo alumnos de Fuerza que anotan
 async function loadUserActivityStatus(){
   const active=Object.values(users).filter(u=>u.status===STATUS.ACTIVE||u.status===STATUS.BLOCKED);
   await Promise.all(active.map(async u=>{
     const prog=await personalGet(K.PROG(u.id))||{};
     userActivityMap[u.id]=Object.values(prog).some(d=>d&&(d.weight||d.done));
+    if(userActivityMap[u.id] && (u.club||'fuerza')==='fuerza' && Array.isArray(plan) && plan.length){
+      let idx=plan.findIndex(wd=>calcWeekPct(wd,prog)<100);
+      userActiveWeekMap[u.id]= idx===-1 ? plan.length-1 : idx;
+    } else delete userActiveWeekMap[u.id];
   }));
+}
+// Semana activa del grupo: la más común entre los alumnos que anotan (si nadie anota, la 1)
+function groupActiveWeekIdx(){
+  const counts={};
+  Object.values(userActiveWeekMap).forEach(i=>{ counts[i]=(counts[i]||0)+1; });
+  const best=Object.entries(counts).sort((a,b)=>b[1]-a[1]||a[0]-b[0])[0];
+  return best?parseInt(best[0]):0;
+}
+// Tarjeta del Dashboard: avisa si la semana siguiente a la activa no tiene mensaje (solo aviso)
+function renderNextWeekMsgCard(){
+  if(getClub()!=='fuerza' || !Array.isArray(plan) || !plan.length) return '';
+  const cur=groupActiveWeekIdx(), next=cur+1;
+  if(next>=plan.length) return '';
+  const msg=((plan[next]&&plan[next].message)||'').trim();
+  const ok=!!msg;
+  return `<div style="background:${ok?'rgba(34,197,94,0.08)':'rgba(245,158,11,0.08)'};border:1px solid ${ok?'rgba(34,197,94,0.2)':'rgba(245,158,11,0.25)'};border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <div style="min-width:0">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;display:flex;align-items:center;gap:5px">${hcIcon('chat',12)} Mensaje de la próxima semana</div>
+      <div style="font-size:13px;color:${ok?'var(--green)':'var(--yellow)'};font-weight:600">${ok?'Semana '+plan[next].week+': mensaje listo':'La Semana '+plan[next].week+' todavía no tiene mensaje'}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:2px">Semana activa del grupo: ${plan[cur].week}</div>
+    </div>
+    <button class="adm-btn adm-btn-ghost" style="padding:8px 12px;font-size:12px;flex-shrink:0" onclick="setAdminTab(3)">${ok?'Ver':'Escribir'} →</button>
+  </div>`;
 }
 
 // ---- TAB: USUARIOS ----
@@ -5947,7 +6026,7 @@ function updatePartRpe(wi,di,bi,ei,pi,v){ getEx(wi,di,bi,ei).parts[pi].rpe=v; }
 function addPart(wi,di,bi,ei){ const ex=getEx(wi,di,bi,ei); const codes=['a','b','c','d','e','f']; ex.parts.push({pid:codes[ex.parts.length]||'x'+ex.parts.length,name:'NUEVO MOVIMIENTO',r:'8',rpe:'@2'}); renderModal(); }
 function removePart(wi,di,bi,ei,pi){ if(getEx(wi,di,bi,ei).parts.length<=1){showToast('Mínimo 1 movimiento');return;} getEx(wi,di,bi,ei).parts.splice(pi,1); renderModal(); }
 
-async function doSavePlan(){ await savePlan(); showToast('Plan guardado'); render(); }
+async function doSavePlan(){ await savePlan(); syncWeekMessagesFromPlan(); await saveWeekMessages(); showToast('Plan guardado'); render(); }
 
 // ---- TAB: SEMANAS ----
 function renderTabWeeks(){
@@ -5958,7 +6037,7 @@ function renderTabWeeks(){
         <input class="adm-inp" style="flex:1.5;margin:0" value="${escH(d.days)}" placeholder="Días" oninput="updateDayDays(${i},${di},this.value)">
         ${wd.days.length>1?`<button class="adm-btn adm-btn-red" onclick="removeDay(${i},${di})">${IC.trash}</button>`:''}
       </div>`).join('');
-    const msg = weekMessages[i]||'';
+    const msg = (wd.message!=null?wd.message:weekMessages[i])||'';
     return `<div class="ex-edit-card">
       <div class="ex-edit-card-header">
         <span class="ex-edit-title">SEMANA ${wd.week}</span>
@@ -6483,6 +6562,7 @@ function renderTabDashboard(){
     ${archiveBtn}
     ${statCards}
     ${progressBar}
+    ${renderNextWeekMsgCard()}
     ${pending.length?`<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
       <span style="font-size:13px;color:var(--yellow);font-weight:600;display:inline-flex;align-items:center;gap:8px">${hcIcon('hourglass',15)}${pending.length} solicitud${pending.length>1?'es':''} pendiente${pending.length>1?'s':''}</span>
       <button class="adm-btn adm-btn-ghost" style="padding:5px 12px;font-size:12px" onclick="setAdminTab(1);adminState.userSubTab='pending';renderModal()">Ver →</button>
@@ -6528,7 +6608,9 @@ async function restoreArchivedBlock(bid){
   const blockPlan = await loadBlockPlan(bid);
   if(!blockPlan){ showToast('No se pudo cargar el bloque'); return; }
   plan = blockPlan;
+  syncWeekMessagesFromPlan();
   await savePlan();
+  await saveWeekMessages();
   // Remove from archived list — it's now the active plan, not an archive
   archivedBlocks = archivedBlocks.filter(b=>b.id!==bid);
   await saveBlocks();
@@ -6697,11 +6779,14 @@ async function resetPlanToDefault(){
   showToast('Plan regenerado. Los IDs ahora coinciden con el progreso guardado.');
   renderModal();
 }
+let pendingWeekMsgs={};
 function saveWeekMsg(idx, val){
   weekMessages[idx] = val;
+  if(plan[idx]) plan[idx].message = val;
+  pendingWeekMsgs[idx] = val;
   // Debounce save to Firebase
   clearTimeout(window._weekMsgTimer);
-  window._weekMsgTimer = setTimeout(()=>saveWeekMessages(), 800);
+  window._weekMsgTimer = setTimeout(()=>{ const ch=pendingWeekMsgs; pendingWeekMsgs={}; patchPlanMessages(ch); }, 800);
 }
 
 // ---- TAB: RPE ----
@@ -7422,6 +7507,7 @@ window.__fsAppInit = async function(){
   await loadBlocks();
   await loadBlockName();
   await loadWeekMessages();
+  syncWeekMessagesFromPlan();
   if(session && session.uid!=='__pending__'){ await loadPrs(); loadActiveWeek(); loadExpressMode(); }
   if(session && session.uid!=='__pending__') await loadProgress();
   if(session && session.club==='hybrid' && session.uid!=='__pending__') await hcEnsureGoalData();
