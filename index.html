@@ -528,7 +528,12 @@ const K = {
   ADMINPW:  (club) => club==='hybrid' ? 'fs_adminpw_hybrid_v1' : 'fs_adminpw_v1',
   RPE_INFO: 'fs_rpe_info_v1',
   BLOCK_NAME: 'fs_block_name_v1',  // shared: current block name string
-  WEEK_MSGS: 'fs_week_messages_v1',  // shared: {weekIndex: message string}
+  WEEK_MSGS: 'fs_week_messages_v1',  // shared: {weekIndex: message string} — espejo de compatibilidad; la fuente es plan[i].message
+  PRS_BLOCK: (uid,bid) => `fs_prs_${uid}_b${bid}_v1`,  // personal: snapshot de PRs al archivar un bloque
+  PLAN_BACKUP: 'fs_plan_backup_v1',  // shared: {plan,name,weekMessages,savedAt} — copia del plan activo antes de publicar/editar como texto
+  DRAFT: 'fs_draft_v1',  // shared: {text,plan,name,messages:{[semana]:msg},bid,errorCount,updatedAt} — borrador del próximo bloque
+  TEMPLATES: 'fs_templates_v1',  // shared: [{id,name,createdAt,updatedAt,weeks}] — índice liviano de plantillas de bloque
+  TPL: (id) => `fs_tpl_${id}`,  // shared: {id,name,text,messages:{[semana]:msg},createdAt,updatedAt} — una plantilla por documento
   HC_PROFILE: (uid) => `hc_profile_${uid}_v1`,  // personal: ficha completa del alumno (Hybrid Club)
   HC_RACES: 'hc_races_v1',  // shared: [{id,name,series,location,date}]
   HC_GOAL: (uid) => `hc_goal_${uid}_v1`,  // personal: {raceId} — carrera objetivo del alumno
@@ -731,6 +736,41 @@ async function loadWeekMessages(){
   else { weekMessages=lsGet(K.WEEK_MSGS)||{}; }
 }
 async function saveWeekMessages(){ await sharedSet(K.WEEK_MSGS,weekMessages); lsSet(K.WEEK_MSGS,weekMessages); }
+// Los mensajes semanales viajan con el bloque: cada semana del plan lleva su campo `message`.
+// weekMessages ({índice: texto}) se deriva del plan para que la pantalla del alumno siga igual,
+// y fs_week_messages_v1 queda como espejo para versiones viejas de la app.
+let weekMsgsMigrated=false; // true si se copiaron mensajes sueltos al plan y falta guardarlo
+function planHasMessages(p){ return Array.isArray(p) && p.some(w=>w && Object.prototype.hasOwnProperty.call(w,'message')); }
+function syncWeekMessagesFromPlan(){
+  if(!Array.isArray(plan)) return;
+  if(!planHasMessages(plan)){
+    // Plan viejo: copiar los mensajes sueltos al plan sin perder nada
+    if(Object.values(weekMessages||{}).some(m=>m)) weekMsgsMigrated=true;
+    plan.forEach((w,i)=>{ w.message=weekMessages[i]||''; });
+    return;
+  }
+  weekMessages={};
+  plan.forEach((w,i)=>{ if(w.message) weekMessages[i]=w.message; });
+}
+// Guarda en Firestore solo los mensajes (lee el plan remoto y le aplica los cambios),
+// así no se publican ediciones del plan que el admin todavía no guardó.
+async function patchPlanMessages(changes){
+  const remote=await sharedGet(K.PLAN);
+  const target=Array.isArray(remote)?remote:plan;
+  if(changes) Object.entries(changes).forEach(([i,v])=>{ if(target[i]) target[i].message=v; });
+  else target.forEach((w,i)=>{ w.message=(plan[i]&&plan[i].message)||''; });
+  await sharedSet(K.PLAN,target);
+  lsSet(K.PLAN,target);
+  await saveWeekMessages();
+}
+async function persistWeekMsgsMigration(){
+  if(!weekMsgsMigrated || getClub()!=='fuerza') return;
+  const remote=await sharedGet(K.PLAN);
+  if(Array.isArray(remote) && !planHasMessages(remote) && remote.length===plan.length){
+    await patchPlanMessages(null);
+  }
+  weekMsgsMigrated=false;
+}
 let prs = {};      // {exName: {rm1:{weight,week,newPr}, rm2:..., rm3:..., rm4:...}}
 let tracked = null; // [{name, matchTerms:[]}]
 
@@ -778,7 +818,7 @@ async function loadPlan(){
   else{ plan=lsGet(K.PLAN); }
   if(!plan) plan=buildDefaultRoutine();
 }
-async function savePlan(){ await sharedSet(K.PLAN,plan); lsSet(K.PLAN,plan); }
+async function savePlan(){ const ok=await sharedSet(K.PLAN,plan); lsSet(K.PLAN,plan); return ok; }
 
 async function loadBlockName(){
   const remote = await sharedGet(K.BLOCK_NAME);
@@ -810,6 +850,9 @@ async function archiveCurrentBlock(name){
         // Save as block-specific progress snapshot
         await window.__fsCloudSet(K.PROG_BLOCK(u.id,bid), JSON.stringify(prog));
       }
+      // Snapshot de PRs del alumno (solo lectura, por si hay que revisar o revertir)
+      const userPrs = await personalGet(K.PRS(u.id));
+      if(userPrs && Object.keys(userPrs).length > 0) await personalSet(K.PRS_BLOCK(u.id,bid), userPrs);
     }catch(e){ console.error('Error snapshotting progress for', u.id, e); }
   }));
   return bid;
@@ -1209,6 +1252,268 @@ function buildDefaultWeek(w){
 function buildDefaultRoutine(){ return Array.from({length:9},(_,i)=>buildDefaultWeek(i+1)); }
 
 // ============================================================
+// BLOQUE COMO TEXTO — parser y exportador (funciones puras, sin DOM ni Firebase)
+// parseBlockText(text, opts) -> {plan, name, errors, warnings, index}
+// planToText(plan, opts)     -> text
+// ============================================================
+// <block-text>
+const BT_DAY_ICONS=['🏋️','⚡','🔥'];   // los mismos de buildDefaultWeek (día 1, 2, 3)
+const BT_EXTRA_ICON='📌';              // el mismo de addDay (días extra y partes con otro nombre)
+const BT_PARTS={'TREN SUPERIOR':{id:'u',icon:'💪'},'TREN INFERIOR':{id:'l',icon:'🦵'}};
+const BT_PIDS='abcdefghijklmnopqrstuvwxyz';
+// Palabras que hacen "parecer" a un ejercicio base de PR (para avisar si el nombre no empareja)
+const BT_BASE_HINTS=['banco plano','press banca','squat','peso muerto','deadlift','bench'];
+const BT_BASE_EXCLUDE=['rumano','sumo','rdl'];
+
+function btFold(s){ return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/\s+/g,' ').trim(); }
+function btCleanLine(s){
+  return (s||'').replace(/[“”„‟″ʺ]/g,'"').replace(/[‘’′]/g,"'")
+    .replace(/×/g,'x').replace(/[ \t]/g,' ').replace(/\s+/g,' ').trim();
+}
+function btRpe(s){
+  s=(s||'').replace(/\s+/g,'').replace(/,/g,'.');
+  if(!s||s==='-') return '-';
+  return s.charAt(0)==='@'?s:'@'+s;
+}
+// "6 c/l @7,5" -> {r:'6 c/l', rpe:'@7.5'}
+function btRepsRpe(s){
+  const at=s.indexOf('@');
+  if(at===-1) return {r:s.trim(), rpe:'-'};
+  return {r:s.slice(0,at).trim(), rpe:btRpe(s.slice(at))};
+}
+function btLooksBase(name){
+  const l=btFold(name).toLowerCase();
+  return BT_BASE_HINTS.some(h=>l.includes(h)) && !BT_BASE_EXCLUDE.some(h=>l.includes(h));
+}
+function btExCount(wd){ return wd.days.reduce((n,d)=>n+d.blocks.reduce((m,b)=>m+b.exercises.length,0),0); }
+
+function parseBlockText(text, opts){
+  opts=opts||{};
+  const bid=opts.bid!=null?String(opts.bid):'';
+  const trackedList=opts.tracked||null;
+  const errors=[], warnings=[];
+  const err=(line,msg)=>errors.push({line,msg});
+  const warn=(line,msg)=>warnings.push({line,msg});
+  const plan=[], index=[];
+  let name='', nameLine=0;
+  let week=null, wIdx=null, day=null, dIdx=null, part=null, pIdx=null, ex=null, exLine=0;
+  let lastWeekNum=0;
+
+  function closeEx(){
+    if(!ex) return;
+    if(ex.type==='single' && !ex.sets.length) err(exLine,'El ejercicio "'+ex.name+'" no tiene series (ej: 4 x 6 @7).');
+    if(ex.type==='superset' && ex.parts.length<2) err(exLine,'El SUPERSET necesita al menos 2 partes (a) y b)).');
+    ex=null;
+  }
+  const lines=String(text||'').replace(/\r\n?/g,'\n').split('\n');
+  lines.forEach((raw,i)=>{
+    const ln=i+1;
+    const line=btCleanLine(raw);
+    if(!line || line.startsWith('//')) return;
+    let m;
+    if((m=line.match(/^NOMBRE\s*:\s*(.*)$/i))){
+      if(nameLine) err(ln,'NOMBRE repetido (ya estaba en la línea '+nameLine+').');
+      name=m[1].trim(); nameLine=ln;
+      if(!name) err(ln,'Falta el nombre del bloque después de "NOMBRE:".');
+      return;
+    }
+    if((m=line.match(/^SEMANA\s*(\d+)\s*$/i))){
+      closeEx();
+      const n=parseInt(m[1],10);
+      if(n<=lastWeekNum) err(ln,'Número de semana repetido o fuera de orden: SEMANA '+n+' (venía la '+lastWeekNum+').');
+      else if(n!==lastWeekNum+1) err(ln,'Falta la SEMANA '+(lastWeekNum+1)+' (salta de la '+lastWeekNum+' a la '+n+').');
+      lastWeekNum=Math.max(lastWeekNum,n);
+      week={week:plan.length+1,days:[]}; plan.push(week);
+      wIdx={line:ln,days:[]}; index.push(wIdx);
+      day=dIdx=part=pIdx=null;
+      return;
+    }
+    if((m=line.match(/^D[IÍ]A\s*(\d+)\s*(.*)$/i))){
+      closeEx();
+      if(!week){ err(ln,'El día tiene que ir dentro de una SEMANA.'); return; }
+      const pos=week.days.length+1;
+      const days=m[2].replace(/^[\(\-:]\s*/,'').replace(/\s*\)$/,'').trim().toUpperCase();
+      day={id:'d'+pos,name:'DÍA '+pos,days,icon:BT_DAY_ICONS[pos-1]||BT_EXTRA_ICON,blocks:[]};
+      week.days.push(day);
+      dIdx={line:ln,blocks:[]}; wIdx.days.push(dIdx);
+      part=pIdx=null;
+      return;
+    }
+    if((m=line.match(/^PARTE\s*:?\s*(.+)$/i))){
+      closeEx();
+      if(!day){ err(ln,'La PARTE tiene que ir dentro de un DIA.'); return; }
+      const pname=m[1].trim().toUpperCase();
+      const def=BT_PARTS[btFold(pname)];
+      let id=def?def.id:'p'+(day.blocks.length+1);
+      if(day.blocks.some(b=>b.id===id)) id='p'+(day.blocks.length+1);
+      part={id,name:pname,icon:def?def.icon:BT_EXTRA_ICON,exercises:[]};
+      day.blocks.push(part);
+      pIdx={line:ln,exercises:[]}; dIdx.blocks.push(pIdx);
+      return;
+    }
+    if((m=line.match(/^(\d+)\s*[\)\.\-]\s*(.+)$/))){
+      closeEx();
+      if(!part){ err(ln,'El ejercicio tiene que ir dentro de una PARTE (ej: PARTE: TREN SUPERIOR).'); return; }
+      const rest=m[2].trim();
+      if(/^(SUPER ?SET|COMBINADO)/i.test(rest)){
+        const sm=rest.match(/^(?:SUPER ?SET|COMBINADO)\s*(?:X\s*(\d+))?\s*$/i);
+        if(!sm){ err(ln,'No se entiende el SUPERSET. Escribilo así: '+m[1]+') SUPERSET x4'); return; }
+        // Sin xN se reporta el error pero igual se arma el ejercicio, para no encadenar errores en a) b)
+        if(!sm[1] || parseInt(sm[1],10)<1) err(ln,'Al SUPERSET le falta la cantidad de series (ej: SUPERSET x4).');
+        ex={type:'superset',count:parseInt(sm[1]||'0',10),parts:[]};
+      } else {
+        ex={type:'single',name:rest.toUpperCase(),sets:[]};
+      }
+      exLine=ln;
+      part.exercises.push(ex); pIdx.exercises.push(ln);
+      return;
+    }
+    if((m=line.match(/^(\d+)\s*x\s*(.+)$/i))){
+      if(!ex){ err(ln,'Estas series no tienen ejercicio arriba (ej: 1) BACK SQUAT).'); return; }
+      if(ex.type!=='single'){ err(ln,'En un SUPERSET las series van en la cabecera (SUPERSET x4) y las partes con a) b).'); return; }
+      const n=parseInt(m[1],10);
+      const rr=btRepsRpe(m[2]);
+      if(n<1){ err(ln,'La cantidad de series tiene que ser 1 o más.'); return; }
+      if(!rr.r){ err(ln,'Faltan las repeticiones (ej: 4 x 6 @7).'); return; }
+      if(n>30){ err(ln,'¿'+n+' series? Revisá el número.'); return; }
+      for(let k=0;k<n;k++) ex.sets.push({r:rr.r,rpe:rr.rpe});
+      return;
+    }
+    if((m=line.match(/^([a-z])\s*\)\s*(.*)$/i))){
+      if(!ex || ex.type!=='superset'){ err(ln,'La parte '+m[1]+') tiene que ir debajo de un SUPERSET o COMBINADO.'); return; }
+      const rest=m[2];
+      const colon=rest.indexOf(':');
+      const pname=(colon===-1?rest:rest.slice(0,colon)).trim().toUpperCase();
+      const rr=colon===-1?{r:'',rpe:'-'}:btRepsRpe(rest.slice(colon+1));
+      if(!pname){ err(ln,'Falta el nombre del ejercicio en la parte '+m[1]+').'); return; }
+      if(!rr.r){ err(ln,'A la parte '+m[1]+') le faltan las reps. Formato: '+m[1]+') NOMBRE: 8 @7'); return; }
+      ex.parts.push({pid:BT_PIDS[ex.parts.length]||('p'+ex.parts.length),name:pname,r:rr.r,rpe:rr.rpe});
+      return;
+    }
+    err(ln,'No se entiende esta línea: "'+line+'"');
+  });
+  closeEx();
+
+  if(!nameLine) err(1,'Falta el NOMBRE del bloque (primera línea, ej: NOMBRE: Bloque 5 - 2026).');
+  if(!plan.length) err(Math.max(1,nameLine),'No hay ninguna SEMANA.');
+
+  plan.forEach((wd,wi)=>{
+    const wl=index[wi];
+    if(!wd.days.length) err(wl.line,'La SEMANA '+wd.week+' no tiene días.');
+    wd.days.forEach((d,di)=>{
+      const dl=wl.days[di];
+      if(!d.blocks.length) err(dl.line,'El '+d.name+' de la semana '+wd.week+' no tiene partes (ej: PARTE: TREN SUPERIOR).');
+      d.blocks.forEach((b,bi)=>{
+        const bl=dl.blocks[bi];
+        if(!b.exercises.length) err(bl.line,'La parte '+b.name+' no tiene ejercicios.');
+        b.exercises.forEach((e,ei)=>{
+          const line=bl.exercises[ei];
+          // Orden y ID por posición (la numeración del texto es solo orientativa)
+          const k=ei+1;
+          const out=e.type==='single'
+            ? {order:k+'º',id:'',type:'single',name:e.name,sets:e.sets}
+            : {order:k+'º',id:'',type:'superset',count:e.count,parts:e.parts};
+          out.id=(bid?'b'+bid:'')+'w'+wd.week+'d'+(di+1)+'b'+b.id+'e'+k;
+          b.exercises[ei]=out;
+          if(e.type==='single' && ei===0 && e.sets.some(s=>s.rpe==='-')) warn(line,'"'+e.name+'" no tiene RPE.');
+          if(trackedList && typeof matchTracked==='function'){
+            const names=e.type==='single'?[e.name]:e.parts.map(p=>p.name);
+            names.forEach(nm=>{ if(btLooksBase(nm) && !matchTracked(nm,trackedList)) warn(line,'"'+nm+'" parece un ejercicio base pero no coincide con ningún PR (revisá cómo está escrito).'); });
+          }
+        });
+      });
+    });
+    if(wi>0){
+      const a=btExCount(plan[wi-1]), b=btExCount(wd);
+      if(a!==b) warn(wl.line,'La semana '+wd.week+' tiene '+b+' ejercicios y la anterior '+a+'.');
+    }
+  });
+  errors.sort((a,b)=>a.line-b.line); warnings.sort((a,b)=>a.line-b.line);
+  return {plan,name,nameLine,errors,warnings,index};
+}
+
+// Agrupa series iguales seguidas: [{r:'6',rpe:'@6'} x4] -> [{n:4,r:'6',rpe:'@6'}]
+function btGroupSets(sets){
+  const out=[];
+  (sets||[]).forEach(s=>{
+    const rpe=btRpe(s.rpe), last=out[out.length-1];
+    if(last && last.r===s.r && last.rpe===rpe) last.n++;
+    else out.push({n:1,r:s.r,rpe});
+  });
+  return out;
+}
+function planToText(p, opts){
+  opts=opts||{};
+  const out=['NOMBRE: '+(opts.name||'')];
+  const rpeTxt=rpe=>{ rpe=btRpe(rpe); return rpe==='-'?'':' '+rpe; };
+  (p||[]).forEach((wd,wi)=>{
+    out.push('','SEMANA '+(wi+1));
+    (wd.days||[]).forEach((d,di)=>{
+      out.push('','DIA '+(di+1)+(d.days?' ('+d.days+')':''));
+      (d.blocks||[]).forEach((b,bi)=>{
+        if(bi>0) out.push('');
+        out.push('PARTE: '+b.name);
+        (b.exercises||[]).forEach((ex,ei)=>{
+          if(ex.type==='single'){
+            out.push((ei+1)+') '+ex.name);
+            btGroupSets(ex.sets).forEach(g=>out.push(g.n+' x '+g.r+rpeTxt(g.rpe)));
+          } else {
+            out.push((ei+1)+') SUPERSET x'+ex.count);
+            (ex.parts||[]).forEach((pt,pi)=>out.push((BT_PIDS[pi]||'z')+') '+pt.name+': '+pt.r+rpeTxt(pt.rpe)));
+          }
+        });
+      });
+    });
+  });
+  return out.join('\n')+'\n';
+}
+
+// Edición segura del bloque activo: solo cambia nombres, reps, RPE, series y la etiqueta de días.
+// Conserva IDs, íconos y orden por posición para no desalinear lo que ya cargaron los alumnos.
+function mergeSafeEdit(active, parsed, activeName){
+  const errors=[], warnings=[];
+  const P=parsed.plan, I=parsed.index;
+  const lockMsg=' En el bloque activo no se pueden agregar, borrar ni mover cosas (desalinearía los pesos ya cargados). Para reordenar, armá un borrador nuevo.';
+  if(activeName!=null && parsed.name!==activeName) errors.push({line:1,msg:'El NOMBRE no se cambia acá (se cambia desde el Dashboard). Dejalo como "'+activeName+'".'});
+  if(P.length!==active.length) errors.push({line:(I[Math.min(P.length,active.length)]||I[I.length-1]||{line:1}).line,msg:'El bloque activo tiene '+active.length+' semanas y el texto '+P.length+'.'+lockMsg});
+  const merged=JSON.parse(JSON.stringify(active));
+  merged.forEach((wd,wi)=>{
+    const pw=P[wi], iw=I[wi]; if(!pw) return;
+    if(pw.days.length!==wd.days.length){ errors.push({line:iw.line,msg:'La semana '+(wi+1)+' tenía '+wd.days.length+' días y ahora '+pw.days.length+'.'+lockMsg}); return; }
+    wd.days.forEach((d,di)=>{
+      const pd=pw.days[di], id=iw.days[di];
+      if(pd.blocks.length!==d.blocks.length){ errors.push({line:id.line,msg:'El '+d.name+' (semana '+(wi+1)+') tenía '+d.blocks.length+' partes y ahora '+pd.blocks.length+'.'+lockMsg}); return; }
+      d.days=pd.days;
+      d.blocks.forEach((b,bi)=>{
+        const pb=pd.blocks[bi], ib=id.blocks[bi];
+        if(pb.exercises.length!==b.exercises.length){ errors.push({line:ib.line,msg:'La parte '+b.name+' (semana '+(wi+1)+', '+d.name+') tenía '+b.exercises.length+' ejercicios y ahora '+pb.exercises.length+'.'+lockMsg}); return; }
+        b.name=pb.name;
+        b.exercises.forEach((ex,ei)=>{
+          const pe=pb.exercises[ei], line=ib.exercises[ei];
+          if(pe.type!==ex.type){ errors.push({line,msg:'No se puede cambiar un ejercicio simple por un SUPERSET (o al revés).'+lockMsg}); return; }
+          if(ex.type==='single'){
+            if(pe.name!==ex.name) warnings.push({line,msg:'Cambia el nombre: "'+ex.name+'" → "'+pe.name+'".'});
+            if(pe.sets.length<ex.sets.length) warnings.push({line,msg:'Pasa de '+ex.sets.length+' a '+pe.sets.length+' series: lo cargado en las series que se sacan deja de verse.'});
+            ex.name=pe.name; ex.sets=pe.sets;
+          } else {
+            if(pe.parts.length!==ex.parts.length){ errors.push({line,msg:'El SUPERSET tenía '+ex.parts.length+' partes y ahora '+pe.parts.length+'.'+lockMsg}); return; }
+            if(pe.count<ex.count) warnings.push({line,msg:'Pasa de '+ex.count+' a '+pe.count+' series: lo cargado en las series que se sacan deja de verse.'});
+            ex.count=pe.count;
+            ex.parts.forEach((pt,pi)=>{
+              const pp=pe.parts[pi];
+              if(pp.name!==pt.name) warnings.push({line,msg:'Cambia el nombre: "'+pt.name+'" → "'+pp.name+'".'});
+              pt.name=pp.name; pt.r=pp.r; pt.rpe=pp.rpe;
+            });
+          }
+        });
+      });
+    });
+  });
+  return {plan:merged,errors,warnings};
+}
+// </block-text>
+
+// ============================================================
 // PROGRESS CALC
 // ============================================================
 function blockAnyDone(block,prog){
@@ -1262,11 +1567,17 @@ function detectActiveWeek(){
 function setActiveWeek(idx){
   ST.activeWeek=idx;
   lsSet('fs_active_week_'+session?.uid, idx);
+  lsSet('fs_active_week_blk_'+session?.uid, currentBlockName);
 }
 
 // Load saved active week preference, falling back to auto-detect
 function loadActiveWeek(){
-  const saved=lsGet('fs_active_week_'+session?.uid);
+  let saved=lsGet('fs_active_week_'+session?.uid);
+  // La semana elegida pertenece a un bloque: si se publicó uno nuevo, volver a detectarla
+  const blk=lsGet('fs_active_week_blk_'+session?.uid);
+  if(blk===null) lsSet('fs_active_week_blk_'+session?.uid, currentBlockName);
+  else if(blk!==currentBlockName) saved=null;
+  if(typeof saved==='number' && plan && saved>=plan.length) saved=null;
   ST.activeWeek = (saved!==null&&saved!==undefined) ? saved : detectActiveWeek();
 }
 
@@ -3441,6 +3752,7 @@ function openAdmin(){
     const u=(session && session.uid) ? getUserById(session.uid) : null;
     if(u && u.admin && (u.club||'fuerza')===club){
       adminState.pwOk=true; adminState.pwErr='';
+      persistWeekMsgsMigration();
       loadUsers().then(()=>{ renderModal(); loadUserActivityStatus().then(()=>renderModal()); });
     }
   }
@@ -3526,6 +3838,7 @@ async function checkAdminPw(){
   if(remote) lsSet(K.ADMINPW(club),remote); // keep local cache in sync
   if(hashStr(val)===stored){
     adminState.pwOk=true; adminState.pwErr='';
+    persistWeekMsgsMigration();
     await loadUsers();
     renderModal();
     await loadUserActivityStatus();
@@ -3554,8 +3867,9 @@ function renderAdminBody(){
     return `<div class="adm-layout"><div class="admin-nav">${nav}</div><div class="adm-main">${renderHcAdminTab()}</div></div>`;
   }
   if(typeof adminState.tab!=='number') adminState.tab=0;
-  const tabs=[['grid','Dashboard'],['users','Usuarios'],['list','Ejercicios'],['calendar','Semanas'],['bookOpen','RPE'],['target','PRs'],['trendingUp','Grupo'],['key','Contraseña'],['search','Diagnóstico']];
-  const nav=tabs.map(([ic,label],i)=>`<div class="admin-tab ${adminState.tab===i?'active':''}" onclick="setAdminTab(${i})"><span class="adm-tab-ic">${hcIcon(ic,16)}${label}</span></div>`).join('');
+  // [índice, ícono, nombre] — los índices no cambian (otras partes del admin los usan); el orden es el visual
+  const tabs=[[0,'grid','Dashboard'],[1,'users','Usuarios'],[2,'list','Ejercicios'],[3,'calendar','Semanas'],[9,'pencil','Borrador'],[10,'template','Plantillas'],[4,'bookOpen','RPE'],[5,'target','PRs'],[6,'trendingUp','Grupo'],[7,'key','Contraseña'],[8,'search','Diagnóstico']];
+  const nav=tabs.map(([i,ic,label])=>`<div class="admin-tab ${adminState.tab===i?'active':''}" onclick="setAdminTab(${i})"><span class="adm-tab-ic">${hcIcon(ic,16)}${label}</span></div>`).join('');
   let body='';
   if(adminState.tab===0) body=renderTabDashboard();
   else if(adminState.tab===1) body=renderTabUsers();
@@ -3565,6 +3879,8 @@ function renderAdminBody(){
   else if(adminState.tab===5) body=renderTabTracked();
   else if(adminState.tab===6) body='<div id="comparative-loading" style="text-align:center;padding:32px;color:var(--text3)">Cargando datos...</div>';
   else if(adminState.tab===7) body=renderTabPw();
+  else if(adminState.tab===9) body=renderTabDraft();
+  else if(adminState.tab===10) body=renderTabTemplates();
   else body=renderTabDiag();
   return `<div class="adm-layout"><div class="admin-nav">${nav}</div><div class="adm-main">${body}</div></div>`;
 }
@@ -3573,6 +3889,10 @@ async function setAdminTab(i){
   if(getClub()==='hybrid') return hcSetAdminTab(i);
   if(i!==1){ adminState.viewUserIdx=null; adminState.viewFichaUid=null; adminState.viewPlanUid=null; adminState.viewChatUid=null; adminState.viewMetricsUid=null; }
   adminState.tab=i;
+  // Borrador y Plantillas se releen al entrar (el admin puede usar celular y tablet)
+  if(i===9 && fsDraftSaveState!=='saving'){ fsDraft=null; }
+  if(i===10){ fsTplIndex=null; }
+  if(i!==3){ adminState.weeksTextMode=false; fsSafeText=null; }
   if(i===0||i===1){
     await loadUsers();
     renderModal();
@@ -3591,12 +3911,40 @@ async function setAdminTab(i){
 
 // Load activity status for all active users (has anyone ever recorded anything?)
 let userActivityMap={};
+let userActiveWeekMap={}; // {uid: índice de la primera semana incompleta} — solo alumnos de Fuerza que anotan
 async function loadUserActivityStatus(){
   const active=Object.values(users).filter(u=>u.status===STATUS.ACTIVE||u.status===STATUS.BLOCKED);
   await Promise.all(active.map(async u=>{
     const prog=await personalGet(K.PROG(u.id))||{};
     userActivityMap[u.id]=Object.values(prog).some(d=>d&&(d.weight||d.done));
+    if(userActivityMap[u.id] && (u.club||'fuerza')==='fuerza' && Array.isArray(plan) && plan.length){
+      let idx=plan.findIndex(wd=>calcWeekPct(wd,prog)<100);
+      userActiveWeekMap[u.id]= idx===-1 ? plan.length-1 : idx;
+    } else delete userActiveWeekMap[u.id];
   }));
+}
+// Semana activa del grupo: la más común entre los alumnos que anotan (si nadie anota, la 1)
+function groupActiveWeekIdx(){
+  const counts={};
+  Object.values(userActiveWeekMap).forEach(i=>{ counts[i]=(counts[i]||0)+1; });
+  const best=Object.entries(counts).sort((a,b)=>b[1]-a[1]||a[0]-b[0])[0];
+  return best?parseInt(best[0]):0;
+}
+// Tarjeta del Dashboard: avisa si la semana siguiente a la activa no tiene mensaje (solo aviso)
+function renderNextWeekMsgCard(){
+  if(getClub()!=='fuerza' || !Array.isArray(plan) || !plan.length) return '';
+  const cur=groupActiveWeekIdx(), next=cur+1;
+  if(next>=plan.length) return '';
+  const msg=((plan[next]&&plan[next].message)||'').trim();
+  const ok=!!msg;
+  return `<div style="background:${ok?'rgba(34,197,94,0.08)':'rgba(245,158,11,0.08)'};border:1px solid ${ok?'rgba(34,197,94,0.2)':'rgba(245,158,11,0.25)'};border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <div style="min-width:0">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;display:flex;align-items:center;gap:5px">${hcIcon('chat',12)} Mensaje de la próxima semana</div>
+      <div style="font-size:13px;color:${ok?'var(--green)':'var(--yellow)'};font-weight:600">${ok?'Semana '+plan[next].week+': mensaje listo':'La Semana '+plan[next].week+' todavía no tiene mensaje'}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:2px">Semana activa del grupo: ${plan[cur].week}</div>
+    </div>
+    <button class="adm-btn adm-btn-ghost" style="padding:8px 12px;font-size:12px;flex-shrink:0" onclick="setAdminTab(3)">${ok?'Ver':'Escribir'} →</button>
+  </div>`;
 }
 
 // ---- TAB: USUARIOS ----
@@ -5947,28 +6295,32 @@ function updatePartRpe(wi,di,bi,ei,pi,v){ getEx(wi,di,bi,ei).parts[pi].rpe=v; }
 function addPart(wi,di,bi,ei){ const ex=getEx(wi,di,bi,ei); const codes=['a','b','c','d','e','f']; ex.parts.push({pid:codes[ex.parts.length]||'x'+ex.parts.length,name:'NUEVO MOVIMIENTO',r:'8',rpe:'@2'}); renderModal(); }
 function removePart(wi,di,bi,ei,pi){ if(getEx(wi,di,bi,ei).parts.length<=1){showToast('Mínimo 1 movimiento');return;} getEx(wi,di,bi,ei).parts.splice(pi,1); renderModal(); }
 
-async function doSavePlan(){ await savePlan(); showToast('Plan guardado'); render(); }
+async function doSavePlan(){ await savePlan(); syncWeekMessagesFromPlan(); await saveWeekMessages(); showToast('Plan guardado'); render(); }
 
 // ---- TAB: SEMANAS ----
+// Armador/duplicador de semanas (agregar/duplicar/borrar semanas y días): oculto mientras se prueba
+// el flujo de bloques por texto (Borrador). El código queda; poner en true para volver a mostrarlo.
+const SHOW_WEEK_BUILDER=false;
 function renderTabWeeks(){
+  if(adminState.weeksTextMode) return renderWeeksTextEditor();
   const rows=plan.map((wd,i)=>{
     const dayRows=wd.days.map((d,di)=>`
       <div class="adm-inp-row" style="margin-bottom:6px">
         <input class="adm-inp" style="flex:1;margin:0" value="${escH(d.name)}" placeholder="Nombre" oninput="updateDayName(${i},${di},this.value)">
         <input class="adm-inp" style="flex:1.5;margin:0" value="${escH(d.days)}" placeholder="Días" oninput="updateDayDays(${i},${di},this.value)">
-        ${wd.days.length>1?`<button class="adm-btn adm-btn-red" onclick="removeDay(${i},${di})">${IC.trash}</button>`:''}
+        ${SHOW_WEEK_BUILDER&&wd.days.length>1?`<button class="adm-btn adm-btn-red" onclick="removeDay(${i},${di})">${IC.trash}</button>`:''}
       </div>`).join('');
-    const msg = weekMessages[i]||'';
+    const msg = (wd.message!=null?wd.message:weekMessages[i])||'';
     return `<div class="ex-edit-card">
       <div class="ex-edit-card-header">
         <span class="ex-edit-title">SEMANA ${wd.week}</span>
-        <div style="display:flex;gap:6px">
+        ${SHOW_WEEK_BUILDER?`<div style="display:flex;gap:6px">
           <button class="adm-btn adm-btn-blue" onclick="duplicateWeek(${i})">${hcIcon('copy',14)} Duplicar</button>
           <button class="adm-btn adm-btn-red" onclick="removeWeek(${i})">${IC.trash}</button>
-        </div>
+        </div>`:''}
       </div>
       ${dayRows}
-      <button class="adm-btn adm-btn-blue" onclick="addDay(${i})" style="width:100%;justify-content:center;margin-top:4px">${IC.plus} Agregar día</button>
+      ${SHOW_WEEK_BUILDER?`<button class="adm-btn adm-btn-blue" onclick="addDay(${i})" style="width:100%;justify-content:center;margin-top:4px">${IC.plus} Agregar día</button>`:''}
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
         <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:5px">${hcIcon('chat',12)} Mensaje del profe</div>
         <textarea class="adm-inp" style="margin:0;width:100%;min-height:70px;resize:vertical;font-size:12px;line-height:1.5;padding:8px 10px" placeholder="Mensaje opcional para los alumnos esta semana..." oninput="saveWeekMsg(${i},this.value)">${escH(msg)}</textarea>
@@ -5976,8 +6328,9 @@ function renderTabWeeks(){
       </div>
     </div>`;
   }).join('');
-  return `<div>${rows}
-    <button class="adm-btn adm-btn-orange" onclick="addWeek()" style="width:100%;justify-content:center;padding:12px;margin-top:4px">${IC.plus} Agregar semana</button>
+  const textBtn=plan.length?`<button class="adm-btn adm-btn-ghost" onclick="fsSafeOpen()" style="width:100%;justify-content:center;padding:12px;margin-bottom:12px;min-height:44px">${hcIcon('pencil',15)} Editar como texto</button>`:'';
+  return `<div>${textBtn}${rows}
+    ${SHOW_WEEK_BUILDER?`<button class="adm-btn adm-btn-orange" onclick="addWeek()" style="width:100%;justify-content:center;padding:12px;margin-top:4px">${IC.plus} Agregar semana</button>`:`<div style="font-size:11px;color:var(--text3);line-height:1.5;margin:4px 0 0">Para armar un bloque nuevo (semanas, días y ejercicios) usá la pestaña <b>Borrador</b>.</div>`}
     <button class="adm-btn adm-btn-ghost" onclick="doSavePlan()" style="width:100%;justify-content:center;padding:12px;margin-top:8px">${hcIcon('save',15)} Guardar cambios</button>
   </div>`;
 }
@@ -6483,6 +6836,7 @@ function renderTabDashboard(){
     ${archiveBtn}
     ${statCards}
     ${progressBar}
+    ${renderNextWeekMsgCard()}
     ${pending.length?`<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
       <span style="font-size:13px;color:var(--yellow);font-weight:600;display:inline-flex;align-items:center;gap:8px">${hcIcon('hourglass',15)}${pending.length} solicitud${pending.length>1?'es':''} pendiente${pending.length>1?'s':''}</span>
       <button class="adm-btn adm-btn-ghost" style="padding:5px 12px;font-size:12px" onclick="setAdminTab(1);adminState.userSubTab='pending';renderModal()">Ver →</button>
@@ -6528,7 +6882,9 @@ async function restoreArchivedBlock(bid){
   const blockPlan = await loadBlockPlan(bid);
   if(!blockPlan){ showToast('No se pudo cargar el bloque'); return; }
   plan = blockPlan;
+  syncWeekMessagesFromPlan();
   await savePlan();
+  await saveWeekMessages();
   // Remove from archived list — it's now the active plan, not an archive
   archivedBlocks = archivedBlocks.filter(b=>b.id!==bid);
   await saveBlocks();
@@ -6571,6 +6927,543 @@ async function deleteArchivedBlock(bid){
   archivedBlockView={blockId:null,blockPlan:null,weekIdx:null,block:null};
   render();
   window.scrollTo(0,0);
+}
+
+// ============================================================
+// BLOQUE COMO TEXTO — piezas de UI compartidas (Borrador, Plantillas, Editar como texto)
+// ============================================================
+const btPrevOpen={}; // {clave: Set(semanas abiertas)} — para que la vista previa no se cierre al tipear
+function btPrevToggle(key,wn,open){ if(!btPrevOpen[key]) btPrevOpen[key]=new Set(); if(open) btPrevOpen[key].add(wn); else btPrevOpen[key].delete(wn); }
+function btSetsPreview(sets){
+  let n=0;
+  return btGroupSets(sets).map(g=>{
+    const from=n+1; n+=g.n;
+    return `<div class="set-row" style="padding:8px 12px"><div class="set-row-top" style="margin-bottom:0">
+      <span class="set-label">${g.n>1?'SERIES '+from+'–'+n:'SERIE '+from}</span>
+      <span class="set-target">${escH(g.r)} <span class="set-target-rpe">${g.rpe!=='-'?escH(g.rpe):''}</span></span>
+    </div></div>`;
+  }).join('');
+}
+function btExPreview(ex){
+  if(ex.type==='single'){
+    return `<div class="ex-card"><div class="ex-header"><span class="ex-order">${ex.order}</span><div><div class="ex-name">${escH(ex.name)}</div></div></div><div class="sets-wrap">${btSetsPreview(ex.sets)}</div></div>`;
+  }
+  const parts=ex.parts.map(p=>`<div class="superset-part" style="padding:8px 12px"><div class="superset-part-name" style="margin-bottom:0"><span>${escH(p.name)}</span><span class="set-target" style="font-size:11px;flex:none">${escH(p.r)} <span class="set-target-rpe">${p.rpe!=='-'?escH(p.rpe):''}</span></span></div></div>`).join('');
+  return `<div class="ex-card"><div class="ex-header"><span class="ex-order">${ex.order}</span><div><span class="combined-tag">BLOQUE COMBINADO</span><div class="ex-name">${ex.parts.map(p=>escH(p.name)).join(' + ')}</div></div></div>
+    <div class="sets-wrap"><div class="superset-set-block"><div class="superset-set-header">${ex.count} ${ex.count===1?'SERIE':'SERIES'}</div>${parts}</div></div></div>`;
+}
+// Vista previa: semanas > días > partes > ejercicios, con los mismos componentes que ve el alumno.
+// opts: {key, messages:{[semana]:texto}, onMsg:'nombreFuncion'} — si hay onMsg, cada semana trae su cuadro de mensaje.
+function btPreviewHTML(p, opts){
+  opts=opts||{};
+  if(!p || !p.length) return `<div class="cc-empty">La vista previa aparece cuando escribís la primera SEMANA.</div>`;
+  const openSet=btPrevOpen[opts.key]||new Set();
+  return p.map((wd,wi)=>{
+    const wn=wi+1;
+    const msg=(opts.messages&&opts.messages[wn])||'';
+    const days=wd.days.map(d=>`
+      <div class="day-card" style="cursor:default">
+        <div class="day-icon-wrap">${iconFromData(d.icon,22)}</div>
+        <div class="day-info"><div class="day-name">${escH(d.name)}</div><div class="day-days">${escH(d.days)}</div></div>
+      </div>
+      ${d.blocks.map(b=>`<div class="block-card" style="cursor:default">
+          <div class="block-icon-wrap">${iconFromData(b.icon,26)}</div>
+          <div style="flex:1;min-width:0"><div class="block-name">${escH(b.name)}</div><div class="block-detail">${b.exercises.length} ejercicios</div></div>
+        </div>
+        ${b.exercises.map(btExPreview).join('')}`).join('')}`).join('');
+    const msgBox=opts.onMsg?`<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:5px">${hcIcon('chat',12)} Mensaje del profe · Semana ${wn}</div>
+        <textarea class="adm-inp" style="margin:0;width:100%;min-height:70px;resize:vertical;font-size:12px;line-height:1.5;padding:8px 10px" placeholder="Mensaje opcional para los alumnos esta semana (lo podés escribir más adelante)..." oninput="${opts.onMsg}(${wn},this.value)">${escH(msg)}</textarea>
+      </div>`:'';
+    return `<details class="ex-edit-card" ${openSet.has(wn)?'open':''} ontoggle="btPrevToggle('${opts.key}',${wn},this.open)">
+      <summary style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:32px">
+        <span class="ex-edit-title">SEMANA ${wn}</span>
+        <span style="font-size:11px;color:var(--text3);display:inline-flex;align-items:center;gap:5px">${wd.days.length} día${wd.days.length===1?'':'s'} · ${btExCount(wd)} ejercicios${opts.onMsg?(msg.trim()?' · '+hcIcon('chat',12):' · sin mensaje'):''}</span>
+      </summary>
+      <div style="margin-top:12px">${days}${msgBox}</div>
+    </details>`;
+  }).join('');
+}
+// Resumen de errores y advertencias. Tocar uno lleva el cursor a esa línea del editor.
+function btIssuesHTML(errors, warnings, taId){
+  if(!errors.length && !warnings.length) return `<div style="font-size:12px;color:var(--green);display:flex;align-items:center;gap:6px;margin-bottom:12px">${hcIcon('checkCircle',14)} Sin errores</div>`;
+  const MAX=25;
+  const item=(x,color)=>`<div onclick="btJumpToLine('${taId}',${x.line})" style="cursor:pointer;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;line-height:1.45;color:var(--text2)"><b style="color:${color}">Línea ${x.line}</b> · ${escH(x.msg)}</div>`;
+  const box=(list,title,color,bg,border)=>list.length?`<div style="background:${bg};border:1px solid ${border};border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:10px">
+      <div style="font-size:10px;font-weight:700;color:${color};letter-spacing:1px;text-transform:uppercase;padding:4px 0">${title} (${list.length})</div>
+      ${list.slice(0,MAX).map(x=>item(x,color)).join('')}
+      ${list.length>MAX?`<div style="font-size:11px;color:var(--text3);padding:6px 0">y ${list.length-MAX} más…</div>`:''}
+    </div>`:'';
+  return box(errors,'Errores — hay que corregirlos','var(--red)','rgba(239,68,68,0.08)','rgba(239,68,68,0.25)')
+    + box(warnings,'Advertencias — no bloquean','var(--yellow)','rgba(245,158,11,0.08)','rgba(245,158,11,0.25)');
+}
+function btJumpToLine(taId, line){
+  const ta=document.getElementById(taId); if(!ta) return;
+  const lines=ta.value.split('\n');
+  let pos=0; for(let i=0;i<line-1 && i<lines.length;i++) pos+=lines[i].length+1;
+  ta.focus();
+  try{ ta.setSelectionRange(pos, pos+((lines[line-1]||'').length)); }catch(e){}
+  const lh=parseFloat(getComputedStyle(ta).lineHeight)||20;
+  ta.scrollTop=Math.max(0,(line-3)*lh);
+  ta.scrollIntoView({block:'center',behavior:'smooth'});
+}
+function btEditorHTML(id, value, oninput){
+  return `<textarea id="${id}" class="adm-inp" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" wrap="soft"
+    style="margin:0;width:100%;height:auto;min-height:55vh;resize:vertical;padding:10px 12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;font-size:14px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere"
+    oninput="${oninput}(this.value)">${escH(value)}</textarea>`;
+}
+const BT_FORMAT_HELP=`NOMBRE: Bloque 6 - 2026
+
+SEMANA 1
+DIA 1 (LUNES / MARTES)
+PARTE: TREN SUPERIOR
+1) BANCO PLANO C/BARRA (PAUSA 1")
+1 x 1 @8
+3 x 4 @7
+2) SUPERSET x4
+a) PRESS MILITAR CON BARRA: 8 @2
+b) VUELOS FRONTALES: 12 @2
+
+PARTE: TREN INFERIOR
+1) BACK SQUAT
+4 x 6 @6
+2) COMBINADO x3
+a) ESTOCADAS: 6 c/l @2
+b) SALTOS AL CAJON: 6
+c) PLANCHA: 30"
+
+// las líneas con // se ignoran`;
+function btFormatHelpHTML(){
+  return `<details class="cc-item" style="margin-bottom:12px">
+    <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--text2);min-height:28px;display:flex;align-items:center;gap:6px">${hcIcon('bookOpen',14)} Cómo se escribe (formato)</summary>
+    <pre style="margin:10px 0 8px;white-space:pre-wrap;overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px">${escH(BT_FORMAT_HELP)}</pre>
+    <div style="font-size:11px;color:var(--text3);line-height:1.6">
+      • Series: <b>series x reps @rpe</b>. Varias líneas si cambian dentro del mismo ejercicio.<br>
+      • Reps: 6 · 4/8 · 6 c/l · 20"/30". El RPE es opcional (@7, @7.5, @8.5/@9).<br>
+      • SUPERSET y COMBINADO son lo mismo: <b>xN</b> = cantidad de series; partes a) b) c).<br>
+      • La numeración es orientativa: la app ordena sola. Los íconos de días y partes se ponen solos.<br>
+      • Usá siempre el mismo nombre para los ejercicios base (Banco Plano, Back Squat, Peso Muerto) así cuentan para los PRs.
+    </div>
+  </details>`;
+}
+
+// ============================================================
+// BORRADOR DEL PRÓXIMO BLOQUE (Fuerza) — no toca el plan activo hasta Publicar
+// ============================================================
+let fsDraft=null;        // {text,plan,name,messages:{[semana]:msg},bid,errorCount,updatedAt}
+let fsDraftParsed=null;  // resultado de parseBlockText sobre fsDraft.text
+let fsDraftLoading=false;
+let fsDraftSaveState=''; // '' | 'saving' | 'saved' | 'error'
+
+function fsEmptyDraft(){ return {text:'',plan:null,name:'',messages:{},bid:Date.now().toString(36),errorCount:0,updatedAt:0}; }
+async function loadDraft(){
+  const remote=await sharedGet(K.DRAFT);
+  const local=lsGet(K.DRAFT);
+  const d=(remote && typeof remote.text==='string') ? remote : ((local && typeof local.text==='string') ? local : null);
+  fsDraft=d || fsEmptyDraft();
+  if(!fsDraft.messages || typeof fsDraft.messages!=='object') fsDraft.messages={};
+  if(!fsDraft.bid) fsDraft.bid=Date.now().toString(36);
+  if(remote) lsSet(K.DRAFT,remote);
+  fsDraftReparse();
+}
+function fsDraftReparse(){ fsDraftParsed=parseBlockText(fsDraft.text,{bid:fsDraft.bid,tracked:tracked||DEFAULT_TRACKED}); }
+// Errores del texto + chequeos de publicación (el nombre tiene que ser nuevo: los PRs se separan por nombre de bloque)
+function fsDraftAllErrors(){
+  const P=fsDraftParsed; if(!P) return [];
+  const errs=P.errors.slice();
+  const nm=(P.name||'').trim().toLowerCase();
+  if(nm && Array.isArray(plan) && plan.length && nm===(currentBlockName||'').trim().toLowerCase())
+    errs.unshift({line:P.nameLine||1,msg:'El NOMBRE es igual al del bloque activo ("'+currentBlockName+'"). Poné el nombre del bloque nuevo.'});
+  else if(nm && archivedBlocks.some(b=>(b.name||'').trim().toLowerCase()===nm))
+    errs.unshift({line:P.nameLine||1,msg:'Ya hay un bloque archivado con el nombre "'+P.name+'". Usá un nombre distinto para no mezclar los PRs.'});
+  return errs;
+}
+async function saveDraftNow(){
+  clearTimeout(window._draftTimer);
+  if(!fsDraft) return false;
+  const P=fsDraftParsed||{plan:null,name:'',errors:[]};
+  fsDraft.plan=P.plan; fsDraft.name=P.name; fsDraft.errorCount=P.errors.length; fsDraft.updatedAt=Date.now();
+  fsDraftSaveState='saving'; fsDraftUpdateStatus();
+  const ok=await sharedSet(K.DRAFT,fsDraft);
+  lsSet(K.DRAFT,fsDraft);
+  fsDraftSaveState=ok?'saved':'error'; fsDraftUpdateStatus();
+  return ok;
+}
+function fsDraftScheduleSave(){
+  fsDraftSaveState='saving'; fsDraftUpdateStatus();
+  clearTimeout(window._draftTimer);
+  window._draftTimer=setTimeout(saveDraftNow,800);
+}
+function fsDraftStatusText(){
+  if(fsDraftSaveState==='saving') return 'Guardando…';
+  if(fsDraftSaveState==='error') return '<span style="color:var(--red)">No se pudo guardar. Revisá la conexión (el texto sigue acá).</span>';
+  if(fsDraft && fsDraft.updatedAt) return 'Guardado · '+new Date(fsDraft.updatedAt).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  return 'Se guarda solo mientras escribís.';
+}
+function fsDraftUpdateStatus(){ const el=document.getElementById('draft-status'); if(el) el.innerHTML=fsDraftStatusText(); }
+function fsDraftInput(v){
+  fsDraft.text=v;
+  fsDraftScheduleSave();
+  // Vista previa y errores con una pequeña pausa para que tipear en el celular sea fluido
+  clearTimeout(window._draftPrevTimer);
+  window._draftPrevTimer=setTimeout(()=>{ fsDraftReparse(); fsDraftRefreshLive(); },250);
+}
+function fsDraftMsg(wn,val){ fsDraft.messages[wn]=val; fsDraftScheduleSave(); }
+function fsDraftPublishHTML(){
+  if(!fsDraft.text.trim()) return '';
+  const errs=fsDraftAllErrors();
+  const hasActive=Array.isArray(plan)&&plan.length>0;
+  return `<button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;padding:14px;font-size:14px;${errs.length?'opacity:.45':''}" onclick="fsPublishDraft()">${hcIcon('send',16)} Publicar bloque</button>
+    <div style="font-size:10px;color:var(--text3);margin-top:5px;text-align:center;line-height:1.4">${errs.length?'Corregí los errores para poder publicar.':(hasActive?'Se archiva el bloque actual ('+escH(currentBlockName)+') y este pasa a ser el activo.':'Este pasa a ser el bloque activo.')}</div>`;
+}
+function fsDraftRefreshLive(){
+  const P=fsDraftParsed;
+  const iss=document.getElementById('draft-issues'); if(iss) iss.innerHTML=fsDraft.text.trim()?btIssuesHTML(fsDraftAllErrors(),P.warnings,'draft-text'):'';
+  const pub=document.getElementById('draft-publish'); if(pub) pub.innerHTML=fsDraftPublishHTML();
+  const prev=document.getElementById('draft-preview'); if(prev) prev.innerHTML=btPreviewHTML(P.plan,{key:'draft',messages:fsDraft.messages,onMsg:'fsDraftMsg'});
+}
+function renderTabDraft(){
+  if(!fsDraft){
+    if(!fsDraftLoading){ fsDraftLoading=true; loadDraft().then(()=>{ fsDraftLoading=false; renderModal(); }); }
+    return `<div class="cc-empty">Cargando borrador...</div>`;
+  }
+  fsDraftReparse();
+  const P=fsDraftParsed;
+  const btn='justify-content:center;text-align:center;padding:12px 8px;font-size:12px;line-height:1.3;min-height:44px';
+  return `<div>
+    <div class="admin-section-title">${hcSecTitle('pencil','Borrador del próximo bloque')}</div>
+    <div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:12px">Escribí el bloque siguiente como texto. Los alumnos no ven nada hasta que tocás <b>Publicar bloque</b>. Bloque activo hoy: <b style="color:var(--text2)">${escH(currentBlockName)}</b>.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <button class="adm-btn adm-btn-ghost" style="${btn}" onclick="fsDraftLoadActive()">${hcIcon('copy',14)} Cargar bloque activo como texto</button>
+      <button class="adm-btn adm-btn-ghost" style="${btn}" onclick="fsTplEdit=null;setAdminTab(10)">${hcIcon('template',14)} Cargar una plantilla</button>
+      <button class="adm-btn adm-btn-ghost" style="${btn}" onclick="fsTplSaveFromDraft()">${hcIcon('bookmark',14)} Guardar como plantilla</button>
+      <button class="adm-btn adm-btn-red" style="${btn}" onclick="fsDraftDiscard()">${IC.trash} Descartar borrador</button>
+    </div>
+    ${btFormatHelpHTML()}
+    ${btEditorHTML('draft-text',fsDraft.text,'fsDraftInput')}
+    <div id="draft-status" style="font-size:10px;color:var(--text3);margin:5px 0 12px">${fsDraftStatusText()}</div>
+    <div id="draft-issues">${fsDraft.text.trim()?btIssuesHTML(fsDraftAllErrors(),P.warnings,'draft-text'):''}</div>
+    <div id="draft-publish">${fsDraftPublishHTML()}</div>
+    <div class="admin-section-title" style="margin-top:20px">Vista previa y mensajes semanales</div>
+    <div style="font-size:11px;color:var(--text3);line-height:1.5;margin:-4px 0 10px">Tocá una semana para verla como la ve el alumno. Abajo de cada semana podés escribir su mensaje cuando quieras.</div>
+    <div id="draft-preview">${btPreviewHTML(P.plan,{key:'draft',messages:fsDraft.messages,onMsg:'fsDraftMsg'})}</div>
+  </div>`;
+}
+// Mensajes de un plan como {semana: texto}
+function planMessagesMap(p){
+  const out={};
+  (p||[]).forEach((wd,i)=>{ const m=wd.message!=null?wd.message:weekMessages[i]; if(m) out[i+1]=m; });
+  return out;
+}
+// Reemplaza el contenido del borrador (pide confirmación si ya tiene algo)
+async function fsDraftReplace(text, messages, what){
+  if(!fsDraft) await loadDraft();
+  if(fsDraft.text.trim() && !confirm('El borrador ya tiene contenido. ¿Reemplazarlo por '+what+'?\n\nNo se publica nada: solo cambia el borrador.')) return false;
+  fsDraft={text,plan:null,name:'',messages:JSON.parse(JSON.stringify(messages||{})),bid:Date.now().toString(36),errorCount:0,updatedAt:0};
+  btPrevOpen.draft=new Set();
+  fsDraftReparse();
+  const ok=await saveDraftNow();
+  if(!ok) showToast('Ojo: no se pudo guardar en el servidor');
+  return true;
+}
+async function fsDraftLoadActive(){
+  if(!Array.isArray(plan)||!plan.length){ showToast('No hay bloque activo para cargar'); return; }
+  if(await fsDraftReplace(planToText(plan,{name:currentBlockName}),planMessagesMap(plan),'el bloque activo')){
+    showToast('Bloque activo cargado. Cambiale el NOMBRE antes de publicar');
+    renderModal();
+  }
+}
+async function fsDraftDiscard(){
+  if(!fsDraft || (!fsDraft.text.trim() && !Object.values(fsDraft.messages||{}).some(m=>m))){ showToast('El borrador ya está vacío'); return; }
+  if(!confirm('¿Descartar el borrador? Se borran el texto y sus mensajes semanales. El bloque activo no cambia.')) return;
+  clearTimeout(window._draftTimer);
+  fsDraft=fsEmptyDraft(); fsDraftReparse(); btPrevOpen.draft=new Set();
+  await sharedSet(K.DRAFT,null); lsSet(K.DRAFT,null);
+  fsDraftSaveState='';
+  showToast('Borrador descartado');
+  renderModal();
+}
+async function fsPublishDraft(){
+  if(getClub()!=='fuerza' || !fsDraft) return;
+  clearTimeout(window._draftPrevTimer);
+  fsDraftReparse(); fsDraftRefreshLive();
+  const errs=fsDraftAllErrors();
+  if(errs.length){ showToast('Hay '+errs.length+' error'+(errs.length>1?'es':'')+': corregilos antes de publicar'); btJumpToLine('draft-text',errs[0].line); return; }
+  const P=fsDraftParsed, newName=P.name.trim();
+  const hasActive=Array.isArray(plan)&&plan.length>0;
+  const msg=hasActive
+    ? 'Se archivará el bloque actual ("'+currentBlockName+'") y "'+newName+'" pasará a ser el bloque activo.\n\nLos pesos y PRs que los alumnos cargaron en el bloque actual quedan guardados en el archivo.\n\n¿Publicar ahora?'
+    : '"'+newName+'" pasará a ser el bloque activo. ¿Publicar ahora?';
+  if(!confirm(msg)) return;
+  try{
+    showToast('Publicando...');
+    clearTimeout(window._draftTimer);
+    await loadUsers();
+    // 1) Copia de seguridad del plan activo, por si hay que revertir
+    const okBackup=await sharedSet(K.PLAN_BACKUP,{plan,name:currentBlockName,weekMessages,savedAt:Date.now()});
+    if(!okBackup) throw new Error('no se pudo guardar la copia de seguridad del plan activo');
+    // 2) Archivar el bloque activo con el flujo de siempre (plan + progreso + PRs de cada alumno)
+    if(hasActive){ syncWeekMessagesFromPlan(); await archiveCurrentBlock(currentBlockName); }
+    // 3) El borrador pasa a ser el plan activo, con sus mensajes semanales
+    const newPlan=JSON.parse(JSON.stringify(P.plan));
+    newPlan.forEach((wd,i)=>{ wd.message=fsDraft.messages[i+1]||''; });
+    plan=newPlan;
+    if(!await savePlan()) throw new Error('no se pudo guardar el plan nuevo');
+    currentBlockName=newName;
+    await saveBlockName();
+    syncWeekMessagesFromPlan();
+    await saveWeekMessages();
+    // 4) Limpiar el borrador
+    await sharedSet(K.DRAFT,null); lsSet(K.DRAFT,null);
+    fsDraft=fsEmptyDraft(); fsDraftReparse(); btPrevOpen.draft=new Set(); fsDraftSaveState='';
+    if(session && session.uid!=='__pending__') loadActiveWeek();
+    adminState.editWeekIdx=0; adminState.editDayIdx=0; adminState.editBlockIdx=0;
+    showToast('Bloque "'+newName+'" publicado');
+    adminState.tab=0;
+    renderModal();
+    render();
+  }catch(e){
+    alert('Error al publicar: '+e.message+'\n\nEl plan anterior quedó en la copia de seguridad (fs_plan_backup_v1). Avisale a quien mantiene la app antes de reintentar.');
+    renderModal(); render();
+  }
+}
+
+// ============================================================
+// PLANTILLAS DE BLOQUE (Fuerza) — mismo patrón que las plantillas del Hybrid Club,
+// pero cada plantilla en su propio documento (fs_tpl_{id}) + índice liviano (fs_templates_v1).
+// ============================================================
+let fsTplIndex=null;    // [{id,name,createdAt,updatedAt,weeks}]
+let fsTplLoading=false;
+let fsTplEdit=null;     // plantilla abierta en el editor de texto: {id,name,text,messages,...}
+let fsTplEditParsed=null;
+
+async function loadTplIndex(){
+  const remote=await sharedGet(K.TEMPLATES);
+  if(Array.isArray(remote)){ fsTplIndex=remote; lsSet(K.TEMPLATES,remote); }
+  else fsTplIndex=lsGet(K.TEMPLATES)||[];
+}
+// Releer antes de escribir para no pisar lo que haya cambiado otro admin; fn modifica la lista recién leída.
+async function fsTplIndexMutate(fn){
+  await loadTplIndex();
+  fn(fsTplIndex);
+  const ok=await sharedSet(K.TEMPLATES,fsTplIndex);
+  lsSet(K.TEMPLATES,fsTplIndex);
+  if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+}
+async function fsTplGet(id){ return await sharedGet(K.TPL(id)); }
+async function fsTplPut(tpl){
+  tpl.updatedAt=Date.now();
+  const weeks=parseBlockText(tpl.text).plan.length;
+  const ok=await sharedSet(K.TPL(tpl.id),tpl);
+  if(!ok) throw new Error('no se pudo guardar la plantilla');
+  await fsTplIndexMutate(list=>{
+    const meta={id:tpl.id,name:tpl.name,createdAt:tpl.createdAt,updatedAt:tpl.updatedAt,weeks};
+    const i=list.findIndex(t=>t.id===tpl.id);
+    if(i===-1) list.unshift(meta); else list[i]=meta;
+  });
+}
+async function fsTplCreate(name,text,messages){
+  const now=Date.now();
+  const tpl={id:'tpl_'+now+'_'+Math.random().toString(36).slice(2,6),name,text,messages:JSON.parse(JSON.stringify(messages||{})),createdAt:now,updatedAt:now};
+  await fsTplPut(tpl);
+  return tpl;
+}
+async function fsTplSaveFromDraft(){
+  if(!fsDraft) await loadDraft();
+  if(!fsDraft.text.trim()){ showToast('El borrador está vacío'); return; }
+  const name=prompt('Nombre para la plantilla:', (fsDraftParsed&&fsDraftParsed.name)||'');
+  if(!name||!name.trim()) return;
+  try{ await fsTplCreate(name.trim(),fsDraft.text,fsDraft.messages); showToast('Borrador guardado como plantilla'); renderModal(); }
+  catch(e){ alert('Error al guardar la plantilla: '+e.message); }
+}
+async function fsTplSaveFromActive(){
+  if(!Array.isArray(plan)||!plan.length){ showToast('No hay bloque activo'); return; }
+  const name=prompt('Nombre para la plantilla:', currentBlockName||'');
+  if(!name||!name.trim()) return;
+  try{ await fsTplCreate(name.trim(),planToText(plan,{name:currentBlockName}),planMessagesMap(plan)); showToast('Bloque activo guardado como plantilla'); renderModal(); }
+  catch(e){ alert('Error al guardar la plantilla: '+e.message); }
+}
+async function fsTplLoadToDraft(id){
+  const tpl=await fsTplGet(id);
+  if(!tpl){ showToast('No se pudo cargar la plantilla'); return; }
+  if(await fsDraftReplace(tpl.text,tpl.messages,'la plantilla "'+tpl.name+'"')){
+    showToast('Plantilla cargada en el borrador (no se publicó nada)');
+    setAdminTab(9);
+  }
+}
+async function fsTplRename(id){
+  const meta=(fsTplIndex||[]).find(t=>t.id===id); if(!meta) return;
+  const name=prompt('Nuevo nombre:', meta.name);
+  if(!name||!name.trim()||name.trim()===meta.name) return;
+  try{
+    const tpl=await fsTplGet(id); if(!tpl) throw new Error('no se encontró la plantilla');
+    tpl.name=name.trim(); await fsTplPut(tpl);
+    showToast('Plantilla renombrada'); renderModal();
+  }catch(e){ alert('Error: '+e.message); }
+}
+async function fsTplDuplicate(id){
+  try{
+    const tpl=await fsTplGet(id); if(!tpl) throw new Error('no se encontró la plantilla');
+    await fsTplCreate(tpl.name+' (copia)',tpl.text,tpl.messages);
+    showToast('Plantilla duplicada'); renderModal();
+  }catch(e){ alert('Error: '+e.message); }
+}
+async function fsTplDelete(id){
+  const meta=(fsTplIndex||[]).find(t=>t.id===id); if(!meta) return;
+  if(!confirm('¿Eliminar la plantilla "'+meta.name+'"? No afecta al bloque activo ni al borrador.')) return;
+  try{
+    await fsTplIndexMutate(list=>{ const i=list.findIndex(t=>t.id===id); if(i!==-1) list.splice(i,1); });
+    await sharedSet(K.TPL(id),null);
+    showToast('Plantilla eliminada'); renderModal();
+  }catch(e){ alert('Error: '+e.message); }
+}
+// ---- Editor de texto de una plantilla ----
+async function fsTplOpen(id){
+  const tpl=await fsTplGet(id);
+  if(!tpl){ showToast('No se pudo cargar la plantilla'); return; }
+  if(!tpl.messages) tpl.messages={};
+  fsTplEdit=tpl; fsTplEditParsed=parseBlockText(tpl.text,{tracked:tracked||DEFAULT_TRACKED});
+  btPrevOpen.tpl=new Set();
+  renderModal();
+}
+function fsTplClose(){
+  if(fsTplEdit && fsTplEdit._dirty && !confirm('Hay cambios sin guardar en la plantilla. ¿Salir igual?')) return;
+  fsTplEdit=null; renderModal();
+}
+function fsTplEditInput(v){
+  fsTplEdit.text=v; fsTplEdit._dirty=true;
+  clearTimeout(window._tplPrevTimer);
+  window._tplPrevTimer=setTimeout(()=>{
+    fsTplEditParsed=parseBlockText(fsTplEdit.text,{tracked:tracked||DEFAULT_TRACKED});
+    const iss=document.getElementById('tpl-issues'); if(iss) iss.innerHTML=btIssuesHTML(fsTplEditParsed.errors,fsTplEditParsed.warnings,'tpl-text');
+    const prev=document.getElementById('tpl-preview'); if(prev) prev.innerHTML=btPreviewHTML(fsTplEditParsed.plan,{key:'tpl',messages:fsTplEdit.messages,onMsg:'fsTplEditMsg'});
+  },250);
+}
+function fsTplEditMsg(wn,val){ fsTplEdit.messages[wn]=val; fsTplEdit._dirty=true; }
+async function fsTplEditSave(){
+  if(!fsTplEdit) return;
+  const name=(document.getElementById('tpl-name')||{}).value;
+  if(name && name.trim()) fsTplEdit.name=name.trim();
+  try{
+    const {_dirty,...tpl}=fsTplEdit;
+    await fsTplPut(tpl);
+    fsTplEdit._dirty=false;
+    const nErr=parseBlockText(tpl.text).errors.length;
+    showToast(nErr?'Plantilla guardada (tiene '+nErr+' error'+(nErr>1?'es':'')+' para corregir antes de publicarla)':'Plantilla guardada');
+    renderModal();
+    return true;
+  }catch(e){ alert('Error al guardar la plantilla: '+e.message); return false; }
+}
+function renderTplEditor(){
+  const P=fsTplEditParsed;
+  return `<div>
+    <button class="adm-btn adm-btn-ghost" style="margin-bottom:14px;gap:8px;min-height:40px" onclick="fsTplClose()">${IC.back} Volver a plantillas</button>
+    <div class="admin-section-title">${hcSecTitle('template','Editar plantilla')}</div>
+    <div class="adm-inp-row"><label>Nombre</label><input class="adm-inp" id="tpl-name" style="margin:0" value="${escH(fsTplEdit.name)}" oninput="fsTplEdit._dirty=true"></div>
+    ${btFormatHelpHTML()}
+    ${btEditorHTML('tpl-text',fsTplEdit.text,'fsTplEditInput')}
+    <div style="height:10px"></div>
+    <div id="tpl-issues">${btIssuesHTML(P.errors,P.warnings,'tpl-text')}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="adm-btn adm-btn-orange" style="justify-content:center;padding:12px 8px;min-height:44px" onclick="fsTplEditSave()">${hcIcon('save',15)} Guardar plantilla</button>
+      <button class="adm-btn adm-btn-ghost" style="justify-content:center;padding:12px 8px;min-height:44px;text-align:center;line-height:1.3" onclick="fsTplEditSave().then(ok=>{ if(ok){ const id=fsTplEdit.id; fsTplEdit=null; fsTplLoadToDraft(id); } })">${hcIcon('pencil',14)} Guardar y cargar al borrador</button>
+    </div>
+    <div class="admin-section-title" style="margin-top:20px">Vista previa y mensajes semanales</div>
+    <div id="tpl-preview">${btPreviewHTML(P.plan,{key:'tpl',messages:fsTplEdit.messages,onMsg:'fsTplEditMsg'})}</div>
+  </div>`;
+}
+function renderTabTemplates(){
+  if(fsTplEdit) return renderTplEditor();
+  if(!fsTplIndex){
+    if(!fsTplLoading){ fsTplLoading=true; loadTplIndex().then(()=>{ fsTplLoading=false; renderModal(); }); }
+    return `<div class="cc-empty">Cargando plantillas...</div>`;
+  }
+  const btn='justify-content:center;text-align:center;padding:12px 8px;font-size:12px;line-height:1.3;min-height:44px';
+  const head=`<div class="admin-section-title">${hcSecTitle('template','Plantillas de bloque')}</div>
+    <div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:12px">Bloques guardados para reutilizar. Cargar una plantilla solo cambia el <b>Borrador</b>: no publica nada.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+      <button class="adm-btn adm-btn-orange" style="${btn}" onclick="fsTplSaveFromDraft()">${hcIcon('bookmark',14)} Guardar el borrador como plantilla</button>
+      <button class="adm-btn adm-btn-ghost" style="${btn}" onclick="fsTplSaveFromActive()">${hcIcon('copy',14)} Guardar el bloque activo como plantilla</button>
+    </div>`;
+  if(!fsTplIndex.length) return head+`<div class="cc-empty">Todavía no hay plantillas. Guardá el borrador o el bloque activo para empezar.</div>`;
+  const fmt=ts=>ts?new Date(ts).toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'}):'';
+  return head+`<div class="ath-grid">${fsTplIndex.map(t=>`<div class="ath-card">
+      <div class="ath-card-top">
+        <div class="cc-head-ic" style="background:var(--orange-dim);color:var(--orange)">${hcIcon('template',16)}</div>
+        <div class="user-row-info"><div class="user-row-name">${escH(t.name)}</div><div class="user-row-email">${t.weeks} semana${t.weeks===1?'':'s'} · ${fmt(t.updatedAt||t.createdAt)}</div></div>
+        <button class="adm-btn adm-btn-red" style="padding:9px 10px" title="Eliminar" onclick="fsTplDelete('${t.id}')">${IC.trash}</button>
+      </div>
+      <button class="adm-btn adm-btn-orange" style="justify-content:center;padding:11px;min-height:44px" onclick="fsTplLoadToDraft('${t.id}')">${hcIcon('pencil',14)} Cargar al borrador</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+        <button class="adm-btn adm-btn-ghost" style="justify-content:center;padding:10px 4px;font-size:12px;min-height:44px" onclick="fsTplOpen('${t.id}')">${hcIcon('eye',13)} Ver / editar</button>
+        <button class="adm-btn adm-btn-ghost" style="justify-content:center;padding:10px 4px;font-size:12px;min-height:44px" onclick="fsTplRename('${t.id}')">Renombrar</button>
+        <button class="adm-btn adm-btn-ghost" style="justify-content:center;padding:10px 4px;font-size:12px;min-height:44px" onclick="fsTplDuplicate('${t.id}')">${hcIcon('copy',13)} Duplicar</button>
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+// ============================================================
+// EDITAR EL BLOQUE ACTIVO COMO TEXTO ("ediciones seguras")
+// Solo nombres, reps, RPE y series de lo que ya existe: IDs, íconos y posiciones se conservan.
+// ============================================================
+let fsSafeText=null, fsSafeResult=null;
+function fsSafeCheck(){
+  const parsed=parseBlockText(fsSafeText,{tracked:tracked||DEFAULT_TRACKED});
+  const m=mergeSafeEdit(plan,parsed,currentBlockName);
+  const byLine=(a,b)=>a.line-b.line;
+  fsSafeResult={plan:m.plan,errors:parsed.errors.concat(m.errors).sort(byLine),warnings:parsed.warnings.concat(m.warnings).sort(byLine)};
+}
+function fsSafeOpen(){
+  if(!Array.isArray(plan)||!plan.length){ showToast('No hay bloque activo'); return; }
+  fsSafeText=planToText(plan,{name:currentBlockName});
+  fsSafeCheck();
+  adminState.weeksTextMode=true;
+  renderModal();
+}
+function fsSafeClose(){
+  if(fsSafeText!==planToText(plan,{name:currentBlockName}) && !confirm('Hay cambios sin aplicar. ¿Salir igual?')) return;
+  adminState.weeksTextMode=false; fsSafeText=null; fsSafeResult=null;
+  renderModal();
+}
+function fsSafeInput(v){
+  fsSafeText=v;
+  clearTimeout(window._safeTimer);
+  window._safeTimer=setTimeout(()=>{
+    fsSafeCheck();
+    const iss=document.getElementById('safe-issues'); if(iss) iss.innerHTML=btIssuesHTML(fsSafeResult.errors,fsSafeResult.warnings,'safe-text');
+  },250);
+}
+async function fsSafeApply(){
+  clearTimeout(window._safeTimer);
+  fsSafeCheck();
+  const iss=document.getElementById('safe-issues'); if(iss) iss.innerHTML=btIssuesHTML(fsSafeResult.errors,fsSafeResult.warnings,'safe-text');
+  if(fsSafeResult.errors.length){ showToast('Hay errores: corregilos antes de aplicar'); btJumpToLine('safe-text',fsSafeResult.errors[0].line); return; }
+  if(JSON.stringify(fsSafeResult.plan)===JSON.stringify(plan)){ showToast('No hay cambios para aplicar'); return; }
+  if(!confirm('Se actualiza el bloque activo ("'+currentBlockName+'"). Los pesos que ya cargaron los alumnos se conservan.\n\n¿Aplicar los cambios?')) return;
+  try{
+    const okBackup=await sharedSet(K.PLAN_BACKUP,{plan,name:currentBlockName,weekMessages,savedAt:Date.now(),reason:'editar como texto'});
+    if(!okBackup) throw new Error('no se pudo guardar la copia de seguridad');
+    plan=fsSafeResult.plan;
+    if(!await savePlan()) throw new Error('no se pudo guardar el plan');
+    adminState.weeksTextMode=false; fsSafeText=null; fsSafeResult=null;
+    showToast('Bloque activo actualizado');
+    renderModal(); render();
+  }catch(e){ alert('Error al aplicar los cambios: '+e.message); }
+}
+function renderWeeksTextEditor(){
+  if(fsSafeText===null){ fsSafeText=planToText(plan,{name:currentBlockName}); fsSafeCheck(); }
+  return `<div>
+    <button class="adm-btn adm-btn-ghost" style="margin-bottom:14px;gap:8px;min-height:40px" onclick="fsSafeClose()">${IC.back} Volver a Semanas</button>
+    <div class="admin-section-title">${hcSecTitle('pencil','Editar bloque activo como texto')}</div>
+    <div class="cc-item" style="font-size:12px;color:var(--text2);line-height:1.55;margin-bottom:12px">
+      Podés cambiar <b>nombres, reps, RPE y series</b> de los ejercicios que ya existen (y la etiqueta de días).<br>
+      <span style="color:var(--text3)">No se pueden agregar, borrar ni mover ejercicios, partes, días o semanas: desalinearía los pesos que los alumnos ya cargaron. Para reordenar, armá un borrador nuevo. Los mensajes se escriben en el cuadro de cada semana.</span>
+    </div>
+    ${btEditorHTML('safe-text',fsSafeText,'fsSafeInput')}
+    <div style="height:10px"></div>
+    <div id="safe-issues">${btIssuesHTML(fsSafeResult.errors,fsSafeResult.warnings,'safe-text')}</div>
+    <button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;padding:14px;font-size:14px" onclick="fsSafeApply()">${hcIcon('save',16)} Aplicar cambios al bloque activo</button>
+  </div>`;
 }
 
 // ---- TAB: DIAGNÓSTICO ----
@@ -6697,11 +7590,14 @@ async function resetPlanToDefault(){
   showToast('Plan regenerado. Los IDs ahora coinciden con el progreso guardado.');
   renderModal();
 }
+let pendingWeekMsgs={};
 function saveWeekMsg(idx, val){
   weekMessages[idx] = val;
+  if(plan[idx]) plan[idx].message = val;
+  pendingWeekMsgs[idx] = val;
   // Debounce save to Firebase
   clearTimeout(window._weekMsgTimer);
-  window._weekMsgTimer = setTimeout(()=>saveWeekMessages(), 800);
+  window._weekMsgTimer = setTimeout(()=>{ const ch=pendingWeekMsgs; pendingWeekMsgs={}; patchPlanMessages(ch); }, 800);
 }
 
 // ---- TAB: RPE ----
@@ -7422,6 +8318,7 @@ window.__fsAppInit = async function(){
   await loadBlocks();
   await loadBlockName();
   await loadWeekMessages();
+  syncWeekMessagesFromPlan();
   if(session && session.uid!=='__pending__'){ await loadPrs(); loadActiveWeek(); loadExpressMode(); }
   if(session && session.uid!=='__pending__') await loadProgress();
   if(session && session.club==='hybrid' && session.uid!=='__pending__') await hcEnsureGoalData();
