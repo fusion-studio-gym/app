@@ -144,6 +144,49 @@ const val=(db,k)=>db[k]&&db[k].value!=null?JSON.parse(db[k].value):null;
     assert.strictEqual(prsAfter['Banco Plano'].rm4.newPr,false);
     assert.deepStrictEqual(errors,[]); await page.close();
     console.log('E2E publicar borrador: OK');
+
+    // 4) Plantillas: guardar el bloque activo, cargarla al borrador, renombrar, duplicar, eliminar
+    ({page,errors}=await openApp(browser,db,'coach'));
+    await page.evaluate(()=>{ openAdmin(); });
+    await page.evaluate(()=>setAdminTab(10));
+    await page.waitForFunction(()=>fsTplIndex!==null);
+    await page.evaluate(()=>{ window.prompt=()=> 'Plantilla fuerza 9 semanas'; });
+    await page.evaluate(()=>fsTplSaveFromActive());
+    db=await page.evaluate(()=>window.__fakeDb);
+    let idx=val(db,'fs_templates_v1');
+    assert.strictEqual(idx.length,1); assert.strictEqual(idx[0].weeks,9); assert.strictEqual(idx[0].name,'Plantilla fuerza 9 semanas');
+    const tid=idx[0].id;
+    const tdoc=val(db,'fs_tpl_'+tid);
+    assert.ok(tdoc.text.startsWith('NOMBRE: '+NEW)); assert.deepStrictEqual(tdoc.messages,{1:'Arrancamos bloque nuevo'});
+    if(process.env.SHOTS){ await page.waitForTimeout(200); await page.screenshot({path:path.join(process.env.SHOTS,'plantillas.png')}); }
+    await page.evaluate(id=>fsTplLoadToDraft(id),tid);
+    await page.waitForSelector('#draft-text');
+    db=await page.evaluate(()=>window.__fakeDb);
+    assert.strictEqual(val(db,'fs_draft_v1').text,tdoc.text,'plantilla cargada al borrador');
+    assert.strictEqual(val(db,'fs_draft_v1').messages[1],'Arrancamos bloque nuevo','mensajes vienen con la plantilla');
+    assert.strictEqual(val(db,'fs_block_name_v1'),NEW,'cargar plantilla no publica');
+    assert.ok((await page.locator('#draft-issues').innerText()).includes('igual al del bloque activo'));
+    await page.evaluate(()=>setAdminTab(10)); await page.waitForFunction(()=>fsTplIndex!==null);
+    await page.evaluate(()=>{ window.prompt=()=> 'Renombrada'; });
+    await page.evaluate(id=>fsTplRename(id),tid);
+    await page.evaluate(id=>fsTplDuplicate(id),tid);
+    db=await page.evaluate(()=>window.__fakeDb);
+    idx=val(db,'fs_templates_v1');
+    assert.deepStrictEqual(idx.map(t=>t.name).sort(),['Renombrada','Renombrada (copia)']);
+    await page.evaluate(id=>fsTplOpen(id),tid);
+    await page.waitForSelector('#tpl-text');
+    if(process.env.SHOTS) await page.screenshot({path:path.join(process.env.SHOTS,'plantilla-editor.png')});
+    await page.evaluate(()=>{ fsTplEditMsg(2,'Semana 2 de la plantilla'); });
+    await page.evaluate(()=>fsTplEditSave());
+    await page.evaluate(()=>fsTplClose());
+    await page.evaluate(id=>fsTplDelete(id),idx.find(t=>t.name.includes('copia')).id);
+    db=await page.evaluate(()=>window.__fakeDb);
+    idx=val(db,'fs_templates_v1');
+    assert.strictEqual(idx.length,1);
+    assert.strictEqual(val(db,'fs_tpl_'+tid).messages[2],'Semana 2 de la plantilla');
+    assert.strictEqual(val(db,'fs_tpl_'+tid).name,'Renombrada');
+    assert.deepStrictEqual(errors,[]); await page.close();
+    console.log('E2E plantillas: OK');
   }catch(e){ console.error('E2E FALLA:',e.message); process.exitCode=1; }
   finally{ await browser.close(); server.close(); }
 })();
