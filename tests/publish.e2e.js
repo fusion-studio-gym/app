@@ -216,6 +216,26 @@ const val=(db,k)=>db[k]&&db[k].value!=null?JSON.parse(db[k].value):null;
     assert.strictEqual(val(db,'fs_plan_backup_v1').reason,'editar como texto');
     assert.deepStrictEqual(errors,[]); await page.close();
     console.log('E2E editar como texto: OK');
+
+    // 6) Recorrido rápido: todas las pestañas del admin de Fuerza y del Hybrid Club sin errores
+    ({page,errors}=await openApp(browser,db,'coach'));
+    await page.evaluate(()=>{ openAdmin(); });
+    for(const t of [0,1,2,3,9,10,4,5,6,7,8]){
+      await page.evaluate(i=>setAdminTab(i),t); await page.waitForTimeout(250);
+      const o=await page.evaluate(()=>{ const m=document.querySelector('#modal-root .modal'); return m.scrollWidth-m.clientWidth; });
+      assert.strictEqual(o,0,'scroll horizontal en la pestaña '+t);
+      if(process.env.SHOTS && (t===0||t===3)) await page.screenshot({path:path.join(process.env.SHOTS,'tab'+t+'.png')});
+    }
+    assert.deepStrictEqual(errors,[]); await page.close();
+    db.fs_users_v1=doc({...val(db,'fs_users_v1'),hc:{id:'hc',name:'Hybrid Coach',email:'hc@x.com',hash:ctx.h,status:'active',club:'hybrid',admin:true}});
+    ({page,errors}=await openApp(browser,db,null));
+    await page.evaluate(()=>{ localStorage.setItem('fs_session_v1',JSON.stringify({uid:'hc',email:'hc@x.com',name:'Hybrid Coach',club:'hybrid'})); });
+    await page.reload(); await page.waitForFunction(()=>window.__fsCloudReady && plan); await page.waitForTimeout(600);
+    await page.evaluate(()=>{ openAdmin(); });
+    for(const t of ['dash','atletas','planes','plantillas','config']){ await page.evaluate(k=>setAdminTab(k),t); await page.waitForTimeout(250); }
+    assert.ok(!(await page.evaluate(()=>document.body.innerText)).includes('Borrador del próximo bloque'));
+    assert.deepStrictEqual(errors,[]); await page.close();
+    console.log('E2E pestañas admin (Fuerza y Hybrid): OK');
   }catch(e){ console.error('E2E FALLA:',e.message); process.exitCode=1; }
   finally{ await browser.close(); server.close(); }
 })();

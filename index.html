@@ -6298,6 +6298,9 @@ function removePart(wi,di,bi,ei,pi){ if(getEx(wi,di,bi,ei).parts.length<=1){show
 async function doSavePlan(){ await savePlan(); syncWeekMessagesFromPlan(); await saveWeekMessages(); showToast('Plan guardado'); render(); }
 
 // ---- TAB: SEMANAS ----
+// Armador/duplicador de semanas (agregar/duplicar/borrar semanas y días): oculto mientras se prueba
+// el flujo de bloques por texto (Borrador). El código queda; poner en true para volver a mostrarlo.
+const SHOW_WEEK_BUILDER=false;
 function renderTabWeeks(){
   if(adminState.weeksTextMode) return renderWeeksTextEditor();
   const rows=plan.map((wd,i)=>{
@@ -6305,19 +6308,19 @@ function renderTabWeeks(){
       <div class="adm-inp-row" style="margin-bottom:6px">
         <input class="adm-inp" style="flex:1;margin:0" value="${escH(d.name)}" placeholder="Nombre" oninput="updateDayName(${i},${di},this.value)">
         <input class="adm-inp" style="flex:1.5;margin:0" value="${escH(d.days)}" placeholder="Días" oninput="updateDayDays(${i},${di},this.value)">
-        ${wd.days.length>1?`<button class="adm-btn adm-btn-red" onclick="removeDay(${i},${di})">${IC.trash}</button>`:''}
+        ${SHOW_WEEK_BUILDER&&wd.days.length>1?`<button class="adm-btn adm-btn-red" onclick="removeDay(${i},${di})">${IC.trash}</button>`:''}
       </div>`).join('');
     const msg = (wd.message!=null?wd.message:weekMessages[i])||'';
     return `<div class="ex-edit-card">
       <div class="ex-edit-card-header">
         <span class="ex-edit-title">SEMANA ${wd.week}</span>
-        <div style="display:flex;gap:6px">
+        ${SHOW_WEEK_BUILDER?`<div style="display:flex;gap:6px">
           <button class="adm-btn adm-btn-blue" onclick="duplicateWeek(${i})">${hcIcon('copy',14)} Duplicar</button>
           <button class="adm-btn adm-btn-red" onclick="removeWeek(${i})">${IC.trash}</button>
-        </div>
+        </div>`:''}
       </div>
       ${dayRows}
-      <button class="adm-btn adm-btn-blue" onclick="addDay(${i})" style="width:100%;justify-content:center;margin-top:4px">${IC.plus} Agregar día</button>
+      ${SHOW_WEEK_BUILDER?`<button class="adm-btn adm-btn-blue" onclick="addDay(${i})" style="width:100%;justify-content:center;margin-top:4px">${IC.plus} Agregar día</button>`:''}
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
         <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:5px">${hcIcon('chat',12)} Mensaje del profe</div>
         <textarea class="adm-inp" style="margin:0;width:100%;min-height:70px;resize:vertical;font-size:12px;line-height:1.5;padding:8px 10px" placeholder="Mensaje opcional para los alumnos esta semana..." oninput="saveWeekMsg(${i},this.value)">${escH(msg)}</textarea>
@@ -6327,7 +6330,7 @@ function renderTabWeeks(){
   }).join('');
   const textBtn=plan.length?`<button class="adm-btn adm-btn-ghost" onclick="fsSafeOpen()" style="width:100%;justify-content:center;padding:12px;margin-bottom:12px;min-height:44px">${hcIcon('pencil',15)} Editar como texto</button>`:'';
   return `<div>${textBtn}${rows}
-    <button class="adm-btn adm-btn-orange" onclick="addWeek()" style="width:100%;justify-content:center;padding:12px;margin-top:4px">${IC.plus} Agregar semana</button>
+    ${SHOW_WEEK_BUILDER?`<button class="adm-btn adm-btn-orange" onclick="addWeek()" style="width:100%;justify-content:center;padding:12px;margin-top:4px">${IC.plus} Agregar semana</button>`:`<div style="font-size:11px;color:var(--text3);line-height:1.5;margin:4px 0 0">Para armar un bloque nuevo (semanas, días y ejercicios) usá la pestaña <b>Borrador</b>.</div>`}
     <button class="adm-btn adm-btn-ghost" onclick="doSavePlan()" style="width:100%;justify-content:center;padding:12px;margin-top:8px">${hcIcon('save',15)} Guardar cambios</button>
   </div>`;
 }
@@ -7214,6 +7217,7 @@ async function fsPublishDraft(){
     await sharedSet(K.DRAFT,null); lsSet(K.DRAFT,null);
     fsDraft=fsEmptyDraft(); fsDraftReparse(); btPrevOpen.draft=new Set(); fsDraftSaveState='';
     if(session && session.uid!=='__pending__') loadActiveWeek();
+    adminState.editWeekIdx=0; adminState.editDayIdx=0; adminState.editBlockIdx=0;
     showToast('Bloque "'+newName+'" publicado');
     adminState.tab=0;
     renderModal();
