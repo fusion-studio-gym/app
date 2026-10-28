@@ -1252,6 +1252,266 @@ function buildDefaultWeek(w){
 function buildDefaultRoutine(){ return Array.from({length:9},(_,i)=>buildDefaultWeek(i+1)); }
 
 // ============================================================
+// BLOQUE COMO TEXTO — parser y exportador (funciones puras, sin DOM ni Firebase)
+// parseBlockText(text, opts) -> {plan, name, errors, warnings, index}
+// planToText(plan, opts)     -> text
+// ============================================================
+// <block-text>
+const BT_DAY_ICONS=['🏋️','⚡','🔥'];   // los mismos de buildDefaultWeek (día 1, 2, 3)
+const BT_EXTRA_ICON='📌';              // el mismo de addDay (días extra y partes con otro nombre)
+const BT_PARTS={'TREN SUPERIOR':{id:'u',icon:'💪'},'TREN INFERIOR':{id:'l',icon:'🦵'}};
+const BT_PIDS='abcdefghijklmnopqrstuvwxyz';
+// Palabras que hacen "parecer" a un ejercicio base de PR (para avisar si el nombre no empareja)
+const BT_BASE_HINTS=['banco plano','press banca','squat','peso muerto','deadlift','bench'];
+const BT_BASE_EXCLUDE=['rumano','sumo','rdl'];
+
+function btFold(s){ return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/\s+/g,' ').trim(); }
+function btCleanLine(s){
+  return (s||'').replace(/[“”„‟″ʺ]/g,'"').replace(/[‘’′]/g,"'")
+    .replace(/×/g,'x').replace(/[ \t]/g,' ').replace(/\s+/g,' ').trim();
+}
+function btRpe(s){
+  s=(s||'').replace(/\s+/g,'').replace(/,/g,'.');
+  if(!s||s==='-') return '-';
+  return s.charAt(0)==='@'?s:'@'+s;
+}
+// "6 c/l @7,5" -> {r:'6 c/l', rpe:'@7.5'}
+function btRepsRpe(s){
+  const at=s.indexOf('@');
+  if(at===-1) return {r:s.trim(), rpe:'-'};
+  return {r:s.slice(0,at).trim(), rpe:btRpe(s.slice(at))};
+}
+function btLooksBase(name){
+  const l=btFold(name).toLowerCase();
+  return BT_BASE_HINTS.some(h=>l.includes(h)) && !BT_BASE_EXCLUDE.some(h=>l.includes(h));
+}
+function btExCount(wd){ return wd.days.reduce((n,d)=>n+d.blocks.reduce((m,b)=>m+b.exercises.length,0),0); }
+
+function parseBlockText(text, opts){
+  opts=opts||{};
+  const bid=opts.bid!=null?String(opts.bid):'';
+  const trackedList=opts.tracked||null;
+  const errors=[], warnings=[];
+  const err=(line,msg)=>errors.push({line,msg});
+  const warn=(line,msg)=>warnings.push({line,msg});
+  const plan=[], index=[];
+  let name='', nameLine=0;
+  let week=null, wIdx=null, day=null, dIdx=null, part=null, pIdx=null, ex=null, exLine=0;
+  let lastWeekNum=0;
+
+  function closeEx(){
+    if(!ex) return;
+    if(ex.type==='single' && !ex.sets.length) err(exLine,'El ejercicio "'+ex.name+'" no tiene series (ej: 4 x 6 @7).');
+    if(ex.type==='superset' && ex.parts.length<2) err(exLine,'El SUPERSET necesita al menos 2 partes (a) y b)).');
+    ex=null;
+  }
+  const lines=String(text||'').replace(/\r\n?/g,'\n').split('\n');
+  lines.forEach((raw,i)=>{
+    const ln=i+1;
+    const line=btCleanLine(raw);
+    if(!line || line.startsWith('//')) return;
+    let m;
+    if((m=line.match(/^NOMBRE\s*:\s*(.*)$/i))){
+      if(nameLine) err(ln,'NOMBRE repetido (ya estaba en la línea '+nameLine+').');
+      name=m[1].trim(); nameLine=ln;
+      if(!name) err(ln,'Falta el nombre del bloque después de "NOMBRE:".');
+      return;
+    }
+    if((m=line.match(/^SEMANA\s*(\d+)\s*$/i))){
+      closeEx();
+      const n=parseInt(m[1],10);
+      if(n<=lastWeekNum) err(ln,'Número de semana repetido o fuera de orden: SEMANA '+n+' (venía la '+lastWeekNum+').');
+      else if(n!==lastWeekNum+1) err(ln,'Falta la SEMANA '+(lastWeekNum+1)+' (salta de la '+lastWeekNum+' a la '+n+').');
+      lastWeekNum=Math.max(lastWeekNum,n);
+      week={week:plan.length+1,days:[]}; plan.push(week);
+      wIdx={line:ln,days:[]}; index.push(wIdx);
+      day=dIdx=part=pIdx=null;
+      return;
+    }
+    if((m=line.match(/^D[IÍ]A\s*(\d+)\s*(.*)$/i))){
+      closeEx();
+      if(!week){ err(ln,'El día tiene que ir dentro de una SEMANA.'); return; }
+      const pos=week.days.length+1;
+      const days=m[2].replace(/^[\(\-:]\s*/,'').replace(/\s*\)$/,'').trim().toUpperCase();
+      day={id:'d'+pos,name:'DÍA '+pos,days,icon:BT_DAY_ICONS[pos-1]||BT_EXTRA_ICON,blocks:[]};
+      week.days.push(day);
+      dIdx={line:ln,blocks:[]}; wIdx.days.push(dIdx);
+      part=pIdx=null;
+      return;
+    }
+    if((m=line.match(/^PARTE\s*:?\s*(.+)$/i))){
+      closeEx();
+      if(!day){ err(ln,'La PARTE tiene que ir dentro de un DIA.'); return; }
+      const pname=m[1].trim().toUpperCase();
+      const def=BT_PARTS[btFold(pname)];
+      let id=def?def.id:'p'+(day.blocks.length+1);
+      if(day.blocks.some(b=>b.id===id)) id='p'+(day.blocks.length+1);
+      part={id,name:pname,icon:def?def.icon:BT_EXTRA_ICON,exercises:[]};
+      day.blocks.push(part);
+      pIdx={line:ln,exercises:[]}; dIdx.blocks.push(pIdx);
+      return;
+    }
+    if((m=line.match(/^(\d+)\s*[\)\.\-]\s*(.+)$/))){
+      closeEx();
+      if(!part){ err(ln,'El ejercicio tiene que ir dentro de una PARTE (ej: PARTE: TREN SUPERIOR).'); return; }
+      const rest=m[2].trim();
+      if(/^(SUPER ?SET|COMBINADO)/i.test(rest)){
+        const sm=rest.match(/^(?:SUPER ?SET|COMBINADO)\s*(?:X\s*(\d+))?\s*$/i);
+        if(!sm){ err(ln,'No se entiende el SUPERSET. Escribilo así: '+m[1]+') SUPERSET x4'); return; }
+        // Sin xN se reporta el error pero igual se arma el ejercicio, para no encadenar errores en a) b)
+        if(!sm[1] || parseInt(sm[1],10)<1) err(ln,'Al SUPERSET le falta la cantidad de series (ej: SUPERSET x4).');
+        ex={type:'superset',count:parseInt(sm[1]||'0',10),parts:[]};
+      } else {
+        ex={type:'single',name:rest.toUpperCase(),sets:[]};
+      }
+      exLine=ln;
+      part.exercises.push(ex); pIdx.exercises.push(ln);
+      return;
+    }
+    if((m=line.match(/^(\d+)\s*x\s*(.+)$/i))){
+      if(!ex){ err(ln,'Estas series no tienen ejercicio arriba (ej: 1) BACK SQUAT).'); return; }
+      if(ex.type!=='single'){ err(ln,'En un SUPERSET las series van en la cabecera (SUPERSET x4) y las partes con a) b).'); return; }
+      const n=parseInt(m[1],10);
+      const rr=btRepsRpe(m[2]);
+      if(n<1){ err(ln,'La cantidad de series tiene que ser 1 o más.'); return; }
+      if(!rr.r){ err(ln,'Faltan las repeticiones (ej: 4 x 6 @7).'); return; }
+      if(n>30){ err(ln,'¿'+n+' series? Revisá el número.'); return; }
+      for(let k=0;k<n;k++) ex.sets.push({r:rr.r,rpe:rr.rpe});
+      return;
+    }
+    if((m=line.match(/^([a-z])\s*\)\s*(.*)$/i))){
+      if(!ex || ex.type!=='superset'){ err(ln,'La parte '+m[1]+') tiene que ir debajo de un SUPERSET o COMBINADO.'); return; }
+      const rest=m[2];
+      const colon=rest.indexOf(':');
+      const pname=(colon===-1?rest:rest.slice(0,colon)).trim().toUpperCase();
+      const rr=colon===-1?{r:'',rpe:'-'}:btRepsRpe(rest.slice(colon+1));
+      if(!pname){ err(ln,'Falta el nombre del ejercicio en la parte '+m[1]+').'); return; }
+      if(!rr.r){ err(ln,'A la parte '+m[1]+') le faltan las reps. Formato: '+m[1]+') NOMBRE: 8 @7'); return; }
+      ex.parts.push({pid:BT_PIDS[ex.parts.length]||('p'+ex.parts.length),name:pname,r:rr.r,rpe:rr.rpe});
+      return;
+    }
+    err(ln,'No se entiende esta línea: "'+line+'"');
+  });
+  closeEx();
+
+  if(!nameLine) err(1,'Falta el NOMBRE del bloque (primera línea, ej: NOMBRE: Bloque 5 - 2026).');
+  if(!plan.length) err(Math.max(1,nameLine),'No hay ninguna SEMANA.');
+
+  plan.forEach((wd,wi)=>{
+    const wl=index[wi];
+    if(!wd.days.length) err(wl.line,'La SEMANA '+wd.week+' no tiene días.');
+    wd.days.forEach((d,di)=>{
+      const dl=wl.days[di];
+      if(!d.blocks.length) err(dl.line,'El '+d.name+' de la semana '+wd.week+' no tiene partes (ej: PARTE: TREN SUPERIOR).');
+      d.blocks.forEach((b,bi)=>{
+        const bl=dl.blocks[bi];
+        if(!b.exercises.length) err(bl.line,'La parte '+b.name+' no tiene ejercicios.');
+        b.exercises.forEach((e,ei)=>{
+          const line=bl.exercises[ei];
+          // Orden y ID por posición (la numeración del texto es solo orientativa)
+          const k=ei+1;
+          const out=e.type==='single'
+            ? {order:k+'º',id:'',type:'single',name:e.name,sets:e.sets}
+            : {order:k+'º',id:'',type:'superset',count:e.count,parts:e.parts};
+          out.id=(bid?'b'+bid:'')+'w'+wd.week+'d'+(di+1)+'b'+b.id+'e'+k;
+          b.exercises[ei]=out;
+          if(e.type==='single' && ei===0 && e.sets.some(s=>s.rpe==='-')) warn(line,'"'+e.name+'" no tiene RPE.');
+          if(trackedList && typeof matchTracked==='function'){
+            const names=e.type==='single'?[e.name]:e.parts.map(p=>p.name);
+            names.forEach(nm=>{ if(btLooksBase(nm) && !matchTracked(nm,trackedList)) warn(line,'"'+nm+'" parece un ejercicio base pero no coincide con ningún PR (revisá cómo está escrito).'); });
+          }
+        });
+      });
+    });
+    if(wi>0){
+      const a=btExCount(plan[wi-1]), b=btExCount(wd);
+      if(a!==b) warn(wl.line,'La semana '+wd.week+' tiene '+b+' ejercicios y la anterior '+a+'.');
+    }
+  });
+  errors.sort((a,b)=>a.line-b.line); warnings.sort((a,b)=>a.line-b.line);
+  return {plan,name,errors,warnings,index};
+}
+
+// Agrupa series iguales seguidas: [{r:'6',rpe:'@6'} x4] -> [{n:4,r:'6',rpe:'@6'}]
+function btGroupSets(sets){
+  const out=[];
+  (sets||[]).forEach(s=>{
+    const rpe=btRpe(s.rpe), last=out[out.length-1];
+    if(last && last.r===s.r && last.rpe===rpe) last.n++;
+    else out.push({n:1,r:s.r,rpe});
+  });
+  return out;
+}
+function planToText(p, opts){
+  opts=opts||{};
+  const out=['NOMBRE: '+(opts.name||'')];
+  const rpeTxt=rpe=>{ rpe=btRpe(rpe); return rpe==='-'?'':' '+rpe; };
+  (p||[]).forEach((wd,wi)=>{
+    out.push('','SEMANA '+(wi+1));
+    (wd.days||[]).forEach((d,di)=>{
+      out.push('','DIA '+(di+1)+(d.days?' ('+d.days+')':''));
+      (d.blocks||[]).forEach((b,bi)=>{
+        if(bi>0) out.push('');
+        out.push('PARTE: '+b.name);
+        (b.exercises||[]).forEach((ex,ei)=>{
+          if(ex.type==='single'){
+            out.push((ei+1)+') '+ex.name);
+            btGroupSets(ex.sets).forEach(g=>out.push(g.n+' x '+g.r+rpeTxt(g.rpe)));
+          } else {
+            out.push((ei+1)+') SUPERSET x'+ex.count);
+            (ex.parts||[]).forEach((pt,pi)=>out.push((BT_PIDS[pi]||'z')+') '+pt.name+': '+pt.r+rpeTxt(pt.rpe)));
+          }
+        });
+      });
+    });
+  });
+  return out.join('\n')+'\n';
+}
+
+// Edición segura del bloque activo: solo cambia nombres, reps, RPE, series y la etiqueta de días.
+// Conserva IDs, íconos y orden por posición para no desalinear lo que ya cargaron los alumnos.
+function mergeSafeEdit(active, parsed, activeName){
+  const errors=[], warnings=[];
+  const P=parsed.plan, I=parsed.index;
+  const lockMsg=' En el bloque activo no se pueden agregar, borrar ni mover cosas (desalinearía los pesos ya cargados). Para reordenar, armá un borrador nuevo.';
+  if(activeName!=null && parsed.name!==activeName) errors.push({line:1,msg:'El NOMBRE no se cambia acá (se cambia desde el Dashboard). Dejalo como "'+activeName+'".'});
+  if(P.length!==active.length) errors.push({line:(I[Math.min(P.length,active.length)]||I[I.length-1]||{line:1}).line,msg:'El bloque activo tiene '+active.length+' semanas y el texto '+P.length+'.'+lockMsg});
+  const merged=JSON.parse(JSON.stringify(active));
+  merged.forEach((wd,wi)=>{
+    const pw=P[wi], iw=I[wi]; if(!pw) return;
+    if(pw.days.length!==wd.days.length){ errors.push({line:iw.line,msg:'La semana '+(wi+1)+' tenía '+wd.days.length+' días y ahora '+pw.days.length+'.'+lockMsg}); return; }
+    wd.days.forEach((d,di)=>{
+      const pd=pw.days[di], id=iw.days[di];
+      if(pd.blocks.length!==d.blocks.length){ errors.push({line:id.line,msg:'El '+d.name+' (semana '+(wi+1)+') tenía '+d.blocks.length+' partes y ahora '+pd.blocks.length+'.'+lockMsg}); return; }
+      d.days=pd.days;
+      d.blocks.forEach((b,bi)=>{
+        const pb=pd.blocks[bi], ib=id.blocks[bi];
+        if(pb.exercises.length!==b.exercises.length){ errors.push({line:ib.line,msg:'La parte '+b.name+' (semana '+(wi+1)+', '+d.name+') tenía '+b.exercises.length+' ejercicios y ahora '+pb.exercises.length+'.'+lockMsg}); return; }
+        b.name=pb.name;
+        b.exercises.forEach((ex,ei)=>{
+          const pe=pb.exercises[ei], line=ib.exercises[ei];
+          if(pe.type!==ex.type){ errors.push({line,msg:'No se puede cambiar un ejercicio simple por un SUPERSET (o al revés).'+lockMsg}); return; }
+          if(ex.type==='single'){
+            if(pe.name!==ex.name) warnings.push({line,msg:'Cambia el nombre: "'+ex.name+'" → "'+pe.name+'".'});
+            ex.name=pe.name; ex.sets=pe.sets;
+          } else {
+            if(pe.parts.length!==ex.parts.length){ errors.push({line,msg:'El SUPERSET tenía '+ex.parts.length+' partes y ahora '+pe.parts.length+'.'+lockMsg}); return; }
+            ex.count=pe.count;
+            ex.parts.forEach((pt,pi)=>{
+              const pp=pe.parts[pi];
+              if(pp.name!==pt.name) warnings.push({line,msg:'Cambia el nombre: "'+pt.name+'" → "'+pp.name+'".'});
+              pt.name=pp.name; pt.r=pp.r; pt.rpe=pp.rpe;
+            });
+          }
+        });
+      });
+    });
+  });
+  return {plan:merged,errors,warnings};
+}
+// </block-text>
+
+// ============================================================
 // PROGRESS CALC
 // ============================================================
 function blockAnyDone(block,prog){
