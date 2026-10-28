@@ -187,6 +187,35 @@ const val=(db,k)=>db[k]&&db[k].value!=null?JSON.parse(db[k].value):null;
     assert.strictEqual(val(db,'fs_tpl_'+tid).name,'Renombrada');
     assert.deepStrictEqual(errors,[]); await page.close();
     console.log('E2E plantillas: OK');
+
+    // 5) Editar el bloque activo como texto: cambios seguros sí, agregar ejercicios no
+    ({page,errors}=await openApp(browser,db,'coach'));
+    await page.evaluate(()=>{ openAdmin(); });
+    await page.evaluate(()=>setAdminTab(3));
+    await page.evaluate(()=>fsSafeOpen());
+    await page.waitForSelector('#safe-text');
+    const orig=await page.inputValue('#safe-text');
+    const bad=orig.replace('PARTE: TREN INFERIOR\n1) PESO MUERTO C/PAUSA','PARTE: TREN INFERIOR\n1) NUEVO\n3 x 5\n2) PESO MUERTO C/PAUSA');
+    await page.fill('#safe-text',bad); await page.waitForTimeout(400);
+    assert.ok((await page.locator('#safe-issues').innerText()).includes('no se pueden agregar'),'agregar ejercicio bloqueado');
+    await page.evaluate(()=>fsSafeApply());
+    db=await page.evaluate(()=>window.__fakeDb);
+    assert.strictEqual(val(db,'fs_plan_v1')[0].days[0].blocks[1].exercises.length,3,'no se aplicó');
+    const good=orig.replace('1) BANCO PLANO C/BARRA (PAUSA 2")\n4 x 6 @6','1) BANCO PLANO C/BARRA (PAUSA 3")\n5 x 5 @6.5');
+    await page.fill('#safe-text',good); await page.waitForTimeout(400);
+    if(process.env.SHOTS) await page.screenshot({path:path.join(process.env.SHOTS,'editar-texto.png')});
+    const before=val(db,'fs_plan_v1');
+    await page.evaluate(()=>fsSafeApply());
+    db=await page.evaluate(()=>window.__fakeDb);
+    const after=val(db,'fs_plan_v1');
+    const e0=after[0].days[0].blocks[0].exercises[0];
+    assert.strictEqual(e0.id,before[0].days[0].blocks[0].exercises[0].id,'ID conservado');
+    assert.strictEqual(e0.name,'BANCO PLANO C/BARRA (PAUSA 3")'); assert.strictEqual(e0.sets.length,5); assert.strictEqual(e0.sets[0].rpe,'@6.5');
+    assert.strictEqual(after[0].message,'Arrancamos bloque nuevo','mensaje conservado');
+    assert.strictEqual(after[0].days[0].icon,'🏋️');
+    assert.strictEqual(val(db,'fs_plan_backup_v1').reason,'editar como texto');
+    assert.deepStrictEqual(errors,[]); await page.close();
+    console.log('E2E editar como texto: OK');
   }catch(e){ console.error('E2E FALLA:',e.message); process.exitCode=1; }
   finally{ await browser.close(); server.close(); }
 })();

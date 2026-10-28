@@ -1493,9 +1493,11 @@ function mergeSafeEdit(active, parsed, activeName){
           if(pe.type!==ex.type){ errors.push({line,msg:'No se puede cambiar un ejercicio simple por un SUPERSET (o al revés).'+lockMsg}); return; }
           if(ex.type==='single'){
             if(pe.name!==ex.name) warnings.push({line,msg:'Cambia el nombre: "'+ex.name+'" → "'+pe.name+'".'});
+            if(pe.sets.length<ex.sets.length) warnings.push({line,msg:'Pasa de '+ex.sets.length+' a '+pe.sets.length+' series: lo cargado en las series que se sacan deja de verse.'});
             ex.name=pe.name; ex.sets=pe.sets;
           } else {
             if(pe.parts.length!==ex.parts.length){ errors.push({line,msg:'El SUPERSET tenía '+ex.parts.length+' partes y ahora '+pe.parts.length+'.'+lockMsg}); return; }
+            if(pe.count<ex.count) warnings.push({line,msg:'Pasa de '+ex.count+' a '+pe.count+' series: lo cargado en las series que se sacan deja de verse.'});
             ex.count=pe.count;
             ex.parts.forEach((pt,pi)=>{
               const pp=pe.parts[pi];
@@ -3890,6 +3892,7 @@ async function setAdminTab(i){
   // Borrador y Plantillas se releen al entrar (el admin puede usar celular y tablet)
   if(i===9 && fsDraftSaveState!=='saving'){ fsDraft=null; }
   if(i===10){ fsTplIndex=null; }
+  if(i!==3){ adminState.weeksTextMode=false; fsSafeText=null; }
   if(i===0||i===1){
     await loadUsers();
     renderModal();
@@ -6296,6 +6299,7 @@ async function doSavePlan(){ await savePlan(); syncWeekMessagesFromPlan(); await
 
 // ---- TAB: SEMANAS ----
 function renderTabWeeks(){
+  if(adminState.weeksTextMode) return renderWeeksTextEditor();
   const rows=plan.map((wd,i)=>{
     const dayRows=wd.days.map((d,di)=>`
       <div class="adm-inp-row" style="margin-bottom:6px">
@@ -6321,7 +6325,8 @@ function renderTabWeeks(){
       </div>
     </div>`;
   }).join('');
-  return `<div>${rows}
+  const textBtn=plan.length?`<button class="adm-btn adm-btn-ghost" onclick="fsSafeOpen()" style="width:100%;justify-content:center;padding:12px;margin-bottom:12px;min-height:44px">${hcIcon('pencil',15)} Editar como texto</button>`:'';
+  return `<div>${textBtn}${rows}
     <button class="adm-btn adm-btn-orange" onclick="addWeek()" style="width:100%;justify-content:center;padding:12px;margin-top:4px">${IC.plus} Agregar semana</button>
     <button class="adm-btn adm-btn-ghost" onclick="doSavePlan()" style="width:100%;justify-content:center;padding:12px;margin-top:8px">${hcIcon('save',15)} Guardar cambios</button>
   </div>`;
@@ -7391,6 +7396,70 @@ function renderTabTemplates(){
         <button class="adm-btn adm-btn-ghost" style="justify-content:center;padding:10px 4px;font-size:12px;min-height:44px" onclick="fsTplDuplicate('${t.id}')">${hcIcon('copy',13)} Duplicar</button>
       </div>
     </div>`).join('')}</div>`;
+}
+
+// ============================================================
+// EDITAR EL BLOQUE ACTIVO COMO TEXTO ("ediciones seguras")
+// Solo nombres, reps, RPE y series de lo que ya existe: IDs, íconos y posiciones se conservan.
+// ============================================================
+let fsSafeText=null, fsSafeResult=null;
+function fsSafeCheck(){
+  const parsed=parseBlockText(fsSafeText,{tracked:tracked||DEFAULT_TRACKED});
+  const m=mergeSafeEdit(plan,parsed,currentBlockName);
+  const byLine=(a,b)=>a.line-b.line;
+  fsSafeResult={plan:m.plan,errors:parsed.errors.concat(m.errors).sort(byLine),warnings:parsed.warnings.concat(m.warnings).sort(byLine)};
+}
+function fsSafeOpen(){
+  if(!Array.isArray(plan)||!plan.length){ showToast('No hay bloque activo'); return; }
+  fsSafeText=planToText(plan,{name:currentBlockName});
+  fsSafeCheck();
+  adminState.weeksTextMode=true;
+  renderModal();
+}
+function fsSafeClose(){
+  if(fsSafeText!==planToText(plan,{name:currentBlockName}) && !confirm('Hay cambios sin aplicar. ¿Salir igual?')) return;
+  adminState.weeksTextMode=false; fsSafeText=null; fsSafeResult=null;
+  renderModal();
+}
+function fsSafeInput(v){
+  fsSafeText=v;
+  clearTimeout(window._safeTimer);
+  window._safeTimer=setTimeout(()=>{
+    fsSafeCheck();
+    const iss=document.getElementById('safe-issues'); if(iss) iss.innerHTML=btIssuesHTML(fsSafeResult.errors,fsSafeResult.warnings,'safe-text');
+  },250);
+}
+async function fsSafeApply(){
+  clearTimeout(window._safeTimer);
+  fsSafeCheck();
+  const iss=document.getElementById('safe-issues'); if(iss) iss.innerHTML=btIssuesHTML(fsSafeResult.errors,fsSafeResult.warnings,'safe-text');
+  if(fsSafeResult.errors.length){ showToast('Hay errores: corregilos antes de aplicar'); btJumpToLine('safe-text',fsSafeResult.errors[0].line); return; }
+  if(JSON.stringify(fsSafeResult.plan)===JSON.stringify(plan)){ showToast('No hay cambios para aplicar'); return; }
+  if(!confirm('Se actualiza el bloque activo ("'+currentBlockName+'"). Los pesos que ya cargaron los alumnos se conservan.\n\n¿Aplicar los cambios?')) return;
+  try{
+    const okBackup=await sharedSet(K.PLAN_BACKUP,{plan,name:currentBlockName,weekMessages,savedAt:Date.now(),reason:'editar como texto'});
+    if(!okBackup) throw new Error('no se pudo guardar la copia de seguridad');
+    plan=fsSafeResult.plan;
+    if(!await savePlan()) throw new Error('no se pudo guardar el plan');
+    adminState.weeksTextMode=false; fsSafeText=null; fsSafeResult=null;
+    showToast('Bloque activo actualizado');
+    renderModal(); render();
+  }catch(e){ alert('Error al aplicar los cambios: '+e.message); }
+}
+function renderWeeksTextEditor(){
+  if(fsSafeText===null){ fsSafeText=planToText(plan,{name:currentBlockName}); fsSafeCheck(); }
+  return `<div>
+    <button class="adm-btn adm-btn-ghost" style="margin-bottom:14px;gap:8px;min-height:40px" onclick="fsSafeClose()">${IC.back} Volver a Semanas</button>
+    <div class="admin-section-title">${hcSecTitle('pencil','Editar bloque activo como texto')}</div>
+    <div class="cc-item" style="font-size:12px;color:var(--text2);line-height:1.55;margin-bottom:12px">
+      Podés cambiar <b>nombres, reps, RPE y series</b> de los ejercicios que ya existen (y la etiqueta de días).<br>
+      <span style="color:var(--text3)">No se pueden agregar, borrar ni mover ejercicios, partes, días o semanas: desalinearía los pesos que los alumnos ya cargaron. Para reordenar, armá un borrador nuevo. Los mensajes se escriben en el cuadro de cada semana.</span>
+    </div>
+    ${btEditorHTML('safe-text',fsSafeText,'fsSafeInput')}
+    <div style="height:10px"></div>
+    <div id="safe-issues">${btIssuesHTML(fsSafeResult.errors,fsSafeResult.warnings,'safe-text')}</div>
+    <button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;padding:14px;font-size:14px" onclick="fsSafeApply()">${hcIcon('save',16)} Aplicar cambios al bloque activo</button>
+  </div>`;
 }
 
 // ---- TAB: DIAGNÓSTICO ----
