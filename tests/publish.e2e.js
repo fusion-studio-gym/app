@@ -210,6 +210,16 @@ const val=(db,k)=>db[k]&&db[k].value!=null?JSON.parse(db[k].value):null;
     db=await page.evaluate(()=>window.__fakeDb);
     assert.strictEqual(JSON.stringify(val(db,'fs_prs_coach_v2')),coachPrs,'PRs del admin intactos al ver como alumna');
     assert.deepStrictEqual(val(db,'fs_prs_u1_v2')['Banco Plano'].rm4.history.find(h=>h.block===OLD),{weight:100,week:1,block:OLD});
+    // Viendo como la alumna: el bloque archivado no ofrece restaurar/eliminar y el resumen es el de ella
+    await page.evaluate(b=>openArchivedBlock(b),bid);
+    const impTxt=await page.evaluate(()=>document.body.innerText);
+    assert.ok(!impTxt.includes('Restaurar como activo'),'sin restaurar/eliminar al ver como alumna');
+    await page.getByText('Ver resumen del bloque').click();
+    await page.waitForSelector('.summary-sheet');
+    const impSum=await page.evaluate(()=>({prog:blockSummaryState.blockProgress,prs:calcBlockSummary(blockSummaryState.blockPlan,blockSummaryState.blockProgress).prs.map(p=>p.name)}));
+    assert.deepStrictEqual(impSum.prog,val(seed,'fs_prog_u1_v1'),'resumen con el progreso de la alumna, no del admin');
+    assert.ok(impSum.prs.includes('Banco Plano'));
+    await page.evaluate(()=>closeBlockSummary());
     await page.evaluate(()=>exitImpersonation());
     assert.deepStrictEqual(errors,[]); await page.close();
     console.log('E2E PRs de bloque archivado: OK');

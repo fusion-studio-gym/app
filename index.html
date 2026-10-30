@@ -7973,7 +7973,8 @@ function calcBlockSummary(bPlan,bProgress){
 }
 
 async function openBlockSummary(bid,blockName,bPlan){
-  const uid=session?.uid; if(!uid||uid==='__pending__')return;
+  // Al ver como alumno, el resumen es del alumno (igual que openArchivedDay), no del admin
+  const uid=adminState.impersonating?adminState.impersonating.uid:session?.uid; if(!uid||uid==='__pending__')return;
   const bProgress=await loadBlockProgress(uid,bid);
   blockSummaryState={open:true,blockId:bid,blockName,blockPlan:bPlan,blockProgress:bProgress};
   render();

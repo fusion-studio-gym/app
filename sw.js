@@ -1,4 +1,4 @@
-const CACHE = 'fusion-studio-v1';
+const CACHE = 'fusion-studio-v2';
 const ASSETS = [
   '/app/',
   '/app/index.html',
@@ -27,8 +27,10 @@ self.addEventListener('fetch', e => {
   // Network first for Firebase (always fresh data)
   if(e.request.url.includes('firestore') || e.request.url.includes('firebase')) return;
 
+  // La app (HTML) siempre se revalida con el servidor para que cada publicación se vea al instante
+  const isPage = e.request.mode === 'navigate' || e.request.url.split('?')[0].endsWith('.html');
   e.respondWith(
-    fetch(e.request)
+    (isPage ? fetch(e.request.url, {cache:'no-cache'}) : fetch(e.request))
       .then(res => {
         // Cache successful responses for app shell files
         if(res.ok && ASSETS.some(a => e.request.url.endsWith(a.replace('/app','')))){
