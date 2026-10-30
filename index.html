@@ -533,7 +533,9 @@ const K = {
   PLAN_BACKUP: 'fs_plan_backup_v1',  // shared: {plan,name,weekMessages,savedAt} — copia del plan activo antes de publicar/editar como texto
   DRAFT: 'fs_draft_v1',  // shared: {text,plan,name,messages:{[semana]:msg},bid,errorCount,updatedAt} — borrador del próximo bloque
   TEMPLATES: 'fs_templates_v1',  // shared: [{id,name,createdAt,updatedAt,weeks}] — índice liviano de plantillas de bloque
-  TPL: (id) => `fs_tpl_${id}`,  // shared: {id,name,text,messages:{[semana]:msg},createdAt,updatedAt} — una plantilla por documento
+  TPL: (id) => `fs_tpl_${id}`,
+  STAFF_PARTS_W: (n) => `fs_staff_parts_w${n}_v1`,  // shared (solo staff): {week:n, days:{[dayId]:{mov,aprox,zmedia,cardio}}} — partes de clase de la semana n del bloque activo. Part={text,by,byName,at,tplId?,history:[{text,by,byName,at}]}
+  STAFF_PARTS_BW: (bid,n) => `fs_staff_parts_${bid}_w${n}_v1`,  // shared: copia de las partes de clase al archivar el bloque bid  // shared: {id,name,text,messages:{[semana]:msg},createdAt,updatedAt} — una plantilla por documento
   HC_PROFILE: (uid) => `hc_profile_${uid}_v1`,  // personal: ficha completa del alumno (Hybrid Club)
   HC_RACES: 'hc_races_v1',  // shared: [{id,name,series,location,date}]
   HC_GOAL: (uid) => `hc_goal_${uid}_v1`,  // personal: {raceId} — carrera objetivo del alumno
@@ -581,6 +583,42 @@ function canEditPartAs(role,partKey){
   return false;
 }
 // </roles>
+
+// <staff-parts>
+// Partes de clase por semana (solo Admin y Profesor). Se guardan aparte del plan para no tocar
+// el progreso, la adherencia ni los PRs de los alumnos.
+const STAFF_PART_LABEL = { mov:'Movilidad', aprox:'Aproximaciones', zmedia:'Zona media', cardio:'Cardio' };
+// Orden fijo de la semana en las vistas de staff ('main' y 'acc' salen del plan, en solo lectura)
+const STAFF_ORDER = ['mov','aprox','main','acc','zmedia','cardio'];
+const STAFF_HISTORY_MAX = 10;
+// Devuelve una copia del documento de la semana con UNA parte reemplazada; la versión anterior pasa al historial.
+function applyStaffPartEdit(docIn, week, dayId, key, text, who, at, tplId){
+  const d = docIn && typeof docIn==='object' ? JSON.parse(JSON.stringify(docIn)) : {};
+  d.week = week;
+  if(!d.days || typeof d.days!=='object') d.days = {};
+  if(!d.days[dayId] || typeof d.days[dayId]!=='object') d.days[dayId] = {};
+  const prev = d.days[dayId][key];
+  const history = prev && Array.isArray(prev.history) ? prev.history.slice() : [];
+  if(prev && (prev.text || prev.at)) history.unshift({ text:prev.text||'', by:prev.by||'', byName:prev.byName||'', at:prev.at||'' });
+  const part = { text:String(text==null?'':text), by:(who&&who.uid)||'', byName:(who&&who.name)||'', at, history:history.slice(0,STAFF_HISTORY_MAX) };
+  if(tplId) part.tplId = tplId;
+  d.days[dayId][key] = part;
+  return d;
+}
+// Partes sin cargar de una semana del plan: [{dayIdx, dayName, keys:[...]}]
+function staffMissingParts(docIn, wd){
+  return ((wd && wd.days) || []).map((day,i)=>{
+    const dp = (docIn && docIn.days && docIn.days[day.id]) || {};
+    return { dayIdx:i, dayName:day.name, keys:STAFF_PARTS.filter(k=>!(dp[k] && String(dp[k].text||'').trim())) };
+  }).filter(x=>x.keys.length);
+}
+// Bloque principal = primer ejercicio de cada parte del día (Tren Superior / Inferior); el resto son accesorios
+function splitMainAcc(day){
+  const main=[], acc=[];
+  ((day && day.blocks) || []).forEach(b=>(b.exercises||[]).forEach((ex,i)=>(i===0?main:acc).push({ block:b.name, ex })));
+  return { main, acc };
+}
+// </staff-parts>
 
 // PR rep ranges
 const PR_RANGES = [
@@ -875,7 +913,21 @@ async function archiveCurrentBlock(name){
       if(userPrs && Object.keys(userPrs).length > 0) await personalSet(K.PRS_BLOCK(u.id,bid), userPrs);
     }catch(e){ console.error('Error snapshotting progress for', u.id, e); }
   }));
+  // Partes de clase (solo staff): copiarlas al archivo del bloque y dejar vacías las del bloque activo.
+  // Van al final y en documentos propios: no tocan plan, progreso ni PRs.
+  await archiveStaffParts(bid, plan.length);
   return bid;
+}
+async function archiveStaffParts(bid, weeks){
+  for(let n=1;n<=weeks;n++){
+    try{
+      const d=await sharedGet(K.STAFF_PARTS_W(n));
+      if(!d) continue;
+      // Solo se vacía la semana activa si la copia se guardó bien
+      if(await sharedSet(K.STAFF_PARTS_BW(bid,n),d)) await sharedSet(K.STAFF_PARTS_W(n),null);
+    }catch(e){ console.error('Error archivando partes de clase semana', n, e); }
+  }
+  staffParts={};
 }
 
 async function loadBlockPlan(bid){
@@ -2050,7 +2102,7 @@ async function doRegister(){
   render();
 }
 
-function doLogout(){ clearSession(); progress={}; userMenuOpen=false; adminState.pwOk=false; teacherState={tab:'plan'}; authState={mode:'login',name:'',email:'',pw:'',pw2:'',err:'',loading:false,teacher:false}; render(); }
+function doLogout(){ clearSession(); progress={}; userMenuOpen=false; adminState.pwOk=false; teacherState={tab:'plan'}; staffParts={}; staffState={week:null,day:0,editing:null,hist:null,busy:false}; authState={mode:'login',name:'',email:'',pw:'',pw2:'',err:'',loading:false,teacher:false}; render(); }
 
 // ============================================================
 // PENDING SCREEN
@@ -3863,6 +3915,7 @@ function renderModal(){
       const main=existingModal.querySelector('.adm-main');
       if(main) main.scrollTop = goingIntoDetail ? 0 : savedMainScroll;
       hcKeepActiveTabVisible('hc-adm-daytabs');
+      hcKeepActiveTabVisible('staff-weektabs');
     });
   } else {
     // First render — build full modal structure
@@ -3945,7 +3998,7 @@ function renderAdminBody(){
   }
   if(typeof adminState.tab!=='number') adminState.tab=0;
   // [índice, ícono, nombre] — los índices no cambian (otras partes del admin los usan); el orden es el visual
-  const tabs=[[0,'grid','Dashboard'],[1,'users','Usuarios'],[11,'clipboardList','Profesores'],[2,'list','Ejercicios'],[3,'calendar','Semanas'],[9,'pencil','Borrador'],[10,'template','Plantillas'],[4,'bookOpen','RPE'],[5,'target','PRs'],[6,'trendingUp','Grupo'],[7,'key','Contraseña'],[8,'search','Diagnóstico']];
+  const tabs=[[0,'grid','Dashboard'],[1,'users','Usuarios'],[11,'clipboardList','Profesores'],[2,'list','Ejercicios'],[3,'calendar','Semanas'],[12,'clipboard','Planificación'],[9,'pencil','Borrador'],[10,'template','Plantillas'],[4,'bookOpen','RPE'],[5,'target','PRs'],[6,'trendingUp','Grupo'],[7,'key','Contraseña'],[8,'search','Diagnóstico']];
   const nav=tabs.map(([i,ic,label])=>`<div class="admin-tab ${adminState.tab===i?'active':''}" onclick="setAdminTab(${i})"><span class="adm-tab-ic">${hcIcon(ic,16)}${label}</span></div>`).join('');
   let body='';
   if(adminState.tab===0) body=renderTabDashboard();
@@ -3959,6 +4012,7 @@ function renderAdminBody(){
   else if(adminState.tab===9) body=renderTabDraft();
   else if(adminState.tab===10) body=renderTabTemplates();
   else if(adminState.tab===11) body=renderTabTeachers();
+  else if(adminState.tab===12) body=renderStaffPlanning();
   else body=renderTabDiag();
   return `<div class="adm-layout"><div class="admin-nav">${nav}</div><div class="adm-main">${body}</div></div>`;
 }
@@ -3970,6 +4024,7 @@ async function setAdminTab(i){
   // Borrador y Plantillas se releen al entrar (el admin puede usar celular y tablet)
   if(i===9 && fsDraftSaveState!=='saving'){ fsDraft=null; }
   if(i===10){ fsTplIndex=null; }
+  if(i===0||i===12){ staffParts={}; staffState.editing=null; } // partes de clase: releer al entrar
   if(i!==3){ adminState.weeksTextMode=false; fsSafeText=null; }
   if(i===0||i===1||i===11){
     await loadUsers();
@@ -4263,12 +4318,12 @@ function renderTeachersDashCard(){
 // ============================================================
 // Dos pestañas: Planificación (partes de clase por semana) y Plantillas (plantillas de partes).
 let teacherState={tab:'plan'};
-function setTeacherTab(t){ teacherState.tab=t; render(); }
+function setTeacherTab(t){ teacherState.tab=t; if(t==='plan'){ staffParts={}; staffState.editing=null; } render(); }
 function renderTeacherHome(){
   const first=escH(((session&&session.name)||'').split(' ')[0].toUpperCase());
   const body=teacherState.tab==='tpl'
     ? `<div class="admin-section-title">${hcSecTitle('template','Plantillas de partes')}</div><div class="cc-empty">Próximamente: plantillas de Movilidad, Aproximaciones, Zona media y Cardio.</div>`
-    : `<div class="admin-section-title">${hcSecTitle('calendar','Planificación')}</div><div class="cc-empty">Próximamente: partes de clase de cada semana y día del bloque.</div>`;
+    : renderStaffPlanning();
   const item=(t,ic,label)=>`<div class="tab-bar-item ${teacherState.tab===t?'active':''}" onclick="setTeacherTab('${t}')">
       <div class="tab-bar-icon">${hcIcon(ic,20)}</div>${label}
     </div>`;
@@ -4281,6 +4336,194 @@ function renderTeacherHome(){
       ${body}
     </div>
     <div class="tab-bar">${item('plan','calendar','Planificación')}${item('tpl','template','Plantillas')}</div>`;
+}
+
+// ============================================================
+// PLANIFICACIÓN DE STAFF (Admin y Profesor): partes de clase por semana y día
+// ============================================================
+let staffParts={};      // {[semana n]: documento de la semana | null} — caché; se relee al entrar
+let staffLoadingW={};
+let staffState={ week:null, day:0, editing:null /*{key,text}*/, hist:null, busy:false };
+const STAFF_UI_KEY='fs_staff_ui_v1'; // semana elegida en este dispositivo (comodidad, no es dato compartido)
+
+function staffRerender(){ if(isTeacherSession()) render(); else renderModal(); }
+function staffWho(){ const u=session&&getUserById(session.uid); return { uid:session?session.uid:'', name:(u&&u.name)||(session&&session.name)||'' }; }
+function staffFmtAt(at){ if(!at) return ''; const d=new Date(at); return isNaN(d)?'':d.toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); }
+async function loadStaffWeek(n){
+  const r=await sharedGet(K.STAFF_PARTS_W(n));
+  staffParts[n]=(r && typeof r==='object') ? r : null;
+  return staffParts[n];
+}
+// Carga diferida: si la semana no está en caché, la pide y vuelve a dibujar
+function staffWeekDoc(n){
+  if(staffParts[n]!==undefined) return staffParts[n];
+  if(!staffLoadingW[n]){ staffLoadingW[n]=true; loadStaffWeek(n).finally(()=>{ staffLoadingW[n]=false; staffRerender(); }); }
+  return undefined;
+}
+// Única función que escribe partes de clase. Relee la semana justo antes de guardar y reemplaza
+// solo esa parte, así dos personas editando partes distintas no se pisan.
+async function saveStaffPart(n, dayId, key, text, tplId){
+  if(!canEditPart(key)){ showToast('No tenés permiso para editar esta parte'); return false; }
+  const fresh=await sharedGet(K.STAFF_PARTS_W(n));
+  const next=applyStaffPartEdit(fresh, n, dayId, key, text, staffWho(), new Date().toISOString(), tplId);
+  const ok=await sharedSet(K.STAFF_PARTS_W(n), next);
+  if(ok) staffParts[n]=next;
+  return ok;
+}
+function staffCurWeekIdx(){
+  if(!Array.isArray(plan) || !plan.length) return -1;
+  if(staffState.week==null){
+    const saved=lsGet(STAFF_UI_KEY);
+    staffState.week=(saved && typeof saved.week==='number') ? saved.week : (Object.keys(userActiveWeekMap).length ? groupActiveWeekIdx() : 0);
+  }
+  if(staffState.week>=plan.length) staffState.week=plan.length-1;
+  if(staffState.week<0) staffState.week=0;
+  return staffState.week;
+}
+function staffSetWeek(i){ staffState.week=i; staffState.day=0; staffState.editing=null; staffState.hist=null; lsSet(STAFF_UI_KEY,{week:i}); staffRerender(); }
+function staffSetDay(i){ staffState.day=i; staffState.editing=null; staffState.hist=null; staffRerender(); }
+function staffOpenWeek(i){ staffState.week=i; staffState.day=0; staffState.editing=null; staffState.hist=null; staffParts={}; setAdminTab(12); }
+function staffCurDay(){
+  const wi=staffCurWeekIdx(); if(wi<0) return null;
+  const days=plan[wi].days||[];
+  if(staffState.day>=days.length) staffState.day=0;
+  return days[staffState.day]||null;
+}
+
+// Contenido de una parte (en la Etapa 3 se dibuja con el parser de plantillas)
+function staffPartBodyHTML(text){
+  return `<div style="font-size:13px;color:var(--text2);line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere">${escH(text)}</div>`;
+}
+// Resumen de solo lectura de un ejercicio del plan (sin pesos de nadie)
+function staffExReadHTML(it){
+  const ex=it.ex, rpe=r=>{ r=btRpe(r); return r==='-'?'':' '+r; };
+  const lines=ex.type==='superset'
+    ? (ex.parts||[]).map((p,i)=>(BT_PIDS[i]||'')+') '+p.name+': '+p.r+rpe(p.rpe))
+    : btGroupSets(ex.sets).map(g=>g.n+' x '+g.r+rpe(g.rpe));
+  const title=ex.type==='superset' ? 'COMBINADO x'+ex.count : ex.name;
+  return `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
+    <div style="font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase">${escH(it.block)}</div>
+    <div style="font-size:13px;font-weight:600;color:var(--text)">${escH(title)}</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.5">${lines.map(escH).join('<br>')}</div>
+  </div>`;
+}
+
+function renderStaffPlanning(){
+  const wi=staffCurWeekIdx();
+  const head=`<div class="admin-section-title">${hcSecTitle('calendar','Planificación')}</div>`;
+  if(wi<0) return head+`<div class="cc-empty">No hay bloque activo.</div>`;
+  const wd=plan[wi], day=staffCurDay(), n=wi+1;
+  const chip=(on,label,fn)=>`<div class="admin-tab ${on?'active':''}" style="flex-shrink:0;min-height:40px;display:flex;align-items:center" onclick="${fn}">${label}</div>`;
+  const weekTabs=`<div id="staff-weektabs" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:8px">${plan.map((w,i)=>chip(i===wi,'Semana '+(i+1),'staffSetWeek('+i+')')).join('')}</div>`;
+  const dayTabs=`<div id="staff-daytabs" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px">${(wd.days||[]).map((d,i)=>chip(i===staffState.day,escH(d.name),'staffSetDay('+i+')')).join('')}</div>`;
+  const intro=`<div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:12px">${escH(currentBlockName)} · Las partes de clase las ven solo el Admin y los profesores. Los alumnos no las ven.</div>`;
+  if(!day) return head+intro+weekTabs+`<div class="cc-empty">Esta semana no tiene días.</div>`;
+  const doc=staffWeekDoc(n);
+  if(doc===undefined) return head+intro+weekTabs+dayTabs+`<div class="cc-empty">Cargando partes de clase...</div>`;
+  const dp=(doc && doc.days && doc.days[day.id]) || {};
+  const split=splitMainAcc(day);
+  const admin=userRole()==='admin';
+  const btn='justify-content:center;padding:10px 12px;min-height:44px;font-size:12px';
+  const sections=STAFF_ORDER.map(key=>{
+    if(key==='main'||key==='acc'){
+      const list=key==='main'?split.main:split.acc;
+      return `<div class="ex-edit-card">
+        <div class="ex-edit-card-header"><span class="ex-edit-title">${key==='main'?'Bloque principal':'Accesorios'}</span><span style="font-size:10px;color:var(--text3)">Solo lectura</span></div>
+        ${list.length?list.map(staffExReadHTML).join(''):`<div style="font-size:12px;color:var(--text3)">Sin ejercicios</div>`}
+        ${admin?`<button class="adm-btn adm-btn-ghost" style="${btn};width:100%;margin-top:10px" onclick="adminState.editWeekIdx=${wi};adminState.editDayIdx=${staffState.day};adminState.editBlockIdx=0;setAdminTab(3)">${hcIcon('pencil',13)} Editar en Semanas</button>`:''}
+      </div>`;
+    }
+    const part=dp[key], text=(part&&part.text)||'', can=canEditPart(key);
+    const editing=staffState.editing&&staffState.editing.key===key;
+    const meta=part&&part.at?`Editado por ${escH(part.byName||'—')} · ${staffFmtAt(part.at)}`:'Sin cargar';
+    const hist=(part&&Array.isArray(part.history))?part.history:[];
+    let body;
+    if(editing){
+      body=`<textarea id="staff-edit-ta" class="adm-inp" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false"
+          style="margin:0;width:100%;height:auto;min-height:180px;resize:vertical;padding:10px 12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;font-size:14px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere"
+          oninput="staffEditInput(this.value)">${escH(staffState.editing.text)}</textarea>
+        ${staffEditExtraHTML()}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+          <button class="adm-btn adm-btn-orange" style="${btn}" onclick="staffSaveEdit()" ${staffState.busy?'disabled':''}>${hcIcon('save',14)} Guardar</button>
+          <button class="adm-btn adm-btn-ghost" style="${btn}" onclick="staffCancelEdit()">Cancelar</button>
+        </div>`;
+    } else {
+      body=(text.trim()?staffPartBodyHTML(text):`<div style="font-size:12px;color:var(--text3)">Todavía no se cargó.</div>`)
+        +`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
+          ${can?`<button class="adm-btn adm-btn-orange" style="${btn};flex:1" onclick="staffStartEdit('${key}')">${hcIcon('pencil',13)} Editar</button>`:''}
+          ${can?staffPickTplBtnHTML(key,btn):''}
+          ${hist.length?`<button class="adm-btn adm-btn-ghost" style="${btn};flex:1" onclick="staffToggleHist('${key}')">${hcIcon('undo',13)} ${staffState.hist===key?'Ocultar historial':'Ver historial'}</button>`:''}
+        </div>`;
+      if(staffState.hist===key) body+=`<div style="margin-top:10px">${hist.map((h,i)=>`<div class="cc-item" style="margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <span style="font-size:11px;color:var(--text3)">${escH(h.byName||'—')} · ${staffFmtAt(h.at)}</span>
+            ${admin?`<button class="adm-btn adm-btn-blue" style="padding:8px 10px;min-height:36px;font-size:11px;flex-shrink:0" onclick="staffRestore('${key}',${i})">${hcIcon('refresh',12)} Restaurar</button>`:''}
+          </div>
+          <div style="font-size:12px;color:var(--text2);white-space:pre-wrap;overflow-wrap:anywhere;margin-top:6px;max-height:140px;overflow-y:auto">${escH(h.text)||'<i>(vacío)</i>'}</div>
+        </div>`).join('')}</div>`;
+    }
+    return `<div class="ex-edit-card">
+      <div class="ex-edit-card-header" style="gap:8px"><span class="ex-edit-title">${STAFF_PART_LABEL[key]}</span></div>
+      ${body}
+      <div style="font-size:10px;color:var(--text3);margin-top:8px">${meta}</div>
+    </div>`;
+  }).join('');
+  return head+intro+weekTabs+dayTabs+sections;
+}
+// Ganchos para la Etapa 3 (vista previa en vivo y plantillas)
+function staffEditExtraHTML(){ return ''; }
+function staffPickTplBtnHTML(key,btn){ return ''; }
+function staffEditInput(v){ if(staffState.editing) staffState.editing.text=v; }
+
+function staffStartEdit(key){
+  if(!canEditPart(key)) return;
+  const wi=staffCurWeekIdx(), day=staffCurDay(); if(!day) return;
+  const doc=staffParts[wi+1], part=doc&&doc.days&&doc.days[day.id]&&doc.days[day.id][key];
+  staffState.editing={key,text:(part&&part.text)||''}; staffState.hist=null;
+  staffRerender();
+  setTimeout(()=>{ const ta=document.getElementById('staff-edit-ta'); if(ta) ta.focus(); },50);
+}
+function staffCancelEdit(){ staffState.editing=null; staffRerender(); }
+async function staffSaveEdit(){
+  const ed=staffState.editing; if(!ed || staffState.busy) return;
+  const wi=staffCurWeekIdx(), day=staffCurDay(); if(!day) return;
+  staffState.busy=true;
+  const ok=await saveStaffPart(wi+1, day.id, ed.key, ed.text);
+  staffState.busy=false;
+  if(ok){ staffState.editing=null; showToast(STAFF_PART_LABEL[ed.key]+' guardada'); }
+  else showToast('No se pudo guardar. Revisá la conexión');
+  staffRerender();
+}
+function staffToggleHist(key){ staffState.hist=staffState.hist===key?null:key; staffRerender(); }
+async function staffRestore(key,i){
+  if(userRole()!=='admin') return;
+  const wi=staffCurWeekIdx(), day=staffCurDay(); if(!day) return;
+  const doc=await loadStaffWeek(wi+1);
+  const h=doc&&doc.days&&doc.days[day.id]&&doc.days[day.id][key]&&doc.days[day.id][key].history[i];
+  if(!h){ showToast('No se encontró esa versión'); staffRerender(); return; }
+  if(!confirm('¿Restaurar la versión de '+(h.byName||'—')+' ('+staffFmtAt(h.at)+')? La versión actual queda en el historial.')) return;
+  const ok=await saveStaffPart(wi+1, day.id, key, h.text);
+  staffState.hist=null;
+  showToast(ok?'Versión restaurada':'No se pudo restaurar');
+  staffRerender();
+}
+// Tarjeta del Dashboard: qué partes de clase faltan cargar para la próxima semana (solo aviso)
+function renderStaffPartsDashCard(){
+  if(getClub()!=='fuerza' || !Array.isArray(plan) || !plan.length) return '';
+  const next=groupActiveWeekIdx()+1;
+  if(next>=plan.length) return '';
+  const doc=staffWeekDoc(next+1);
+  const missing=doc===undefined?null:staffMissingParts(doc,plan[next]);
+  const ok=missing && !missing.length;
+  const lines=missing&&missing.length?missing.map(m=>`<div>${escH(m.dayName)}: ${m.keys.map(k=>STAFF_PART_LABEL[k]).join(', ')}</div>`).join(''):'';
+  return `<div style="background:${ok?'rgba(34,197,94,0.08)':'rgba(245,158,11,0.08)'};border:1px solid ${ok?'rgba(34,197,94,0.2)':'rgba(245,158,11,0.25)'};border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <div style="min-width:0">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;display:flex;align-items:center;gap:5px">${hcIcon('clipboard',12)} Partes de clase de la próxima semana</div>
+      <div style="font-size:13px;color:${missing===null?'var(--text3)':ok?'var(--green)':'var(--yellow)'};font-weight:600">${missing===null?'Cargando...':ok?'Semana '+(next+1)+': todo cargado':'Semana '+(next+1)+': faltan cargar'}</div>
+      ${lines?`<div style="font-size:11px;color:var(--text2);margin-top:4px;line-height:1.5">${lines}</div>`:''}
+    </div>
+    <button class="adm-btn adm-btn-ghost" style="padding:8px 12px;font-size:12px;flex-shrink:0" onclick="staffOpenWeek(${next})">${ok?'Ver':'Cargar'} →</button>
+  </div>`;
 }
 
 let viewProgData=null;
@@ -7030,6 +7273,7 @@ function renderTabDashboard(){
     ${statCards}
     ${progressBar}
     ${renderNextWeekMsgCard()}
+    ${renderStaffPartsDashCard()}
     ${renderTeachersDashCard()}
     ${pending.length?`<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
       <span style="font-size:13px;color:var(--yellow);font-weight:600;display:inline-flex;align-items:center;gap:8px">${hcIcon('hourglass',15)}${pending.length} solicitud${pending.length>1?'es':''} pendiente${pending.length>1?'s':''}</span>
@@ -8544,6 +8788,7 @@ function render(){
   scrollEl.scrollTop = changedScreen ? 0 : savedScroll;
   hcKeepActiveTabVisible('hc-stu-daytabs');
   hcKeepActiveTabVisible('hc-stu-nextdaytabs');
+  hcKeepActiveTabVisible('staff-weektabs');
 
   // Overlay del cuestionario TRAC — funciona en cualquier vista, se cierra solo.
   if(hcTracState.open){
