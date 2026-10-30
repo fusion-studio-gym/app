@@ -151,10 +151,19 @@ const val=(db,k)=>db[k]&&db[k].value!=null?JSON.parse(db[k].value):null;
     assert.ok(prsAfter['Banco Plano'].rm4.history.every(h=>h.block===OLD));
     assert.strictEqual(prsAfter['Banco Plano'].rm4.newPr,false);
     // "Ver resumen del bloque" desde el archivo: mismos datos del bloque viejo
-    const sumU=await page.evaluate(async([bid])=>{ await openBlockSummary(bid,blocksName(bid),await loadBlockPlan(bid)); const r=calcBlockSummary(blockSummaryState.blockPlan,blockSummaryState.blockProgress); return {open:blockSummaryState.open,name:blockSummaryState.blockName,prog:blockSummaryState.blockProgress,prs:r.prs.map(p=>p.name),weeks:r.totalWeeks}; function blocksName(b){ return archivedBlocks.find(x=>x.id===b).name; } },[bid]);
+    // Tocar de verdad el botón "Ver resumen del bloque" en la pantalla del bloque archivado
+    await page.evaluate(b=>openArchivedBlock(b),bid);
+    await page.getByText('Ver resumen del bloque').click();
+    await page.waitForSelector('.summary-sheet');
+    const sumU=await page.evaluate(()=>{ const r=calcBlockSummary(blockSummaryState.blockPlan,blockSummaryState.blockProgress); return {open:blockSummaryState.open,name:blockSummaryState.blockName,prog:blockSummaryState.blockProgress,prs:r.prs.map(p=>p.name),weeks:r.totalWeeks}; });
     assert.strictEqual(sumU.open,true); assert.strictEqual(sumU.name,OLD);
     assert.deepStrictEqual(sumU.prog,val(seed,'fs_prog_u1_v1'),'resumen usa el snapshot del bloque');
     assert.ok(sumU.prs.includes('Banco Plano'),'PRs del bloque en el resumen');
+    // Un nombre con comilla no rompe el botón
+    await page.evaluate(()=>{ closeBlockSummary(); archivedBlockView.block={...archivedBlockView.block,name:"Bloque d'Ana"}; render(); });
+    await page.getByText('Ver resumen del bloque').click();
+    await page.waitForSelector('.summary-sheet');
+    assert.strictEqual(await page.evaluate(()=>blockSummaryState.blockName),"Bloque d'Ana");
     assert.deepStrictEqual(errors,[]); await page.close();
     console.log('E2E publicar borrador: OK');
 
