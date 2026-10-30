@@ -7203,7 +7203,13 @@ async function fsPublishDraft(){
     const okBackup=await sharedSet(K.PLAN_BACKUP,{plan,name:currentBlockName,weekMessages,savedAt:Date.now()});
     if(!okBackup) throw new Error('no se pudo guardar la copia de seguridad del plan activo');
     // 2) Archivar el bloque activo con el flujo de siempre (plan + progreso + PRs de cada alumno)
-    if(hasActive){ syncWeekMessagesFromPlan(); await archiveCurrentBlock(currentBlockName); }
+    // Guardar el nombre y el progreso del bloque que se cierra, para abrir su resumen al final
+    const prevName=currentBlockName, prevProgress=progress;
+    let justBid=null, justPlan=null;
+    if(hasActive){
+      syncWeekMessagesFromPlan(); await archiveCurrentBlock(prevName);
+      justBid=archivedBlocks[0]?.id; justPlan=justBid?await loadBlockPlan(justBid):null;
+    }
     // 3) El borrador pasa a ser el plan activo, con sus mensajes semanales
     const newPlan=JSON.parse(JSON.stringify(P.plan));
     newPlan.forEach((wd,i)=>{ wd.message=fsDraft.messages[i+1]||''; });
@@ -7222,6 +7228,8 @@ async function fsPublishDraft(){
     adminState.tab=0;
     renderModal();
     render();
+    // 5) Resumen del bloque que se acaba de archivar (mismo mecanismo que promptArchiveBlock)
+    if(justBid&&justPlan){ blockSummaryState={open:true,blockId:justBid,blockName:prevName,blockPlan:justPlan,blockProgress:prevProgress}; render(); }
   }catch(e){
     alert('Error al publicar: '+e.message+'\n\nEl plan anterior quedó en la copia de seguridad (fs_plan_backup_v1). Avisale a quien mantiene la app antes de reintentar.');
     renderModal(); render();
