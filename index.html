@@ -535,7 +535,9 @@ const K = {
   TEMPLATES: 'fs_templates_v1',  // shared: [{id,name,createdAt,updatedAt,weeks}] — índice liviano de plantillas de bloque
   TPL: (id) => `fs_tpl_${id}`,
   STAFF_PARTS_W: (n) => `fs_staff_parts_w${n}_v1`,  // shared (solo staff): {week:n, days:{[dayId]:{mov,aprox,zmedia,cardio}}} — partes de clase de la semana n del bloque activo. Part={text,by,byName,at,tplId?,history:[{text,by,byName,at}]}
-  STAFF_PARTS_BW: (bid,n) => `fs_staff_parts_${bid}_w${n}_v1`,  // shared: copia de las partes de clase al archivar el bloque bid  // shared: {id,name,text,messages:{[semana]:msg},createdAt,updatedAt} — una plantilla por documento
+  STAFF_PARTS_BW: (bid,n) => `fs_staff_parts_${bid}_w${n}_v1`,  // shared: copia de las partes de clase al archivar el bloque bid
+  STPL_INDEX: 'fs_stpl_index_v1',  // shared: [{id,cat,name,updatedAt,updatedByName}] — índice liviano de plantillas de PARTES de clase (no de bloque)
+  STPL: (id) => `fs_stpl_${id}`,  // shared: {id,cat,name,text,createdBy,updatedBy,updatedByName,updatedAt} — una plantilla de parte por documento  // shared: {id,name,text,messages:{[semana]:msg},createdAt,updatedAt} — una plantilla por documento
   HC_PROFILE: (uid) => `hc_profile_${uid}_v1`,  // personal: ficha completa del alumno (Hybrid Club)
   HC_RACES: 'hc_races_v1',  // shared: [{id,name,series,location,date}]
   HC_GOAL: (uid) => `hc_goal_${uid}_v1`,  // personal: {raceId} — carrera objetivo del alumno
@@ -619,6 +621,93 @@ function splitMainAcc(day){
   return { main, acc };
 }
 // </staff-parts>
+
+// <staff-text>
+// Texto de las partes de clase y sus plantillas (misma gramática que el bloque, con extensiones).
+// Funciones puras: parseStaffText(text) -> {meta, parts, notes, warnings}. Nunca da error.
+const STAFF_CATS = ['Movilidad','Aproximaciones','Zona media','Cardio'];
+const STAFF_CAT_KEY = { 'Movilidad':'mov', 'Aproximaciones':'aprox', 'Zona media':'zmedia', 'Cardio':'cardio' };
+const STAFF_WARN_NO_CAT = 'Falta CATEGORIA', STAFF_WARN_NO_NAME = 'Falta NOMBRE';
+function stNormQ(s){ return String(s||'').replace(/[“”″]/g,'"').replace(/[‘’′]/g,"'").replace(/×/g,'x'); }
+function stFold(s){ return stNormQ(s).normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/\s+/g,' ').trim(); }
+// "zona MEDIA", "Movilídad"... -> nombre canónico de la categoría; otra cosa queda como la escribieron
+function staffCatCanon(c){
+  const f=stFold(c);
+  const hit=STAFF_CATS.find(x=>stFold(x)===f);
+  return hit || String(c||'').trim();
+}
+// Dinámica de una parte: {label, known, min}. Un texto no reconocido es "formato libre", no un error.
+function staffFmtInfo(raw){
+  const u=stFold(raw); let m,r,c;
+  if(/^SERIES/.test(u)) return {label:'Series',known:true,min:0};
+  if((m=u.match(/^AMRAP\s*(\d+)\s*(?:'|MIN)/))) return {label:'AMRAP · '+m[1]+' min',known:true,min:+m[1]};
+  if((m=u.match(/^(?:OTM|EMOM)\s*(\d+)\s*(?:'|MIN)/))) return {label:'OTM · '+m[1]+' min, minuto a minuto',known:true,min:+m[1]};
+  if((m=u.match(/^CADA\s*(\d+)\s*(?:'|MIN)?\s*X\s*(\d+)/))) return {label:'Cada '+m[1]+' min × '+m[2],known:true,min:m[1]*m[2]};
+  if(/^FOR\s*TIME/.test(u)){
+    c=u.match(/CAP\s*(\d+)/); r=u.match(/(\d+)\s*RONDAS?/);
+    return {label:'For time'+(r?' · '+r[1]+' rondas':' · chipper')+(c?' · cap '+c[1]+' min':''),known:true,min:c?+c[1]:0};
+  }
+  if((m=u.match(/^WORK\s*(\d+)\s*"?\s*REST\s*(\d+)/))){
+    r=u.match(/(\d+)\s*RONDAS?/);
+    return {label:'Work '+m[1]+'" / Rest '+m[2]+'"'+(r?' · '+r[1]+' rondas':''),known:true,min:r?Math.ceil((+m[1]+ +m[2])*r[1]/60):0};
+  }
+  if((m=u.match(/^ESCALERA\s*([\d-]+)/))) return {label:'Escalera '+m[1],known:true,min:0};
+  if(/^TABATA/.test(u)){ r=u.match(/(\d+)\s*RONDAS?/); const n=r?+r[1]:8; return {label:'Tabata · 20" / 10" · '+n+' rondas',known:true,min:Math.ceil(n*30/60)}; }
+  if((m=u.match(/^INTERVALOS\s*(\d+)\s*X\s*(\d+)\s*(?:'|MIN)/))){
+    r=u.match(/REST\s*(\S+)/);
+    return {label:'Intervalos '+m[1]+' × '+m[2]+' min'+(r?' · descanso '+r[1].toLowerCase():''),known:true,min:m[1]*m[2]};
+  }
+  return {label:stNormQ(raw).trim(),known:false,min:0};
+}
+function parseStaffText(text){
+  const meta={cat:'',name:'',para:''}, parts=[], notes=[], warnings=[];
+  let part=null, cur=null, m;
+  const newPart=n=>{ part={name:n||'',fmt:{label:'Series',known:true,min:0},items:[]}; parts.push(part); cur=null; };
+  const head=(l,key)=>{ const r=l.match(new RegExp('^'+key+'\\s*:\\s*(.*)$','i')); return r?r[1].trim():null; };
+  String(text||'').split(/\r?\n/).forEach((raw,i)=>{
+    const l=stNormQ(raw).trim();
+    if(!l || l.indexOf('//')===0) return;
+    const f=stFold(l.split(':')[0]); // nombre del encabezado sin acentos
+    let v;
+    if(/^CATEGORIA$/.test(f) && (v=head(l,'[^:]+'))!==null){ if(v) meta.cat=staffCatCanon(v); return; }
+    if(f==='NOMBRE' && (v=head(l,'[^:]+'))!==null){ if(v) meta.name=v; return; }
+    if(f==='PARA' && (v=head(l,'[^:]+'))!==null){ if(v) meta.para=v; return; }
+    if(f==='NOTA' && (v=head(l,'[^:]+'))!==null){ if(v) notes.push(v); return; }
+    if(f==='PARTE' && (v=head(l,'[^:]+'))!==null){ newPart(v); return; }
+    if(f==='FORMATO' && (v=head(l,'[^:]+'))!==null){ if(!part) newPart(''); if(v) part.fmt=staffFmtInfo(v); return; }
+    if(!part) newPart('');
+    const c=l.replace(/(\d),(\d)/g,'$1.$2'); // coma decimal
+    if((m=c.match(/^MIN(?:UTO)?\s*(\d+)\s*:\s*(.+)$/i))){ cur={name:'Min '+m[1],text:m[2],sets:[],parts:[]}; part.items.push(cur); return; }
+    if((m=c.match(/^\d+\s*\)\s*(.+)$/))){
+      const ss=m[1].match(/^(SUPERSET|COMBINADO)\s*x\s*(\d+)/i);
+      cur=ss?{name:'COMBINADO x'+ss[2],combined:true,sets:[],parts:[]}:{name:m[1].trim(),sets:[],parts:[]};
+      part.items.push(cur); return;
+    }
+    if((m=c.match(/^([a-c])\)\s*([^:]+):\s*(.+)$/i))){
+      if(cur && cur.combined){ cur.parts.push({n:m[2].trim(),r:m[3].trim()}); return; }
+      warnings.push('Línea '+(i+1)+': parte combinada sin ejercicio (falta "SUPERSET xN" arriba)');
+    }
+    if(!cur){ cur={name:'',sets:[],parts:[]}; part.items.push(cur); }
+    cur.sets.push(c.replace(/^(\d+)\s*x\s*/i,'$1 x '));
+  });
+  if(!meta.cat) warnings.unshift(STAFF_WARN_NO_CAT);
+  if(!meta.name) warnings.splice(meta.cat?0:1,0,STAFF_WARN_NO_NAME);
+  parts.forEach(p=>{ if(p.fmt.min>8) warnings.push((p.name||'Parte')+': '+p.fmt.min+' min. Los finalizadores suelen ser de 4 a 8 min'); });
+  return {meta,parts,notes,warnings};
+}
+// Ejemplos tocables del editor (todos finalizadores de 4 a 8 minutos)
+const STPL_EXAMPLES=[
+'CATEGORIA: Movilidad\nNOMBRE: Movilidad tren superior\n1) CAT-VACA\n2 x 10\n2) THORACIC OPENER\n2 x 8 c/l\n3) WALL SLIDES\n2 x 12\nNOTA: ritmo lento, sin dolor',
+'CATEGORIA: Aproximaciones\nNOMBRE: Aprox. banco plano\nPARA: BANCO PLANO\n1 x 8 @4\n1 x 5 @5\n1 x 3 @6',
+'CATEGORIA: Zona media\nNOMBRE: Core anti-rotación\nPARTE: CORE\nFORMATO: SERIES\n1) PALLOF PRESS\n3 x 10 c/l\n2) SUPERSET x3\na) DEAD BUG: 10\nb) PLANCHA: 30"',
+"CATEGORIA: Zona media\nNOMBRE: Finalizador AMRAP 5'\nPARTE: FINALIZADOR\nFORMATO: AMRAP 5'\n1) 10 SIT-UPS\n2) 8 KB SWING @16 kg\n3) 6 BURPEES",
+"CATEGORIA: Cardio\nNOMBRE: OTM remo y burpees\nPARTE: FINALIZADOR\nFORMATO: OTM 6'\nMIN 1: 10 CAL REMO\nMIN 2: 8 BURPEES",
+"CATEGORIA: Zona media\nNOMBRE: For time abdominal\nPARTE: FINALIZADOR\nFORMATO: FOR TIME · CAP 6' · 3 RONDAS\n1) 10 SIT-UPS\n2) 10 AIR SQUATS\n3) 10 FLEXIONES",
+'CATEGORIA: Zona media\nNOMBRE: Core work x rest\nPARTE: FINALIZADOR\nFORMATO: WORK 30" REST 15" · 6 RONDAS\n1) HOLLOW HOLD\n2) PLANCHA',
+'CATEGORIA: Cardio\nNOMBRE: Escalera de swings\nPARTE: FINALIZADOR\nFORMATO: ESCALERA 8-6-4-2\n1) KB SWING @16 kg\n2) FLEXIONES',
+'CATEGORIA: Cardio\nNOMBRE: Remo intervalos\nPARTE: FINALIZADOR\nFORMATO: INTERVALOS 4 x 1\' · REST 30"\n1) REMO'
+];
+// </staff-text>
 
 // PR rep ranges
 const PR_RANGES = [
@@ -2102,7 +2191,7 @@ async function doRegister(){
   render();
 }
 
-function doLogout(){ clearSession(); progress={}; userMenuOpen=false; adminState.pwOk=false; teacherState={tab:'plan'}; staffParts={}; staffState={week:null,day:0,editing:null,hist:null,busy:false}; authState={mode:'login',name:'',email:'',pw:'',pw2:'',err:'',loading:false,teacher:false}; render(); }
+function doLogout(){ clearSession(); progress={}; userMenuOpen=false; adminState.pwOk=false; teacherState={tab:'plan'}; staffParts={}; staffState={week:null,day:0,editing:null,hist:null,busy:false,picker:null,pickAll:false,useTpl:null}; stplIndex=null; stplState={cat:'Todas',edit:null}; authState={mode:'login',name:'',email:'',pw:'',pw2:'',err:'',loading:false,teacher:false}; render(); }
 
 // ============================================================
 // PENDING SCREEN
@@ -4023,7 +4112,7 @@ async function setAdminTab(i){
   adminState.tab=i;
   // Borrador y Plantillas se releen al entrar (el admin puede usar celular y tablet)
   if(i===9 && fsDraftSaveState!=='saving'){ fsDraft=null; }
-  if(i===10){ fsTplIndex=null; }
+  if(i===10){ fsTplIndex=null; stplIndex=null; stplState.edit=null; }
   if(i===0||i===12){ staffParts={}; staffState.editing=null; } // partes de clase: releer al entrar
   if(i!==3){ adminState.weeksTextMode=false; fsSafeText=null; }
   if(i===0||i===1||i===11){
@@ -4318,11 +4407,11 @@ function renderTeachersDashCard(){
 // ============================================================
 // Dos pestañas: Planificación (partes de clase por semana) y Plantillas (plantillas de partes).
 let teacherState={tab:'plan'};
-function setTeacherTab(t){ teacherState.tab=t; if(t==='plan'){ staffParts={}; staffState.editing=null; } render(); }
+function setTeacherTab(t){ teacherState.tab=t; if(t==='plan'){ staffParts={}; staffState.editing=null; } else { stplIndex=null; stplState.edit=null; } render(); }
 function renderTeacherHome(){
   const first=escH(((session&&session.name)||'').split(' ')[0].toUpperCase());
   const body=teacherState.tab==='tpl'
-    ? `<div class="admin-section-title">${hcSecTitle('template','Plantillas de partes')}</div><div class="cc-empty">Próximamente: plantillas de Movilidad, Aproximaciones, Zona media y Cardio.</div>`
+    ? renderStplScreen()
     : renderStaffPlanning();
   const item=(t,ic,label)=>`<div class="tab-bar-item ${teacherState.tab===t?'active':''}" onclick="setTeacherTab('${t}')">
       <div class="tab-bar-icon">${hcIcon(ic,20)}</div>${label}
@@ -4343,7 +4432,7 @@ function renderTeacherHome(){
 // ============================================================
 let staffParts={};      // {[semana n]: documento de la semana | null} — caché; se relee al entrar
 let staffLoadingW={};
-let staffState={ week:null, day:0, editing:null /*{key,text}*/, hist:null, busy:false };
+let staffState={ week:null, day:0, editing:null /*{key,text}*/, hist:null, busy:false, picker:null /*parte con el selector de plantillas abierto*/, pickAll:false, useTpl:null /*{id,name,cat} plantilla elegida con "Usar"*/ };
 const STAFF_UI_KEY='fs_staff_ui_v1'; // semana elegida en este dispositivo (comodidad, no es dato compartido)
 
 function staffRerender(){ if(isTeacherSession()) render(); else renderModal(); }
@@ -4380,8 +4469,8 @@ function staffCurWeekIdx(){
   if(staffState.week<0) staffState.week=0;
   return staffState.week;
 }
-function staffSetWeek(i){ staffState.week=i; staffState.day=0; staffState.editing=null; staffState.hist=null; lsSet(STAFF_UI_KEY,{week:i}); staffRerender(); }
-function staffSetDay(i){ staffState.day=i; staffState.editing=null; staffState.hist=null; staffRerender(); }
+function staffSetWeek(i){ staffState.week=i; staffState.day=0; staffState.editing=null; staffState.hist=null; staffState.picker=null; lsSet(STAFF_UI_KEY,{week:i}); staffRerender(); }
+function staffSetDay(i){ staffState.day=i; staffState.editing=null; staffState.hist=null; staffState.picker=null; staffRerender(); }
 function staffOpenWeek(i){ staffState.week=i; staffState.day=0; staffState.editing=null; staffState.hist=null; staffParts={}; setAdminTab(12); }
 function staffCurDay(){
   const wi=staffCurWeekIdx(); if(wi<0) return null;
@@ -4390,10 +4479,8 @@ function staffCurDay(){
   return days[staffState.day]||null;
 }
 
-// Contenido de una parte (en la Etapa 3 se dibuja con el parser de plantillas)
-function staffPartBodyHTML(text){
-  return `<div style="font-size:13px;color:var(--text2);line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere">${escH(text)}</div>`;
-}
+// Contenido de una parte cargada: se dibuja con el parser (sin los avisos de CATEGORIA/NOMBRE, que son de plantillas)
+function staffPartBodyHTML(text){ return stplPreviewHTML(parseStaffText(text),{part:true}); }
 // Resumen de solo lectura de un ejercicio del plan (sin pesos de nadie)
 function staffExReadHTML(it){
   const ex=it.ex, rpe=r=>{ r=btRpe(r); return r==='-'?'':' '+r; };
@@ -4454,6 +4541,7 @@ function renderStaffPlanning(){
           ${can?staffPickTplBtnHTML(key,btn):''}
           ${hist.length?`<button class="adm-btn adm-btn-ghost" style="${btn};flex:1" onclick="staffToggleHist('${key}')">${hcIcon('undo',13)} ${staffState.hist===key?'Ocultar historial':'Ver historial'}</button>`:''}
         </div>`;
+      if(staffState.picker===key) body+=staffPickerHTML(key);
       if(staffState.hist===key) body+=`<div style="margin-top:10px">${hist.map((h,i)=>`<div class="cc-item" style="margin-bottom:6px">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
             <span style="font-size:11px;color:var(--text3)">${escH(h.byName||'—')} · ${staffFmtAt(h.at)}</span>
@@ -4468,12 +4556,22 @@ function renderStaffPlanning(){
       <div style="font-size:10px;color:var(--text3);margin-top:8px">${meta}</div>
     </div>`;
   }).join('');
-  return head+intro+weekTabs+dayTabs+sections;
+  return head+intro+weekTabs+dayTabs+staffUseBannerHTML()+sections;
 }
-// Ganchos para la Etapa 3 (vista previa en vivo y plantillas)
-function staffEditExtraHTML(){ return ''; }
-function staffPickTplBtnHTML(key,btn){ return ''; }
-function staffEditInput(v){ if(staffState.editing) staffState.editing.text=v; }
+// Vista previa en vivo debajo del cuadro de texto de una parte
+function staffEditExtraHTML(){
+  return `<div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin:10px 0 6px">Vista previa</div>
+    <div id="staff-edit-preview">${staffPartBodyHTML(staffState.editing.text)}</div>`;
+}
+function staffEditInput(v){
+  if(!staffState.editing) return;
+  staffState.editing.text=v;
+  clearTimeout(window._staffPrevTimer);
+  window._staffPrevTimer=setTimeout(()=>{ const el=document.getElementById('staff-edit-preview'); if(el) el.innerHTML=staffPartBodyHTML(v); },250);
+}
+function staffPickTplBtnHTML(key,btn){
+  return `<button class="adm-btn adm-btn-ghost" style="${btn};flex:1" onclick="staffTogglePicker('${key}')">${hcIcon('template',13)} ${staffState.picker===key?'Cerrar plantillas':'Elegir plantilla'}</button>`;
+}
 
 function staffStartEdit(key){
   if(!canEditPart(key)) return;
@@ -4494,7 +4592,7 @@ async function staffSaveEdit(){
   else showToast('No se pudo guardar. Revisá la conexión');
   staffRerender();
 }
-function staffToggleHist(key){ staffState.hist=staffState.hist===key?null:key; staffRerender(); }
+function staffToggleHist(key){ staffState.hist=staffState.hist===key?null:key; staffState.picker=null; staffRerender(); }
 async function staffRestore(key,i){
   if(userRole()!=='admin') return;
   const wi=staffCurWeekIdx(), day=staffCurDay(); if(!day) return;
@@ -4507,6 +4605,271 @@ async function staffRestore(key,i){
   showToast(ok?'Versión restaurada':'No se pudo restaurar');
   staffRerender();
 }
+// ---- Plantillas en Planificación: "Elegir plantilla" (en cada parte) y "Usar" (desde la lista) ----
+function staffTogglePicker(key){
+  staffState.picker=staffState.picker===key?null:key; staffState.pickAll=false; staffState.hist=null;
+  if(staffState.picker) stplIndex=null; // releer la lista al abrir
+  staffRerender();
+}
+function staffPickerHTML(key){
+  const list=stplIndexOrLoad();
+  if(!list) return `<div class="cc-empty" style="padding:14px">Cargando plantillas...</div>`;
+  const cat=STAFF_PART_LABEL[key];
+  const shown=staffState.pickAll?list:list.filter(t=>t.cat===cat);
+  const rows=shown.map(t=>`<button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:space-between;text-align:left;padding:10px 12px;min-height:44px;margin-bottom:6px" onclick="staffApplyTpl('${key}','${t.id}')">
+      <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escH(t.name)}</span><span style="font-size:10px;color:var(--text3);flex-shrink:0">${escH(t.cat)}</span></button>`).join('');
+  return `<div class="cc-item" style="margin-top:10px">
+    <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Plantillas de ${escH(staffState.pickAll?'todas las categorías':cat)}</div>
+    ${rows||`<div style="font-size:12px;color:var(--text3);margin-bottom:8px">No hay plantillas de ${escH(cat)} todavía.</div>`}
+    <button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;min-height:40px;font-size:12px" onclick="staffState.pickAll=!staffState.pickAll;staffRerender()">${staffState.pickAll?'Ver solo '+escH(cat):'Ver todas las categorías'}</button>
+  </div>`;
+}
+// Copia el texto de la plantilla a la parte (guarda tplId solo como referencia; editar la parte no cambia la plantilla)
+async function staffApplyTpl(key,id){
+  if(!canEditPart(key)) return;
+  const wi=staffCurWeekIdx(), day=staffCurDay(); if(!day) return;
+  const tpl=await stplGet(id);
+  if(!tpl){ showToast('No se pudo cargar la plantilla'); return; }
+  const doc=await loadStaffWeek(wi+1);
+  const cur=doc&&doc.days&&doc.days[day.id]&&doc.days[day.id][key];
+  if(cur&&String(cur.text||'').trim() && !confirm('¿Reemplazar '+STAFF_PART_LABEL[key]+' de '+day.name+' por la plantilla "'+tpl.name+'"? Lo actual queda en el historial.')) return;
+  const ok=await saveStaffPart(wi+1, day.id, key, tpl.text, tpl.id);
+  staffState.picker=null; staffState.useTpl=null;
+  showToast(ok?'Plantilla copiada a '+STAFF_PART_LABEL[key]:'No se pudo guardar. Revisá la conexión');
+  staffRerender();
+}
+function staffUseBannerHTML(){
+  const u=staffState.useTpl; if(!u) return '';
+  const hit=STAFF_CAT_KEY[u.cat];
+  const keys=STAFF_PARTS.filter(k=>canEditPart(k));
+  return `<div class="cc-item" style="border-color:rgba(var(--orange-rgb),.4);margin-bottom:12px">
+    <div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:8px">Usar <b style="color:var(--text)">${escH(u.name)}</b> en esta semana y día. Elegí la parte:</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      ${keys.map(k=>`<button class="adm-btn ${k===hit?'adm-btn-orange':'adm-btn-ghost'}" style="justify-content:center;min-height:44px;font-size:12px" onclick="staffApplyTpl('${k}','${u.id}')">${STAFF_PART_LABEL[k]}</button>`).join('')}
+    </div>
+    <button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;min-height:40px;font-size:12px;margin-top:6px" onclick="staffState.useTpl=null;staffRerender()">Cancelar</button>
+  </div>`;
+}
+
+// ============================================================
+// PLANTILLAS DE PARTES DE CLASE (Admin y Profesor) — distintas de las plantillas de bloque
+// ============================================================
+let stplIndex=null;     // [{id,cat,name,updatedAt,updatedByName}]
+let stplLoading=false;
+let stplState={ cat:'Todas', edit:null /*{id|null,text}*/ };
+function stplIndexOrLoad(){
+  if(stplIndex) return stplIndex;
+  if(!stplLoading){ stplLoading=true; loadStplIndex().finally(()=>{ stplLoading=false; staffRerender(); }); }
+  return null;
+}
+async function loadStplIndex(){
+  const remote=await sharedGet(K.STPL_INDEX);
+  if(Array.isArray(remote)){ stplIndex=remote; lsSet(K.STPL_INDEX,remote); }
+  else stplIndex=lsGet(K.STPL_INDEX)||[];
+}
+// Releer antes de escribir para no pisar lo que haya cambiado otra persona
+async function stplIndexMutate(fn){
+  await loadStplIndex();
+  fn(stplIndex);
+  const ok=await sharedSet(K.STPL_INDEX,stplIndex);
+  lsSet(K.STPL_INDEX,stplIndex);
+  if(!ok) throw new Error('no se pudo sincronizar con el servidor');
+}
+async function stplGet(id){ return await sharedGet(K.STPL(id)); }
+// Guarda una plantilla: nombre y categoría salen del texto (NOMBRE / CATEGORIA); queda registrado quién editó
+async function stplPut(tpl){
+  if(!isStaff()) throw new Error('sin permiso');
+  const r=parseStaffText(tpl.text), who=staffWho();
+  tpl.name=r.meta.name||tpl.name||'Sin nombre';
+  tpl.cat=r.meta.cat||tpl.cat||'Sin categoría';
+  tpl.updatedBy=who.uid; tpl.updatedByName=who.name; tpl.updatedAt=Date.now();
+  if(!tpl.createdBy) tpl.createdBy=who.uid;
+  if(!await sharedSet(K.STPL(tpl.id),tpl)) throw new Error('no se pudo guardar la plantilla');
+  await stplIndexMutate(list=>{
+    const meta={id:tpl.id,cat:tpl.cat,name:tpl.name,updatedAt:tpl.updatedAt,updatedByName:tpl.updatedByName};
+    const i=list.findIndex(t=>t.id===tpl.id);
+    if(i===-1) list.unshift(meta); else list[i]=meta;
+  });
+  return tpl;
+}
+function stplNewId(){ return 'stpl_'+Date.now()+'_'+Math.random().toString(36).slice(2,6); }
+function stplCats(){
+  const extra=[]; (stplIndex||[]).forEach(t=>{ if(t.cat && !STAFF_CATS.includes(t.cat) && !extra.includes(t.cat)) extra.push(t.cat); });
+  return ['Todas'].concat(STAFF_CATS, extra);
+}
+function stplSetCat(c){ stplState.cat=c; staffRerender(); }
+function stplNew(){
+  const cat=stplState.cat!=='Todas'?stplState.cat:'';
+  stplState.edit={id:null,text:(cat?'CATEGORIA: '+cat+'\n':'CATEGORIA: \n')+'NOMBRE: \n'};
+  staffRerender();
+}
+async function stplOpen(id){
+  const t=await stplGet(id);
+  if(!t){ showToast('No se pudo cargar la plantilla'); return; }
+  stplState.edit={id:t.id,text:t.text||''};
+  staffRerender();
+}
+function stplClose(){
+  if(stplState.edit && stplState.edit._dirty && !confirm('¿Salir sin guardar los cambios?')) return;
+  stplState.edit=null; staffRerender();
+}
+function stplEditInput(v){
+  if(!stplState.edit) return;
+  stplState.edit.text=v; stplState.edit._dirty=true;
+  clearTimeout(window._stplPrevTimer);
+  window._stplPrevTimer=setTimeout(()=>{ const el=document.getElementById('stpl-preview'); if(el) el.innerHTML=stplPreviewHTML(parseStaffText(v)); },250);
+}
+function stplLoadExample(i){
+  const ta=document.getElementById('stpl-text');
+  if(ta && stplState.edit._dirty && ta.value.trim() && !confirm('¿Reemplazar el texto por el ejemplo?')) return;
+  stplState.edit.text=STPL_EXAMPLES[i]; stplState.edit._dirty=true;
+  staffRerender();
+}
+async function stplSave(){
+  const ed=stplState.edit; if(!ed) return;
+  try{
+    const existing=ed.id?await stplGet(ed.id):null;
+    const tpl=existing||{id:stplNewId()};
+    tpl.text=ed.text;
+    await stplPut(tpl);
+    stplState.edit={id:tpl.id,text:tpl.text};
+    showToast('Plantilla guardada');
+  }catch(e){ alert('Error al guardar la plantilla: '+e.message); }
+  staffRerender();
+}
+async function stplDuplicate(id){
+  try{
+    const t=await stplGet(id); if(!t) throw new Error('no se encontró la plantilla');
+    const r=parseStaffText(t.text);
+    const name=(r.meta.name||t.name)+' (copia)';
+    // El nombre vive en el texto: se cambia la línea NOMBRE (o se agrega)
+    const text=/^\s*NOMBRE\s*:/im.test(t.text)?t.text.replace(/^(\s*NOMBRE\s*:).*$/im,'$1 '+name):'NOMBRE: '+name+'\n'+t.text;
+    await stplPut({id:stplNewId(),cat:t.cat,name,text});
+    showToast('Plantilla duplicada');
+  }catch(e){ alert('Error: '+e.message); }
+  staffRerender();
+}
+async function stplDelete(id){
+  if(!isStaff()) return;
+  const meta=(stplIndex||[]).find(t=>t.id===id);
+  if(!confirm('¿Eliminar la plantilla "'+(meta?meta.name:'')+'"? Las partes donde ya se usó no cambian.')) return;
+  try{
+    await stplIndexMutate(list=>{ const i=list.findIndex(t=>t.id===id); if(i!==-1) list.splice(i,1); });
+    await sharedSet(K.STPL(id),null);
+    showToast('Plantilla eliminada');
+  }catch(e){ alert('Error: '+e.message); }
+  staffRerender();
+}
+// "Usar": ir a Planificación (semana y día elegidos) y elegir en qué parte copiarla
+function stplUse(id){
+  const meta=(stplIndex||[]).find(t=>t.id===id); if(!meta) return;
+  staffState.useTpl={id,name:meta.name,cat:meta.cat}; staffState.editing=null; staffState.picker=null; staffParts={};
+  if(isTeacherSession()){ teacherState.tab='plan'; render(); }
+  else setAdminTab(12);
+}
+
+// Vista previa de un texto de parte/plantilla con los componentes de la app.
+// opts.part: es una parte cargada (no se muestran los avisos de CATEGORIA/NOMBRE ni el encabezado vacío)
+function stplPreviewHTML(r,opts){
+  opts=opts||{};
+  let h='';
+  if(!opts.part || r.meta.name || r.meta.para){
+    h+=`<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px">
+      <div style="min-width:0"><div class="ex-name">${escH(r.meta.name||'Sin nombre')}</div>${r.meta.para?`<div style="font-size:11px;color:var(--text3);margin-top:2px">Para ${escH(r.meta.para)}</div>`:''}</div>
+      ${r.meta.cat||!opts.part?`<span class="combined-tag" style="flex-shrink:0">${escH(r.meta.cat||'Sin categoría')}</span>`:''}
+    </div>`;
+  }
+  const setRow=s=>{
+    const m=s.match(/^(\d+)\s*x\s*(.+?)(?:\s+(@\S+))?$/i);
+    if(!m) return `<div style="font-size:12px;color:var(--text2);padding:4px 2px;overflow-wrap:anywhere">${escH(s)}</div>`;
+    return `<div class="set-row" style="padding:8px 12px"><div class="set-row-top" style="margin-bottom:0;gap:8px">
+      <span class="set-label">${m[1]} ${m[1]==='1'?'SERIE':'SERIES'}</span>
+      <span class="set-target">${escH(m[2])} <span class="set-target-rpe">${escH(m[3]||'')}</span></span>
+    </div></div>`;
+  };
+  r.parts.forEach(p=>{
+    const plain=p.fmt.label!=='Series';
+    if(p.name||plain){
+      h+=`<div style="display:flex;gap:6px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:6px 0 8px">
+        <span class="ex-edit-title">${escH(p.name||'Parte')}</span>
+        <span style="display:flex;gap:6px;flex-wrap:wrap">${p.fmt.known?`<span class="combined-tag">${escH(p.fmt.label)}</span>`:`<span class="combined-tag">${escH(p.fmt.label)}</span><span class="badge badge-pending">formato libre</span>`}</span>
+      </div>`;
+    }
+    if(plain){
+      // Dinámicas (AMRAP, OTM, For time...): una fila por ejercicio o minuto
+      h+=`<div class="superset-set-block">${p.items.map(it=>`<div class="superset-part" style="padding:9px 12px">
+          <div class="superset-part-name" style="margin-bottom:0"><span>${escH(it.text?it.name:(it.name||''))}</span>${it.text?`<span class="set-target" style="font-size:12px;flex:none">${escH(it.text)}</span>`:''}</div>
+          ${it.parts.map(q=>`<div style="font-size:12px;color:var(--text2);margin-top:4px">${escH(q.n)}: ${escH(q.r)}</div>`).join('')}
+          ${it.sets.map(setRow).join('')}
+        </div>`).join('')}</div>`;
+      return;
+    }
+    let k=0;
+    p.items.forEach(it=>{
+      if(it.combined){
+        k++;
+        h+=`<div class="ex-card" style="margin-bottom:10px"><div class="ex-header"><span class="ex-order">${k}º</span><div><span class="combined-tag">BLOQUE COMBINADO</span><div class="ex-name">${it.parts.map(q=>escH(q.n)).join(' + ')||escH(it.name)}</div></div></div>
+          <div class="sets-wrap"><div class="superset-set-block"><div class="superset-set-header">${escH(it.name.replace('COMBINADO x','')+' SERIES')}</div>
+          ${it.parts.map(q=>`<div class="superset-part" style="padding:8px 12px"><div class="superset-part-name" style="margin-bottom:0"><span>${escH(q.n)}</span><span class="set-target" style="font-size:11px;flex:none">${escH(q.r)}</span></div></div>`).join('')}
+          </div>${it.sets.map(setRow).join('')}</div></div>`;
+        return;
+      }
+      if(it.name) k++;
+      h+=`<div class="ex-card" style="margin-bottom:10px">${it.name?`<div class="ex-header"><span class="ex-order">${k}º</span><div><div class="ex-name">${escH(it.name)}</div></div></div>`:''}
+        ${it.sets.length?`<div class="sets-wrap">${it.sets.map(setRow).join('')}</div>`:''}</div>`;
+    });
+  });
+  r.notes.forEach(n=>{ h+=`<div style="font-size:12px;color:var(--text2);line-height:1.5;margin-top:6px"><b style="color:var(--text3)">Nota:</b> ${escH(n)}</div>`; });
+  const warns=opts.part?r.warnings.filter(w=>w!==STAFF_WARN_NO_CAT&&w!==STAFF_WARN_NO_NAME):r.warnings;
+  if(warns.length) h+=`<div style="display:flex;flex-direction:column;gap:4px;margin-top:8px">${warns.map(w=>`<span class="badge badge-pending" style="white-space:normal;line-height:1.4;align-self:flex-start">${escH(w)}</span>`).join('')}</div>`;
+  return h||`<div style="font-size:12px;color:var(--text3)">Escribí algo para ver la vista previa.</div>`;
+}
+
+// Pantalla de plantillas de partes (la usan el Profesor y el Admin)
+function renderStplScreen(){
+  if(stplState.edit) return renderStplEditor();
+  const list=stplIndexOrLoad();
+  const head=`<div class="admin-section-title">${hcSecTitle('template','Plantillas de partes de clase')}</div>
+    <div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:12px">Movilidad, Aproximaciones, Zona media y Cardio. Al usar una plantilla se <b>copia</b> el texto a la parte: si después editás la parte, la plantilla no cambia.</div>`;
+  if(!list) return head+`<div class="cc-empty">Cargando plantillas...</div>`;
+  const cats=stplCats();
+  if(!cats.includes(stplState.cat)) stplState.cat='Todas';
+  const chips=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${cats.map(c=>`<div class="admin-tab ${stplState.cat===c?'active':''}" style="min-height:38px;display:flex;align-items:center" onclick="stplSetCat(${escH(JSON.stringify(c))})">${escH(c)}</div>`).join('')}</div>`;
+  const newBtn=`<button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;padding:12px;min-height:44px;margin-bottom:14px" onclick="stplNew()">${hcIcon('plus',15)} Nueva plantilla</button>`;
+  const shown=list.filter(t=>stplState.cat==='Todas'||t.cat===stplState.cat);
+  const b='justify-content:center;padding:10px 4px;font-size:12px;min-height:44px';
+  const cards=shown.length?`<div class="ath-grid">${shown.map(t=>`<div class="ath-card">
+      <div class="ath-card-top">
+        <div class="cc-head-ic" style="background:var(--orange-dim);color:var(--orange)">${hcIcon('template',16)}</div>
+        <div class="user-row-info"><div class="user-row-name">${escH(t.name)}</div><div class="user-row-email">${escH(t.cat)} · Editado por ${escH(t.updatedByName||'—')} · ${staffFmtAt(t.updatedAt)}</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px">
+        <button class="adm-btn adm-btn-orange" style="${b}" onclick="stplUse('${t.id}')">Usar</button>
+        <button class="adm-btn adm-btn-ghost" style="${b}" onclick="stplOpen('${t.id}')">${hcIcon('pencil',13)} Editar</button>
+        <button class="adm-btn adm-btn-ghost" style="${b}" onclick="stplDuplicate('${t.id}')">${hcIcon('copy',13)} Duplicar</button>
+        <button class="adm-btn adm-btn-red" style="${b}" title="Eliminar" onclick="stplDelete('${t.id}')">${IC.trash}</button>
+      </div>
+    </div>`).join('')}</div>`:`<div class="cc-empty">${list.length?'No hay plantillas en esta categoría.':'Todavía no hay plantillas. Tocá "Nueva plantilla" y probá con un ejemplo.'}</div>`;
+  return head+chips+newBtn+cards;
+}
+function renderStplEditor(){
+  const ed=stplState.edit;
+  const examples=STPL_EXAMPLES.map((t,i)=>{ const r=parseStaffText(t); return `<div class="admin-tab" style="font-size:11px;padding:6px 10px;min-height:36px;display:flex;align-items:center" onclick="stplLoadExample(${i})">${escH(r.meta.name)}</div>`; }).join('');
+  return `<div>
+    <button class="adm-btn adm-btn-ghost" style="margin-bottom:14px;gap:8px;min-height:40px" onclick="stplClose()">${IC.back} Volver a plantillas</button>
+    <div class="admin-section-title">${hcSecTitle('template',ed.id?'Editar plantilla':'Nueva plantilla')}</div>
+    <div style="font-size:11px;color:var(--text3);line-height:1.5;margin-bottom:8px">El nombre y la categoría salen de las líneas <b>NOMBRE:</b> y <b>CATEGORIA:</b>. Ejemplos (tocá uno para cargarlo):</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${examples}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:12px;align-items:start">
+      <textarea id="stpl-text" class="adm-inp" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" wrap="soft"
+        style="margin:0;width:100%;height:auto;min-height:45vh;resize:vertical;padding:10px 12px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;font-size:14px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere"
+        oninput="stplEditInput(this.value)">${escH(ed.text)}</textarea>
+      <div class="ex-edit-card" style="margin:0"><div class="ex-edit-title" style="margin-bottom:10px">Vista previa</div><div id="stpl-preview">${stplPreviewHTML(parseStaffText(ed.text))}</div></div>
+    </div>
+    <button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;padding:12px;min-height:44px;margin-top:12px" onclick="stplSave()">${hcIcon('save',15)} Guardar</button>
+  </div>`;
+}
+
 // Tarjeta del Dashboard: qué partes de clase faltan cargar para la próxima semana (solo aviso)
 function renderStaffPartsDashCard(){
   if(getClub()!=='fuerza' || !Array.isArray(plan) || !plan.length) return '';
@@ -7873,6 +8236,15 @@ function renderTplEditor(){
   </div>`;
 }
 function renderTabTemplates(){
+  // Dos secciones: Bloques completos (lo de siempre) y Partes de clase (plantillas de partes)
+  const sec=adminState.tplSection==='parts'?'parts':'blocks';
+  const secTabs=`<div style="display:flex;gap:8px;margin-bottom:14px">
+    <div class="admin-tab ${sec==='blocks'?'active':''}" style="min-height:40px;display:flex;align-items:center" onclick="adminState.tplSection='blocks';renderModal()">Bloques completos</div>
+    <div class="admin-tab ${sec==='parts'?'active':''}" style="min-height:40px;display:flex;align-items:center" onclick="adminState.tplSection='parts';stplIndex=null;stplState.edit=null;renderModal()">Partes de clase</div>
+  </div>`;
+  return secTabs+(sec==='parts'?renderStplScreen():renderTabBlockTemplates());
+}
+function renderTabBlockTemplates(){
   if(fsTplEdit) return renderTplEditor();
   if(!fsTplIndex){
     if(!fsTplLoading){ fsTplLoading=true; loadTplIndex().then(()=>{ fsTplLoading=false; renderModal(); }); }

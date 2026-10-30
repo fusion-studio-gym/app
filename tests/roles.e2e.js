@@ -107,7 +107,8 @@ const seed={
     assert.ok(!/TODAS LAS SEMANAS|RACHA|PRs|Progreso/i.test(txt),'no ve Home de alumno, PRs ni progreso');
     await shot(page,'profesor-home'); await noHScroll(page);
     await page.getByText('Plantillas',{exact:true}).last().click();
-    assert.ok((await page.evaluate(()=>document.body.innerText)).includes('Próximamente'));
+    await page.waitForTimeout(300);
+    assert.ok((await page.evaluate(()=>document.body.innerText)).includes('Nueva plantilla'),'pestaña Plantillas del profesor');
     await page.evaluate(()=>{ openAdmin(); openAdmin(); });
     assert.strictEqual(await page.evaluate(()=>document.getElementById('modal-root').innerHTML),'','sin panel admin ni modal de contraseña');
     assert.deepStrictEqual(await page.evaluate(()=>({r:userRole(),staff:isStaff(),mov:canEditPart('mov'),main:canEditPart('main')})),{r:'teacher',staff:true,mov:true,main:false});
