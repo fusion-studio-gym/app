@@ -109,7 +109,15 @@ const val=(db,k)=>db[k]&&db[k].value!=null?JSON.parse(db[k].value):null;
     await page.waitForTimeout(400);
     await page.evaluate(()=>fsPublishDraft());
     await page.waitForFunction(n=>currentBlockName===n,NEW);
+    // Al publicar se abre el resumen del bloque ANTERIOR (igual que al archivar a mano)
+    await page.waitForFunction(()=>blockSummaryState.open);
+    const sum=await page.evaluate(()=>({open:blockSummaryState.open,name:blockSummaryState.blockName,bid:blockSummaryState.blockId,weeks:blockSummaryState.blockPlan.length,sheet:!!document.querySelector('.summary-sheet')}));
+    assert.strictEqual(sum.open,true,'resumen abierto al publicar');
+    assert.strictEqual(sum.name,OLD,'el resumen es del bloque archivado, no del nuevo');
+    assert.ok(sum.sheet,'hoja de resumen visible');
     db=await page.evaluate(()=>window.__fakeDb);
+    assert.strictEqual(sum.bid,val(db,'fs_blocks_v1')[0].id,'resumen del bloque recién archivado');
+    assert.strictEqual(sum.weeks,JSON.parse(seed.fs_plan_v1.value).length,'resumen con el plan viejo');
     assert.deepStrictEqual(errors,[]); await page.close();
 
     // 2) Verificaciones en la "base"
@@ -142,6 +150,11 @@ const val=(db,k)=>db[k]&&db[k].value!=null?JSON.parse(db[k].value):null;
     assert.strictEqual(prsAfter['Banco Plano'].rm4.weight,100,'PR de banco conservado');
     assert.ok(prsAfter['Banco Plano'].rm4.history.every(h=>h.block===OLD));
     assert.strictEqual(prsAfter['Banco Plano'].rm4.newPr,false);
+    // "Ver resumen del bloque" desde el archivo: mismos datos del bloque viejo
+    const sumU=await page.evaluate(async([bid])=>{ await openBlockSummary(bid,blocksName(bid),await loadBlockPlan(bid)); const r=calcBlockSummary(blockSummaryState.blockPlan,blockSummaryState.blockProgress); return {open:blockSummaryState.open,name:blockSummaryState.blockName,prog:blockSummaryState.blockProgress,prs:r.prs.map(p=>p.name),weeks:r.totalWeeks}; function blocksName(b){ return archivedBlocks.find(x=>x.id===b).name; } },[bid]);
+    assert.strictEqual(sumU.open,true); assert.strictEqual(sumU.name,OLD);
+    assert.deepStrictEqual(sumU.prog,val(seed,'fs_prog_u1_v1'),'resumen usa el snapshot del bloque');
+    assert.ok(sumU.prs.includes('Banco Plano'),'PRs del bloque en el resumen');
     assert.deepStrictEqual(errors,[]); await page.close();
     console.log('E2E publicar borrador: OK');
 
