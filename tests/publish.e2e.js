@@ -167,6 +167,49 @@ const val=(db,k)=>db[k]&&db[k].value!=null?JSON.parse(db[k].value):null;
     assert.deepStrictEqual(errors,[]); await page.close();
     console.log('E2E publicar borrador: OK');
 
+    // 3b) Entrar desde la pantalla de login (sin sesión guardada) NO borra el historial del bloque anterior
+    ({page,errors}=await openApp(browser,db,null));
+    await page.evaluate(async()=>{ authState.email='ana@x.com'; authState.pw='1234'; await doLogin(); });
+    await page.waitForFunction(()=>session&&session.uid==='u1'); await page.waitForTimeout(400);
+    db=await page.evaluate(()=>window.__fakeDb);
+    assert.deepStrictEqual(val(db,'fs_prs_u1_v2')['Banco Plano'].rm4.history.map(h=>[h.weight,h.block]),[[100,OLD]],'login conserva PRs del bloque anterior');
+    assert.deepStrictEqual(errors,[]); await page.close();
+
+    // 3c) Con el historial global ya vacío (el daño real), el resumen igual muestra los PRs del bloque
+    db.fs_prs_u1_v2=doc({});
+    ({page,errors}=await openApp(browser,db,'u1'));
+    await page.evaluate(b=>openArchivedBlock(b),bid);
+    await page.getByText('Ver resumen del bloque').click();
+    await page.waitForSelector('.summary-sheet');
+    const sumW=await page.evaluate(()=>calcBlockSummary(blockSummaryState.blockPlan,blockSummaryState.blockProgress).prs.map(p=>[p.name,p.weight,p.week]));
+    assert.deepStrictEqual(sumW.find(p=>p[0]==='Banco Plano'),['Banco Plano',100,1],'resumen calculado desde el bloque');
+    db=await page.evaluate(()=>window.__fakeDb); assert.deepStrictEqual(errors,[]); await page.close();
+
+    // 3d) Admin: reconstruir PRs del bloque archivado (simula, confirma, no duplica)
+    ({page,errors}=await openApp(browser,db,'coach'));
+    const dialogs=[]; page.on('dialog',d=>dialogs.push(d.message()));
+    await page.evaluate(b=>rebuildBlockPrs(b),bid);
+    db=await page.evaluate(()=>window.__fakeDb);
+    assert.ok(dialogs.some(m=>m.startsWith('Simulación')&&m.includes('Ana Test')),'muestra la simulación por alumno');
+    const rebuilt=val(db,'fs_prs_u1_v2');
+    assert.deepStrictEqual(rebuilt['Banco Plano'].rm4.history,[{weight:100,week:1,block:OLD}],'historial reconstruido');
+    assert.strictEqual(rebuilt['Banco Plano'].rm4.weight,100);
+    dialogs.length=0;
+    await page.evaluate(b=>rebuildBlockPrs(b),bid);
+    db=await page.evaluate(()=>window.__fakeDb);
+    assert.ok(dialogs[0].includes('no falta ninguna entrada'),'segunda pasada: nada que agregar');
+    assert.deepStrictEqual(val(db,'fs_prs_u1_v2'),rebuilt,'sin duplicados');
+    // Viendo como la alumna: cargar un peso no pisa los PRs del admin
+    const coachPrs=JSON.stringify(val(db,'fs_prs_coach_v2'));
+    await page.evaluate(async()=>{ await impersonateUser('u1'); const ex=plan[0].days[0].blocks[0].exercises[0]; setSetData(ex.id+'_s0','weight','90'); });
+    await page.waitForTimeout(400);
+    db=await page.evaluate(()=>window.__fakeDb);
+    assert.strictEqual(JSON.stringify(val(db,'fs_prs_coach_v2')),coachPrs,'PRs del admin intactos al ver como alumna');
+    assert.deepStrictEqual(val(db,'fs_prs_u1_v2')['Banco Plano'].rm4.history.find(h=>h.block===OLD),{weight:100,week:1,block:OLD});
+    await page.evaluate(()=>exitImpersonation());
+    assert.deepStrictEqual(errors,[]); await page.close();
+    console.log('E2E PRs de bloque archivado: OK');
+
     // 4) Plantillas: guardar el bloque activo, cargarla al borrador, renombrar, duplicar, eliminar
     ({page,errors}=await openApp(browser,db,'coach'));
     await page.evaluate(()=>{ openAdmin(); });
