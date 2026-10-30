@@ -188,6 +188,10 @@ const val=(db,k)=>db[k]&&db[k].value!=null?JSON.parse(db[k].value):null;
     // 3d) Admin: reconstruir PRs del bloque archivado (simula, confirma, no duplica)
     ({page,errors}=await openApp(browser,db,'coach'));
     const dialogs=[]; page.on('dialog',d=>dialogs.push(d.message()));
+    // La pantalla del bloque archivado no ofrece restaurar ni eliminar (ni siquiera al admin)
+    await page.evaluate(async b=>{ openAdmin(); closeAdmin(); await openArchivedBlock(b); },bid);
+    const archTxt=await page.evaluate(()=>document.body.innerText);
+    assert.ok(archTxt.includes('Ver resumen del bloque')&&!archTxt.includes('Restaurar como activo'),'sin restaurar/eliminar en el bloque archivado');
     await page.evaluate(b=>rebuildBlockPrs(b),bid);
     db=await page.evaluate(()=>window.__fakeDb);
     assert.ok(dialogs.some(m=>m.startsWith('Simulación')&&m.includes('Ana Test')),'muestra la simulación por alumno');
