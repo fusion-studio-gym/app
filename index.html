@@ -995,24 +995,35 @@ function hcFmtBytes(n){
 }
 
 
+let prsFromCloud=false; // false si loadPrs no pudo leer la nube (doc inexistente o error de red)
 async function loadPrs(){
   if(!session||session.uid==='__pending__') return;
   const remote=await personalGet(K.PRS(session.uid));
+  prsFromCloud=!!remote;
   if(remote){ prs=remote; lsSet(K.PRS(session.uid),remote); }
   else { prs=lsGet(K.PRS(session.uid))||{}; }
 }
 async function savePrs(){
   if(!session||session.uid==='__pending__') return;
-  await personalSet(K.PRS(session.uid),prs);
-  lsSet(K.PRS(session.uid),prs);
+  // When impersonating, prs belongs to the impersonated user (same as saveProgress)
+  const targetUid = adminState.impersonating ? adminState.impersonating.uid : session.uid;
+  if(!prsFromCloud && !adminState.impersonating){
+    // No pisar un historial que no se pudo leer: si en la nube hay PRs, recalcular sobre ellos
+    prsFromCloud=true;
+    const remote=await personalGet(K.PRS(targetUid));
+    if(remote && Object.keys(remote).length){ prs=remote; recalcPrsFromProgress(); return; }
+  }
+  await personalSet(K.PRS(targetUid),prs);
+  lsSet(K.PRS(targetUid),prs);
 }
 
 // Build a lookup map: progressKey → {exName, repsStr, weekNum}
-// This is derived from the CURRENT plan in Firebase
-function buildProgressKeyMap(){
+// By default from the CURRENT plan; pass an archived plan to map that block
+function buildProgressKeyMap(bPlan){
   const map = {};
-  if(!plan) return map;
-  plan.forEach(wd=>{
+  const pl = bPlan||plan;
+  if(!pl) return map;
+  pl.forEach(wd=>{
     wd.days.forEach(day=>{
       day.blocks.forEach(block=>{
         block.exercises.forEach(ex=>{
@@ -1034,16 +1045,15 @@ function buildProgressKeyMap(){
   return map;
 }
 
-// Recalculate ALL PRs by scanning every key in progress and matching to plan
-function recalcPrsFromProgress(){
-  if(!plan||!progress) return;
-  const trList = tracked||DEFAULT_TRACKED;
-  const keyMap = buildProgressKeyMap();
+// Block names compared without caring about case or surrounding spaces
+function normBlockName(n){ return (n||'').toString().trim().toLowerCase(); }
 
-  // Step 1: Collect weekly bests from CURRENT block's ACTUAL progress
-  // This is always rebuilt from scratch so edits/deletions are reflected correctly
+// Pure: best weight per tracked exercise / PR range / week for one block's plan + progress
+// → {exName: {rk: {weekNum: weight}}}
+function computeBlockWeekBests(bPlan, bProgress, trList){
+  const keyMap = buildProgressKeyMap(bPlan);
   const weekBests = {};
-  Object.entries(progress).forEach(([k, d])=>{
+  Object.entries(bProgress||{}).forEach(([k, d])=>{
     if(!d||!d.weight) return;
     const w = parseFloat(d.weight);
     if(!w||isNaN(w)||w<=0) return;
@@ -1060,6 +1070,35 @@ function recalcPrsFromProgress(){
     const wn = meta.weekNum;
     if(!weekBests[tn][rk][wn]||w>weekBests[tn][rk][wn]) weekBests[tn][rk][wn]=w;
   });
+  return weekBests;
+}
+
+// Pure: PRs of one block computed from its own plan + progress (no global history needed)
+// → {exName: {rk: {weight, week, history:[{weight,week,block}]}}}; history = progression inside the block
+function computeBlockPrs(bPlan, bProgress, trList, blockName){
+  const weekBests = computeBlockWeekBests(bPlan, bProgress, trList);
+  const out = {};
+  Object.entries(weekBests).forEach(([tn, byRange])=>{
+    out[tn] = {};
+    Object.entries(byRange).forEach(([rk, byWeek])=>{
+      let max = 0, week = 0; const history = [];
+      Object.keys(byWeek).map(Number).sort((a,b)=>a-b).forEach(wn=>{
+        if(byWeek[wn] > max){ max = byWeek[wn]; week = wn; history.push({weight:max, week:wn, block:blockName}); }
+      });
+      out[tn][rk] = {weight:max, week, history};
+    });
+  });
+  return out;
+}
+
+// Recalculate ALL PRs by scanning every key in progress and matching to plan
+function recalcPrsFromProgress(){
+  if(!plan||!progress) return;
+  const trList = tracked||DEFAULT_TRACKED;
+
+  // Step 1: Collect weekly bests from CURRENT block's ACTUAL progress
+  // This is always rebuilt from scratch so edits/deletions are reflected correctly
+  const weekBests = computeBlockWeekBests(plan, progress, trList);
 
   // Step 2: Build merged PRs
   // - Keep history entries from PREVIOUS blocks (block !== currentBlockName)
@@ -1078,7 +1117,7 @@ function recalcPrsFromProgress(){
       // Keep only entries from OTHER blocks (not current block)
       // This ensures edits in the current block are always reflected
       const previousBlockHistory = existingHistory.filter(h=>
-        h.block && h.block !== currentBlockName
+        h.block && normBlockName(h.block) !== normBlockName(currentBlockName)
       );
 
       // Build current block history fresh from weekBests
@@ -1146,6 +1185,9 @@ async function loadProgress(){
   const remote=await personalGet(K.PROG(session.uid));
   if(remote){ progress=remote; lsSet(K.PROG(session.uid),remote); }
   else{ progress=lsGet(K.PROG(session.uid))||{}; }
+  // PRs must be loaded BEFORE recalculating: recalc keeps the history of previous blocks
+  // from `prs` and saves the result, so an empty `prs` here would wipe that history
+  await loadPrs();
   // Always recalculate PRs from the freshly loaded progress data
   // This ensures cross-device sync: if you deleted a weight on another device,
   // the PR recalculates correctly here too
@@ -6809,6 +6851,7 @@ function renderTabDashboard(){
       <div style="display:flex;gap:6px;flex-shrink:0">
         <button class="adm-btn adm-btn-blue" style="padding:5px 10px;font-size:11px" onclick="restoreArchivedBlock('${b.id}')">${hcIcon('refresh',12)} Restaurar</button>
         <button class="adm-btn adm-btn-ghost" style="padding:5px 8px;font-size:11px" title="Reparar registros" onclick="repairBlockProgress('${b.id}')">${hcIcon('wrench',13)}</button>
+        <button class="adm-btn adm-btn-ghost" style="padding:5px 8px;font-size:11px" title="Reconstruir PRs de este bloque" onclick="rebuildBlockPrs('${b.id}')">${hcIcon('trophy',13)}</button>
         <button class="adm-btn adm-btn-red" style="padding:5px 8px" onclick="deleteArchivedBlock('${b.id}')">${IC.trash}</button>
       </div>
     </div>`).join('');
@@ -6911,6 +6954,58 @@ async function repairBlockProgress(bid){
   }));
   showToast('Registros guardados para '+count+' alumnos');
   renderModal();
+}
+
+// Reconstruir PRs de un bloque archivado: recalcula los PRs del bloque desde su plan y progreso
+// archivados y agrega al historial de cada alumno las entradas que falten (sin duplicar ni tocar
+// las del bloque activo). Primero simula y muestra qué agregaría; solo escribe si se confirma.
+async function rebuildBlockPrs(bid){
+  const block = archivedBlocks.find(b=>b.id===bid);
+  if(!block) return;
+  if(normBlockName(block.name)===normBlockName(currentBlockName)){ showToast('Ese bloque tiene el mismo nombre que el activo'); return; }
+  const bPlan = await loadBlockPlan(bid);
+  if(!bPlan){ showToast('No se pudo cargar el bloque'); return; }
+  showToast('Calculando PRs de "'+block.name+'"...');
+  await loadUsers();
+  const trList = tracked||DEFAULT_TRACKED;
+  const activeUsers = Object.values(users).filter(u=>u.status===STATUS.ACTIVE && (u.club||'fuerza')==='fuerza');
+  // 1) Simulación
+  const changes = (await Promise.all(activeUsers.map(async u=>{
+    try{
+      const bProg = await loadBlockProgress(u.id,bid);
+      const blockPrs = computeBlockPrs(bPlan,bProg,trList,block.name);
+      const userPrs = await personalGet(K.PRS(u.id))||{};
+      const merged = JSON.parse(JSON.stringify(userPrs));
+      let added = 0;
+      Object.entries(blockPrs).forEach(([tn,byRange])=>Object.entries(byRange).forEach(([rk,bp])=>{
+        if(!merged[tn]) merged[tn]={};
+        const cur = merged[tn][rk]||{weight:0,week:0,newPr:false,history:[]};
+        const hist = cur.history||[];
+        bp.history.forEach(e=>{
+          if(hist.some(h=>h.weight===e.weight&&h.week===e.week&&normBlockName(h.block)===normBlockName(block.name))) return;
+          hist.push({...e}); added++;
+        });
+        hist.sort((a,b)=>a.weight-b.weight);
+        const top = hist[hist.length-1];
+        merged[tn][rk] = {...cur, history:hist, weight:top?top.weight:0, week:top?top.week:0};
+      }));
+      return added ? {u, added, merged} : null;
+    }catch(e){ console.error('rebuildBlockPrs', u.id, e); return null; }
+  }))).filter(Boolean);
+  if(!changes.length){ alert('Simulación: no falta ninguna entrada de PRs de "'+block.name+'". No hay nada para reconstruir.'); return; }
+  const total = changes.reduce((a,c)=>a+c.added,0);
+  const lines = changes.map(c=>'· '+c.u.name+': '+c.added).join('\n');
+  // 2) Confirmación y escritura
+  if(!confirm('Simulación — PRs de "'+block.name+'"\n\nSe agregarían '+total+' entradas al historial de '+changes.length+' alumno'+(changes.length>1?'s':'')+':\n'+lines+'\n\nNo se borra ni se modifica ninguna entrada existente. ¿Aplicar?')) return;
+  let ok = 0;
+  for(const c of changes){
+    if(await personalSet(K.PRS(c.u.id), c.merged)){
+      ok++;
+      if(session && c.u.id===session.uid && !adminState.impersonating){ prs=c.merged; lsSet(K.PRS(session.uid),prs); }
+    }
+  }
+  showToast('PRs reconstruidos para '+ok+' de '+changes.length+' alumnos');
+  renderModal(); render();
 }
 
 async function deleteArchivedBlock(bid){
@@ -7877,8 +7972,9 @@ function calcBlockSummary(bPlan,bProgress){
   const weekStatus=bPlan.map(wd=>{ const pct=calcWeekPct(wd,bProgress); if(pct===100)return 'done'; if(pct>0)return 'partial'; return 'skip'; });
   const completedWeeks=weekStatus.filter(s=>s==='done').length;
   const adherence=Math.round((completedWeeks/totalWeeks)*100);
-  const blockName=blockSummaryState.blockName;
-  const prData=DEFAULT_TRACKED.map(t=>{ const ep=prs[t.name]; if(!ep)return null; let bestEntry=null,bestRange=null; PR_RANGES.forEach(r=>{ const h=ep[r.key]&&ep[r.key].history?ep[r.key].history.filter(e=>e.block===blockName):[]; if(h.length){ const max=h.reduce((a,b)=>a.weight>b.weight?a:b); if(!bestEntry||max.weight>bestEntry.weight){bestEntry=max;bestRange=r;} } }); return bestEntry?{name:t.name,weight:bestEntry.weight,week:bestEntry.week,range:bestRange}:null; }).filter(Boolean);
+  // PRs del bloque calculados desde su propio plan y progreso (no depende de las etiquetas del historial global)
+  const blockPrs=computeBlockPrs(bPlan,bProgress,tracked||DEFAULT_TRACKED,blockSummaryState.blockName);
+  const prData=DEFAULT_TRACKED.map(t=>{ const ep=blockPrs[t.name]; if(!ep)return null; let bestEntry=null,bestRange=null; PR_RANGES.forEach(r=>{ const e=ep[r.key]; if(e&&e.weight>0&&(!bestEntry||e.weight>bestEntry.weight)){bestEntry=e;bestRange=r;} }); return bestEntry?{name:t.name,weight:bestEntry.weight,week:bestEntry.week,range:bestRange}:null; }).filter(Boolean);
   return {completedWeeks,totalWeeks,adherence,weekStatus,prs:prData};
 }
 
@@ -8327,7 +8423,7 @@ window.__fsAppInit = async function(){
   await loadBlockName();
   await loadWeekMessages();
   syncWeekMessagesFromPlan();
-  if(session && session.uid!=='__pending__'){ await loadPrs(); loadActiveWeek(); loadExpressMode(); }
+  if(session && session.uid!=='__pending__'){ loadActiveWeek(); loadExpressMode(); }
   if(session && session.uid!=='__pending__') await loadProgress();
   if(session && session.club==='hybrid' && session.uid!=='__pending__') await hcEnsureGoalData();
   render();
