@@ -563,6 +563,25 @@ const DEFAULT_ADMIN_PW = 'fusion2025';
 const DEFAULT_ADMIN_PW_HYBRID = 'hybrid2025';
 const STATUS = { PENDING:'pending', ACTIVE:'active', BLOCKED:'blocked' };
 
+// <roles>
+// Roles de Fusion Studio (club 'fuerza'). Un usuario sin campo `role` es alumno ('user').
+// `roleRequest:'teacher'` = se registró con "Soy profesor" y espera que el Admin lo habilite.
+const ROLE = { USER:'user', TEACHER:'teacher' };
+// Partes de clase que carga el profesor (el alumno no las ve): Movilidad, Aproximaciones, Zona media, Cardio
+const STAFF_PARTS = ['mov','aprox','zmedia','cardio'];
+function roleOf(u){ return u && u.role===ROLE.TEACHER ? ROLE.TEACHER : ROLE.USER; }
+// Va en la pestaña Profesores (no en Usuarios): profesores y quienes pidieron serlo y todavía no están habilitados
+function isTeacherListed(u){ return !!u && (roleOf(u)===ROLE.TEACHER || (u.roleRequest===ROLE.TEACHER && u.status!==STATUS.ACTIVE)); }
+// Alumno = cualquiera que no sea profesor. Usar en todo listado/estadística de alumnos.
+function isStudentUser(u){ return !!u && !isTeacherListed(u); }
+// Permisos de edición por rol: admin edita todo; profesor solo las partes de clase; alumno nada
+function canEditPartAs(role,partKey){
+  if(role==='admin') return true;
+  if(role===ROLE.TEACHER) return STAFF_PARTS.includes(partKey);
+  return false;
+}
+// </roles>
+
 // PR rep ranges
 const PR_RANGES = [
   { key:'rm1', label:'1RM',  min:1, max:1 },
@@ -780,12 +799,13 @@ async function saveUsers(){ await sharedSet(K.USERS,users); }
 function getUserByEmail(email,club){ email=email.toLowerCase().trim(); return Object.values(users).find(u=>u.email===email&&(u.club||'fuerza')===club)||null; }
 function getUserById(id){ return users[id]||null; }
 
-async function registerUser(name,email,password,club){
+async function registerUser(name,email,password,club,opts){
   email=email.toLowerCase().trim();
   club=club||'fuerza';
   if(getUserByEmail(email,club)) return {ok:false,err:'Ya existe una cuenta con ese email en este club.'};
   const id = 'u_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
   users[id]={ id, name:name.trim(), email, hash:hashStr(password), status:STATUS.PENDING, club };
+  if(opts && opts.teacher && club==='fuerza') users[id].roleRequest=ROLE.TEACHER;
   await saveUsers();
   return {ok:true};
 }
@@ -806,7 +826,7 @@ async function loginUser(email,password,club){
 // ============================================================
 let session = null;  // {uid,email,name}
 function loadSession(){ session=lsGet(K.SESSION); }
-function saveSession(u){ session={uid:u.id,email:u.email,name:u.name,club:u.club||'fuerza'}; lsSet(K.SESSION,session); }
+function saveSession(u){ session={uid:u.id,email:u.email,name:u.name,club:u.club||'fuerza'}; if(roleOf(u)===ROLE.TEACHER) session.role=ROLE.TEACHER; lsSet(K.SESSION,session); }
 function clearSession(){ session=null; localStorage.removeItem(K.SESSION); }
 
 // ============================================================
@@ -842,7 +862,7 @@ async function archiveCurrentBlock(name){
   // Save plan snapshot
   await sharedSet('fs_plan_'+bid, plan);
   // Snapshot progress for ALL active users at time of archiving
-  const activeUsers = Object.values(users).filter(u=>u.status===STATUS.ACTIVE);
+  const activeUsers = Object.values(users).filter(u=>u.status===STATUS.ACTIVE && isStudentUser(u));
   await Promise.all(activeUsers.map(async u=>{
     try{
       const prog = await personalGet(K.PROG(u.id))||{};
@@ -1182,6 +1202,7 @@ window.__debugPrs = function(){
 let progress = {};
 async function loadProgress(){
   if(!session) return;
+  if(isTeacherSession()){ progress={}; prs={}; return; } // el profesor no tiene progreso ni PRs
   const remote=await personalGet(K.PROG(session.uid));
   if(remote){ progress=remote; lsSet(K.PROG(session.uid),remote); }
   else{ progress=lsGet(K.PROG(session.uid))||{}; }
@@ -1577,6 +1598,17 @@ function calcWeekPct(wd,prog){
 
 // Admin check — only true when admin password validated in this session
 function isAdmin(){ return adminState.pwOk === true; }
+// Profesor logueado en Fusion Studio (si la lista de usuarios no cargó, se usa lo guardado en la sesión)
+function isTeacherSession(){
+  if(!session || session.uid==='__pending__' || (session.club||'fuerza')!=='fuerza') return false;
+  const u=getUserById(session.uid);
+  return u ? roleOf(u)===ROLE.TEACHER : session.role===ROLE.TEACHER;
+}
+// Rol de quien usa la app ahora: 'admin' (panel admin habilitado), 'teacher' o 'user'
+function userRole(){ return isAdmin() ? 'admin' : (isTeacherSession() ? ROLE.TEACHER : ROLE.USER); }
+function isStaff(){ const r=userRole(); return r==='admin' || r===ROLE.TEACHER; }
+// Todo botón o función que escriba partes de clase pasa por acá
+function canEditPart(partKey){ return canEditPartAs(userRole(),partKey); }
 
 // ============================================================
 // STREAK & ACTIVE WEEK
@@ -1911,7 +1943,7 @@ function renderClubSelect(){
 // ============================================================
 // AUTH SCREENS
 // ============================================================
-let authState={ mode:'login', name:'', email:'', pw:'', pw2:'', err:'', loading:false };
+let authState={ mode:'login', name:'', email:'', pw:'', pw2:'', err:'', loading:false, teacher:false };
 
 function renderAuth(){
   const club=getClub();
@@ -1969,9 +2001,9 @@ function renderRegister(logoImg){
   return `<div class="auth-wrap">
     ${logoImg}
     <h1 class="auth-title">${title}</h1>
-    <p class="auth-subtitle">Creá tu cuenta para comenzar</p>
+    <p class="auth-subtitle">${authState.teacher?'Creá tu cuenta de profesor':'Creá tu cuenta para comenzar'}</p>
     <div class="auth-card">
-      <div class="auth-card-title">CREAR CUENTA</div>
+      <div class="auth-card-title">${authState.teacher?'CUENTA DE PROFESOR':'CREAR CUENTA'}</div>
       ${authState.err?`<div class="auth-err">${escH(authState.err)}</div>`:''}
       <input class="auth-inp" type="text" placeholder="Nombre completo" id="a-name" value="${escH(authState.name)}" oninput="authState.name=this.value" onkeydown="if(event.key==='Enter')document.getElementById('a-reg-email').focus()">
       <input class="auth-inp" type="email" placeholder="Email" id="a-reg-email" value="${escH(authState.email)}" oninput="authState.email=this.value" onkeydown="if(event.key==='Enter')document.getElementById('a-reg-pw').focus()">
@@ -1980,11 +2012,12 @@ function renderRegister(logoImg){
       <button class="auth-btn" onclick="doRegister()" ${authState.loading?'disabled':''}>CREAR CUENTA</button>
     </div>
     <div class="auth-link" onclick="switchAuth('login')">¿Ya tenés cuenta? <span>Iniciá sesión</span></div>
+    ${club==='fuerza'?`<div class="auth-link" style="margin-top:8px;opacity:0.6" onclick="authState.teacher=!authState.teacher;render()">${authState.teacher?'Registrarme como <span>alumno</span>':'Soy <span>profesor</span>'}</div>`:''}
     <div class="auth-link" style="margin-top:8px;opacity:0.6" onclick="changeClub()">Cambiar de <span>APP</span></div>
   </div>`;
 }
 
-function switchAuth(mode){ authState={...authState,mode,err:''}; render(); }
+function switchAuth(mode){ authState={...authState,mode,err:'',teacher:false}; render(); }
 
 async function doLogin(){
   authState.loading=true; authState.err=''; render();
@@ -2008,15 +2041,16 @@ async function doRegister(){
   if(authState.pw!==authState.pw2){ authState.err='Las contraseñas no coinciden.'; render(); return; }
   authState.loading=true; authState.err=''; render();
   await loadUsers();
-  const res=await registerUser(authState.name,authState.email,authState.pw,getClub());
+  const asTeacher=authState.teacher && getClub()==='fuerza';
+  const res=await registerUser(authState.name,authState.email,authState.pw,getClub(),{teacher:asTeacher});
   authState.loading=false;
   if(!res.ok){ authState.err=res.err; render(); return; }
-  authState.err=''; authState.mode='login';
-  showToast('¡Cuenta creada! Esperá la aprobación del profe.');
+  authState.err=''; authState.mode='login'; authState.teacher=false;
+  showToast(asTeacher?'¡Cuenta creada! Esperá que el Admin te habilite como profesor.':'¡Cuenta creada! Esperá la aprobación del profe.');
   render();
 }
 
-function doLogout(){ clearSession(); progress={}; userMenuOpen=false; authState={mode:'login',name:'',email:'',pw:'',pw2:'',err:'',loading:false}; render(); }
+function doLogout(){ clearSession(); progress={}; userMenuOpen=false; adminState.pwOk=false; teacherState={tab:'plan'}; authState={mode:'login',name:'',email:'',pw:'',pw2:'',err:'',loading:false,teacher:false}; render(); }
 
 // ============================================================
 // PENDING SCREEN
@@ -3788,6 +3822,7 @@ function handleFinish(){ showToast('¡Bloque registrado!'); setTimeout(()=>nav('
 // ADMIN MODAL
 // ============================================================
 function openAdmin(){
+  if(isTeacherSession()) return; // el profesor no tiene panel admin ni modal de contraseña
   adminState.open=true;
   if(!adminState.pwOk){
     const club=getClub();
@@ -3910,7 +3945,7 @@ function renderAdminBody(){
   }
   if(typeof adminState.tab!=='number') adminState.tab=0;
   // [índice, ícono, nombre] — los índices no cambian (otras partes del admin los usan); el orden es el visual
-  const tabs=[[0,'grid','Dashboard'],[1,'users','Usuarios'],[2,'list','Ejercicios'],[3,'calendar','Semanas'],[9,'pencil','Borrador'],[10,'template','Plantillas'],[4,'bookOpen','RPE'],[5,'target','PRs'],[6,'trendingUp','Grupo'],[7,'key','Contraseña'],[8,'search','Diagnóstico']];
+  const tabs=[[0,'grid','Dashboard'],[1,'users','Usuarios'],[11,'clipboardList','Profesores'],[2,'list','Ejercicios'],[3,'calendar','Semanas'],[9,'pencil','Borrador'],[10,'template','Plantillas'],[4,'bookOpen','RPE'],[5,'target','PRs'],[6,'trendingUp','Grupo'],[7,'key','Contraseña'],[8,'search','Diagnóstico']];
   const nav=tabs.map(([i,ic,label])=>`<div class="admin-tab ${adminState.tab===i?'active':''}" onclick="setAdminTab(${i})"><span class="adm-tab-ic">${hcIcon(ic,16)}${label}</span></div>`).join('');
   let body='';
   if(adminState.tab===0) body=renderTabDashboard();
@@ -3923,6 +3958,7 @@ function renderAdminBody(){
   else if(adminState.tab===7) body=renderTabPw();
   else if(adminState.tab===9) body=renderTabDraft();
   else if(adminState.tab===10) body=renderTabTemplates();
+  else if(adminState.tab===11) body=renderTabTeachers();
   else body=renderTabDiag();
   return `<div class="adm-layout"><div class="admin-nav">${nav}</div><div class="adm-main">${body}</div></div>`;
 }
@@ -3935,7 +3971,7 @@ async function setAdminTab(i){
   if(i===9 && fsDraftSaveState!=='saving'){ fsDraft=null; }
   if(i===10){ fsTplIndex=null; }
   if(i!==3){ adminState.weeksTextMode=false; fsSafeText=null; }
-  if(i===0||i===1){
+  if(i===0||i===1||i===11){
     await loadUsers();
     renderModal();
     await loadUserActivityStatus();
@@ -3955,7 +3991,7 @@ async function setAdminTab(i){
 let userActivityMap={};
 let userActiveWeekMap={}; // {uid: índice de la primera semana incompleta} — solo alumnos de Fuerza que anotan
 async function loadUserActivityStatus(){
-  const active=Object.values(users).filter(u=>u.status===STATUS.ACTIVE||u.status===STATUS.BLOCKED);
+  const active=Object.values(users).filter(u=>(u.status===STATUS.ACTIVE||u.status===STATUS.BLOCKED) && isStudentUser(u));
   await Promise.all(active.map(async u=>{
     const prog=await personalGet(K.PROG(u.id))||{};
     userActivityMap[u.id]=Object.values(prog).some(d=>d&&(d.weight||d.done));
@@ -3997,7 +4033,7 @@ function renderTabUsers(){
   if(adminState.viewChatUid) return renderAdminChat();
   if(adminState.viewMetricsUid) return renderAdminMetrics();
 
-  const all=Object.values(users).filter(u=>(u.club||'fuerza')===getClub());
+  const all=Object.values(users).filter(u=>(u.club||'fuerza')===getClub() && isStudentUser(u));
   const pending=all.filter(u=>u.status===STATUS.PENDING);
   const active=all.filter(u=>u.status===STATUS.ACTIVE||u.status===STATUS.BLOCKED);
 
@@ -4053,7 +4089,7 @@ function filterUsers(val){
   adminState.userSearch=val;
   const wrap=document.getElementById('user-list-wrap');
   if(!wrap) return;
-  const active=Object.values(users).filter(u=>(u.club||'fuerza')===getClub()&&(u.status===STATUS.ACTIVE||u.status===STATUS.BLOCKED));
+  const active=Object.values(users).filter(u=>(u.club||'fuerza')===getClub()&&(u.status===STATUS.ACTIVE||u.status===STATUS.BLOCKED)&&isStudentUser(u));
   wrap.innerHTML=buildUserListHTML(active, val, adminState.userActivityFilter);
 }
 
@@ -4123,6 +4159,128 @@ async function adminResetPassword(id){
     await saveUsers();
     alert('Contraseña actualizada. Nueva contraseña: '+clean+'\n\nPasásela al alumno para que pueda entrar de nuevo.');
   }catch(e){ alert('Error al actualizar la contraseña: '+e.message); }
+}
+
+// ---- TAB: PROFESORES ----
+// Profesores y pedidos "Soy profesor". Mismo estilo que Usuarios; los profesores no aparecen como alumnos.
+let teacherConvertSel='';
+function renderTabTeachers(){
+  const all=Object.values(users).filter(u=>(u.club||'fuerza')==='fuerza' && isTeacherListed(u));
+  const order=u=>u.status===STATUS.PENDING?0:u.status===STATUS.ACTIVE?1:2;
+  all.sort((a,b)=>order(a)-order(b)||a.name.localeCompare(b.name));
+  const enabled=all.filter(u=>roleOf(u)===ROLE.TEACHER&&u.status===STATUS.ACTIVE).length;
+  const pending=all.filter(u=>u.status===STATUS.PENDING).length;
+  const head=`<div class="admin-section-title">${hcSecTitle('clipboardList','PROFESORES ('+enabled+' habilitado'+(enabled===1?'':'s')+(pending?' · '+pending+' pendiente'+(pending===1?'':'s'):'')+')')}</div>
+    <div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:12px">El profesor carga las partes de clase (Movilidad, Aproximaciones, Zona media y Cardio). No ve pesos, PRs ni progreso de los alumnos.</div>`;
+  const list=all.length?all.map(renderTeacherRow).join(''):`<div class="cc-empty">Todavía no hay profesores. Pueden registrarse con "Soy profesor" o podés convertir a un alumno activo.</div>`;
+  // Convertir un alumno activo existente
+  const candidates=Object.values(users).filter(u=>(u.club||'fuerza')==='fuerza' && u.status===STATUS.ACTIVE && isStudentUser(u) && !u.admin)
+    .sort((a,b)=>a.name.localeCompare(b.name));
+  if(teacherConvertSel && !candidates.some(u=>u.id===teacherConvertSel)) teacherConvertSel='';
+  const convert=candidates.length?`<div class="admin-section-title" style="margin-top:20px">${hcSecTitle('userPlus','CONVERTIR EN PROFESOR')}</div>
+    <select class="adm-inp" style="margin-bottom:10px" onchange="teacherConvertSel=this.value">
+      <option value="">Elegí un alumno activo...</option>
+      ${candidates.map(u=>`<option value="${u.id}" ${teacherConvertSel===u.id?'selected':''}>${escH(u.name)} · ${escH(u.email)}</option>`).join('')}
+    </select>
+    <button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;padding:12px;min-height:44px" onclick="convertToTeacher(teacherConvertSel)">${hcIcon('userPlus',15)} Convertir en profesor</button>`:'';
+  return head+list+convert;
+}
+
+function renderTeacherRow(u){
+  const ini=u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+  const isTeacher=roleOf(u)===ROLE.TEACHER;
+  const isPending=u.status===STATUS.PENDING, isBlocked=u.status===STATUS.BLOCKED;
+  const status=isBlocked?`<span class="badge badge-blocked">BLOQUEADO</span>`
+    :isPending||!isTeacher?`<span class="badge badge-pending">PENDIENTE</span>`
+    :`<span class="badge badge-active">HABILITADO</span>`;
+  const asks=(u.roleRequest===ROLE.TEACHER && !isTeacher)?`<span class="badge badge-pending">PIDE SER PROFESOR</span>`:'';
+  const b='padding:9px 10px;min-height:40px';
+  const actions=`
+      ${!isBlocked&&!(isTeacher&&u.status===STATUS.ACTIVE)?`<button class="adm-btn adm-btn-green" style="${b};font-weight:700" onclick="enableTeacher('${u.id}')">✓ Habilitar</button>`:''}
+      ${!isBlocked?`<button class="adm-btn adm-btn-red" style="${b}" onclick="blockTeacher('${u.id}')" title="Bloquear">✕</button>`:''}
+      ${isBlocked?`<button class="adm-btn adm-btn-blue" style="${b}" onclick="unblockTeacher('${u.id}')" title="Desbloquear">↩</button>`:''}
+      ${!isPending?`<button class="adm-btn adm-btn-ghost" style="${b}" onclick="adminResetPassword('${u.id}')" title="Restablecer contraseña">${hcIcon('key',14)}</button>`:''}
+      <button class="adm-btn adm-btn-ghost" style="${b};font-size:12px" onclick="removeTeacherRole('${u.id}')" title="Vuelve a ser alumno">Quitar rol</button>`;
+  return `<div class="user-row" style="flex-wrap:wrap">
+    <div class="user-row-avatar">${ini}</div>
+    <div class="user-row-info">
+      <div class="user-row-name">${escH(u.name)}</div>
+      <div class="user-row-email">${escH(u.email)}</div>
+      <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap">${status}${asks}</div>
+    </div>
+    <div class="user-row-actions" style="flex-basis:100%;flex-wrap:wrap;justify-content:flex-end">${actions}</div>
+  </div>`;
+}
+
+// Cambios de rol/estado: siempre releer la lista antes de escribir (puede haber cambios desde otro dispositivo)
+async function updateTeacherUser(id,fn,msg){
+  await loadUsers();
+  const u=users[id];
+  if(!u){ showToast('Usuario no encontrado'); return; }
+  fn(u);
+  await saveUsers();
+  renderModal(); showToast(msg);
+}
+function enableTeacher(id){
+  return updateTeacherUser(id,u=>{ u.status=STATUS.ACTIVE; u.role=ROLE.TEACHER; delete u.roleRequest; },'Profesor habilitado');
+}
+function blockTeacher(id){
+  return updateTeacherUser(id,u=>{ u.status=STATUS.BLOCKED; },'Profesor bloqueado');
+}
+// Un profesor vuelve a estar habilitado; un pedido sin aprobar vuelve a pendiente
+function unblockTeacher(id){
+  return updateTeacherUser(id,u=>{ u.status=roleOf(u)===ROLE.TEACHER?STATUS.ACTIVE:STATUS.PENDING; },'Desbloqueado');
+}
+async function removeTeacherRole(id){
+  const u=getUserById(id);
+  if(!u || !confirm('¿Quitarle el rol de profesor a '+u.name+'? Pasa a ser alumno (si estaba pendiente, queda en Solicitudes de Usuarios).')) return;
+  return updateTeacherUser(id,x=>{ x.role=ROLE.USER; delete x.roleRequest; },'Ahora es alumno');
+}
+async function convertToTeacher(id){
+  const u=getUserById(id);
+  if(!u){ showToast('Elegí un alumno'); return; }
+  if(!confirm('¿Convertir a '+u.name+' en profesor? Deja de aparecer como alumno (sus registros no se borran) y al entrar va a ver la pantalla de profesor.')) return;
+  teacherConvertSel='';
+  return updateTeacherUser(id,x=>{ x.role=ROLE.TEACHER; x.status=STATUS.ACTIVE; delete x.roleRequest; },'Ahora es profesor');
+}
+// Tarjeta del Dashboard: profesores habilitados y pendientes
+function renderTeachersDashCard(){
+  if(getClub()!=='fuerza') return '';
+  const all=Object.values(users).filter(u=>(u.club||'fuerza')==='fuerza' && isTeacherListed(u));
+  const enabled=all.filter(u=>roleOf(u)===ROLE.TEACHER&&u.status===STATUS.ACTIVE).length;
+  const pending=all.filter(u=>u.status===STATUS.PENDING).length;
+  return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <div style="min-width:0">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;display:flex;align-items:center;gap:5px">${hcIcon('clipboardList',12)} Profesores</div>
+      <div style="font-size:13px;color:var(--text);font-weight:600">${enabled} habilitado${enabled===1?'':'s'}${pending?` · <span style="color:var(--yellow)">${pending} pendiente${pending===1?'':'s'}</span>`:''}</div>
+    </div>
+    <button class="adm-btn adm-btn-ghost" style="padding:8px 12px;font-size:12px;flex-shrink:0" onclick="setAdminTab(11)">Ver →</button>
+  </div>`;
+}
+
+// ============================================================
+// PANTALLA DEL PROFESOR (Fusion Studio)
+// ============================================================
+// Dos pestañas: Planificación (partes de clase por semana) y Plantillas (plantillas de partes).
+let teacherState={tab:'plan'};
+function setTeacherTab(t){ teacherState.tab=t; render(); }
+function renderTeacherHome(){
+  const first=escH(((session&&session.name)||'').split(' ')[0].toUpperCase());
+  const body=teacherState.tab==='tpl'
+    ? `<div class="admin-section-title">${hcSecTitle('template','Plantillas de partes')}</div><div class="cc-empty">Próximamente: plantillas de Movilidad, Aproximaciones, Zona media y Cardio.</div>`
+    : `<div class="admin-section-title">${hcSecTitle('calendar','Planificación')}</div><div class="cc-empty">Próximamente: partes de clase de cada semana y día del bloque.</div>`;
+  const item=(t,ic,label)=>`<div class="tab-bar-item ${teacherState.tab===t?'active':''}" onclick="setTeacherTab('${t}')">
+      <div class="tab-bar-icon">${hcIcon(ic,20)}</div>${label}
+    </div>`;
+  return `${navBarHTML()}
+    <div class="page-tabbed" style="min-height:calc(100vh - 115px)">
+      <div class="home-hero" style="padding-bottom:16px">
+        <div class="home-greeting">HOLA, ${first}</div>
+        <h1>PARTES DE<br><span>CLASE</span></h1>
+      </div>
+      ${body}
+    </div>
+    <div class="tab-bar">${item('plan','calendar','Planificación')}${item('tpl','template','Plantillas')}</div>`;
 }
 
 let viewProgData=null;
@@ -6760,7 +6918,7 @@ async function doSaveTracked(){ await saveTracked(); showToast('Ejercicios guard
 
 // ---- TAB: DASHBOARD ----
 function renderTabDashboard(){
-  const all=Object.values(users).filter(u=>(u.club||'fuerza')===getClub());
+  const all=Object.values(users).filter(u=>(u.club||'fuerza')===getClub() && isStudentUser(u));
   const active=all.filter(u=>u.status===STATUS.ACTIVE);
   const blocked=all.filter(u=>u.status===STATUS.BLOCKED);
   const pending=all.filter(u=>u.status===STATUS.PENDING);
@@ -6872,6 +7030,7 @@ function renderTabDashboard(){
     ${statCards}
     ${progressBar}
     ${renderNextWeekMsgCard()}
+    ${renderTeachersDashCard()}
     ${pending.length?`<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
       <span style="font-size:13px;color:var(--yellow);font-weight:600;display:inline-flex;align-items:center;gap:8px">${hcIcon('hourglass',15)}${pending.length} solicitud${pending.length>1?'es':''} pendiente${pending.length>1?'s':''}</span>
       <button class="adm-btn adm-btn-ghost" style="padding:5px 12px;font-size:12px" onclick="setAdminTab(1);adminState.userSubTab='pending';renderModal()">Ver →</button>
@@ -6934,7 +7093,7 @@ async function restoreArchivedBlock(bid){
 // Retroactively snapshot current progress for an already-archived block
 // Use this for blocks archived before the snapshot feature existed
 async function repairBlockProgress(bid){
-  const activeUsers = Object.values(users).filter(u=>u.status===STATUS.ACTIVE);
+  const activeUsers = Object.values(users).filter(u=>u.status===STATUS.ACTIVE && isStudentUser(u));
   let count = 0;
   await Promise.all(activeUsers.map(async u=>{
     try{
@@ -6961,7 +7120,7 @@ async function rebuildBlockPrs(bid){
   showToast('Calculando PRs de "'+block.name+'"...');
   await loadUsers();
   const trList = tracked||DEFAULT_TRACKED;
-  const activeUsers = Object.values(users).filter(u=>u.status===STATUS.ACTIVE && (u.club||'fuerza')==='fuerza');
+  const activeUsers = Object.values(users).filter(u=>u.status===STATUS.ACTIVE && (u.club||'fuerza')==='fuerza' && isStudentUser(u));
   // 1) Simulación
   const changes = (await Promise.all(activeUsers.map(async u=>{
     try{
@@ -7589,7 +7748,7 @@ function renderTabDiag(){
   }).join('');
 
   // Check all users' progress
-  const userList = Object.values(users);
+  const userList = Object.values(users).filter(isStudentUser);
 
   return `<div>
     <div class="admin-section-title">ESTADO DEL PLAN</div>
@@ -7750,7 +7909,7 @@ let comparativeState={exIdx:0};
 async function renderTabComparative(){
   const baseExs=DEFAULT_TRACKED;
   const exName=baseExs[comparativeState.exIdx].name;
-  const activeUsers=Object.values(users).filter(u=>u.status===STATUS.ACTIVE);
+  const activeUsers=Object.values(users).filter(u=>u.status===STATUS.ACTIVE && isStudentUser(u));
   const userPrData=await Promise.all(activeUsers.map(async u=>{
     try{
       const userPrs=await personalGet(K.PRS(u.id))||{};
@@ -8357,6 +8516,8 @@ function render(){
     app.innerHTML=renderPending(); renderKey='pending';
   } else if(session.club==='hybrid'){
     app.innerHTML=renderHybridHome(); renderKey='hybrid:'+hcState.tab;
+  } else if(isTeacherSession()){
+    app.innerHTML=renderTeacherHome(); renderKey='teacher:'+teacherState.tab;
   } else {
     if(ST.mainTab==='prs')   { app.innerHTML=renderPrs(); renderKey='prs'; }
     else if(ST.mainTab==='chart') { app.innerHTML=renderChart(); renderKey='chart'; }
