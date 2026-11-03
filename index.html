@@ -535,6 +535,8 @@ const K = {
   TEMPLATES: 'fs_templates_v1',  // shared: [{id,name,createdAt,updatedAt,weeks}] — índice liviano de plantillas de bloque
   TPL: (id) => `fs_tpl_${id}`,
   STAFF_PARTS_W: (n) => `fs_staff_parts_w${n}_v1`,  // shared (solo staff): {week:n, days:{[dayId]:{mov,aprox,zmedia,cardio}}} — partes de clase de la semana n del bloque activo. Part={text,by,byName,at,tplId?,history:[{text,by,byName,at}]}
+  BLOCK_CAL: 'fs_block_calendar_v1',  // shared: {startDate:'YYYY-MM-DD' (lunes), forcedWeek:null|n, updatedBy, updatedByName, updatedAt} — calendario del bloque activo
+  BLOCK_CAL_B: (bid) => `fs_block_calendar_${bid}_v1`,  // shared: copia del calendario al archivar el bloque bid
   STAFF_PARTS_BW: (bid,n) => `fs_staff_parts_${bid}_w${n}_v1`,  // shared: copia de las partes de clase al archivar el bloque bid
   STPL_INDEX: 'fs_stpl_index_v1',  // shared: [{id,cat,name,updatedAt,updatedByName}] — índice liviano de plantillas de PARTES de clase (no de bloque)
   STPL: (id) => `fs_stpl_${id}`,  // shared: {id,cat,name,text,createdBy,updatedBy,updatedByName,updatedAt} — una plantilla de parte por documento  // shared: {id,name,text,messages:{[semana]:msg},createdAt,updatedAt} — una plantilla por documento
@@ -1794,6 +1796,128 @@ function loadActiveWeek(){
   else if(blk!==currentBlockName) saved=null;
   if(typeof saved==='number' && plan && saved>=plan.length) saved=null;
   ST.activeWeek = (saved!==null&&saved!==undefined) ? saved : detectActiveWeek();
+}
+
+// ============================================================
+// CALENDARIO DEL BLOQUE (Fuerza): fechas reales de cada semana y semana activa por fecha.
+// Todo trabaja con strings 'YYYY-MM-DD' y aritmética de días en UTC (sin corrimientos de zona).
+// "Hoy" siempre es la fecha de Buenos Aires, no la del dispositivo.
+// Sin calendario cargado, la semana activa se calcula exactamente como antes.
+// ============================================================
+let blockCalendar=null;   // {startDate,forcedWeek,updatedBy,updatedByName,updatedAt} | null
+let calDebugToday=null;   // 'YYYY-MM-DD' | null — fecha simulada para probar (solo se carga desde Admin, en este dispositivo)
+const CAL_DEBUG_KEY='fs_debug_today_v1';
+// <block-calendar>
+const CAL_WD=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+const CAL_WD_TXT=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const CAL_MON=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const CAL_DAY_MS=86400000;
+function calParse(s){
+  const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s||'').trim()); if(!m) return null;
+  const t=Date.UTC(+m[1],+m[2]-1,+m[3]), d=new Date(t);
+  return (d.getUTCMonth()===+m[2]-1 && d.getUTCDate()===+m[3]) ? t : null;
+}
+function calIsDate(s){ return calParse(s)!==null; }
+function calFmt(t){ return new Date(t).toISOString().slice(0,10); }
+function calAddDays(s,n){ return calFmt(calParse(s)+n*CAL_DAY_MS); }
+function calWeekday(s){ return new Date(calParse(s)).getUTCDay(); }
+function calDiffDays(a,b){ return Math.round((calParse(b)-calParse(a))/CAL_DAY_MS); }
+// Fecha de hoy en Buenos Aires (UTC-3 todo el año, sin horario de verano)
+function calTodayBA(now){
+  now=now||new Date();
+  try{
+    const p=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argentina/Buenos_Aires',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);
+    const g=t=>(p.find(x=>x.type===t)||{}).value;
+    const r=g('year')+'-'+g('month')+'-'+g('day');
+    if(calIsDate(r)) return r;
+  }catch(e){}
+  return calFmt(now.getTime()-3*3600000);
+}
+function calToday(){ return calIsDate(calDebugToday) ? calDebugToday : calTodayBA(); }
+function snapToMonday(dateStr){
+  const wd=calWeekday(dateStr), back=(wd+6)%7;
+  return {date:calAddDays(dateStr,-back), moved:back>0, originalWeekday:CAL_WD_TXT[wd]};
+}
+function weekRange(startDate,n){ const from=calAddDays(startDate,(n-1)*7); return {from,to:calAddDays(from,6)}; }
+function getActiveWeekInfo(todayStr,startDate,totalWeeks,forcedWeek){
+  const f=Number(forcedWeek);
+  if(forcedWeek!=null && Number.isInteger(f) && f>=1 && f<=totalWeeks) return {state:'running',week:f,forced:true};
+  const d=calDiffDays(startDate,todayStr);
+  if(d<0) return {state:'before',week:null,forced:false,daysUntilStart:-d};
+  const w=Math.floor(d/7)+1;
+  if(w>totalWeeks) return {state:'finished',week:null,forced:false};
+  return {state:'running',week:w,forced:false};
+}
+// Nombres de día del campo `days` ("LUNES / MARTES", "MIÉRCOLES O JUEVES", "VIE-SÁB") -> fechas de esa semana.
+// Tolera mayúsculas, acentos y abreviaturas de 3+ letras. Si no reconoce nada devuelve [].
+function calNorm(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(); }
+function dayDates(startDate,weekN,daysField){
+  if(!calIsDate(startDate)) return [];
+  const out=[];
+  (calNorm(daysField).match(/[a-z]+/g)||[]).forEach(w=>{
+    if(w.length<3) return;
+    const i=CAL_WD.findIndex(n=>n===w || n.startsWith(w));
+    if(i<0) return;
+    const ds=calAddDays(startDate,(weekN-1)*7+(i+6)%7);
+    if(!out.includes(ds)) out.push(ds);
+  });
+  return out;
+}
+// Formatos de pantalla
+function calDM(s){ const t=new Date(calParse(s)); return t.getUTCDate()+'/'+(t.getUTCMonth()+1); }
+function calDMY(s){ const t=new Date(calParse(s)); return calDM(s)+'/'+t.getUTCFullYear(); }
+function calDayMon(s){ const t=new Date(calParse(s)); return t.getUTCDate()+' '+CAL_MON[t.getUTCMonth()]; }
+function calShortDay(s){ const n=CAL_WD_TXT[calWeekday(s)]; return n.charAt(0).toUpperCase()+n.slice(1,3)+' '+calDayMon(s); }
+function calRangeTxt(r){ return calDM(r.from)+' – '+calDM(r.to); }
+// Estado del calendario del bloque activo, o null si no hay calendario (=> lógica de siempre)
+function getBlockCalInfo(){
+  const total=Array.isArray(plan)?plan.length:0;
+  if(!blockCalendar || !calIsDate(blockCalendar.startDate) || !total) return null;
+  return getActiveWeekInfo(calToday(), blockCalendar.startDate, total, blockCalendar.forcedWeek);
+}
+// ÚNICA función que decide la semana activa (índice 0-based).
+// Con calendario: por fecha (o la fijada por el Admin). Antes del inicio, la 1; terminado, la última.
+// Sin calendario: como siempre — la del alumno (opts.group: la más común del grupo, para el Admin).
+function getActiveWeek(opts){
+  const info=getBlockCalInfo();
+  if(!info){
+    if(opts && opts.group) return groupActiveWeekIdx();
+    return ST.activeWeek!==null&&ST.activeWeek!==undefined ? ST.activeWeek : detectActiveWeek();
+  }
+  if(info.state==='before') return 0;
+  if(info.state==='finished') return plan.length-1;
+  return info.week-1;
+}
+// Semana para la que conviene preparar mensajes/partes: antes del inicio es la 1; si no, la siguiente a la activa
+function getNextWeekIdx(){
+  const info=getBlockCalInfo();
+  if(info && info.state==='before') return 0;
+  if(info && info.state==='finished') return plan.length;
+  return getActiveWeek({group:true})+1;
+}
+// </block-calendar>
+
+async function loadBlockCalendar(){
+  const r=await sharedGet(K.BLOCK_CAL);
+  blockCalendar=(r && typeof r==='object' && calIsDate(r.startDate)) ? r : null;
+  try{ const d=localStorage.getItem(CAL_DEBUG_KEY); calDebugToday=calIsDate(d)?d:null; }catch(e){ calDebugToday=null; }
+}
+// Calendarios de bloques archivados (carga diferida, como las partes de clase)
+const archivedCals={}, archivedCalsLoading={};
+function archivedCalDoc(bid){
+  if(!bid || bid==='current') return null;
+  if(archivedCals[bid]!==undefined) return archivedCals[bid];
+  if(!archivedCalsLoading[bid]){
+    archivedCalsLoading[bid]=true;
+    sharedGet(K.BLOCK_CAL_B(bid)).then(r=>{ archivedCals[bid]=(r&&calIsDate(r.startDate))?r:null; }).catch(()=>{ archivedCals[bid]=null; }).finally(()=>{ archivedCalsLoading[bid]=false; render(); });
+  }
+  return undefined;
+}
+// "2/11/2026 – 3/1/2027" para un bloque archivado, o '' si no tiene calendario
+function archivedRangeTxt(bid,weeks){
+  const c=archivedCalDoc(bid);
+  if(!c || !weeks) return '';
+  return calDMY(c.startDate)+' – '+calDMY(weekRange(c.startDate,weeks).to);
 }
 
 // ============================================================
