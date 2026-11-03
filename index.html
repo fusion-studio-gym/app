@@ -535,6 +535,8 @@ const K = {
   TEMPLATES: 'fs_templates_v1',  // shared: [{id,name,createdAt,updatedAt,weeks}] — índice liviano de plantillas de bloque
   TPL: (id) => `fs_tpl_${id}`,
   STAFF_PARTS_W: (n) => `fs_staff_parts_w${n}_v1`,  // shared (solo staff): {week:n, days:{[dayId]:{mov,aprox,zmedia,cardio}}} — partes de clase de la semana n del bloque activo. Part={text,by,byName,at,tplId?,history:[{text,by,byName,at}]}
+  BLOCK_CAL: 'fs_block_calendar_v1',  // shared: {startDate:'YYYY-MM-DD' (lunes), forcedWeek:null|n, updatedBy, updatedByName, updatedAt} — calendario del bloque activo
+  BLOCK_CAL_B: (bid) => `fs_block_calendar_${bid}_v1`,  // shared: copia del calendario al archivar el bloque bid
   STAFF_PARTS_BW: (bid,n) => `fs_staff_parts_${bid}_w${n}_v1`,  // shared: copia de las partes de clase al archivar el bloque bid
   STPL_INDEX: 'fs_stpl_index_v1',  // shared: [{id,cat,name,updatedAt,updatedByName}] — índice liviano de plantillas de PARTES de clase (no de bloque)
   STPL: (id) => `fs_stpl_${id}`,  // shared: {id,cat,name,text,createdBy,updatedBy,updatedByName,updatedAt} — una plantilla de parte por documento  // shared: {id,name,text,messages:{[semana]:msg},createdAt,updatedAt} — una plantilla por documento
@@ -1005,7 +1007,17 @@ async function archiveCurrentBlock(name){
   // Partes de clase (solo staff): copiarlas al archivo del bloque y dejar vacías las del bloque activo.
   // Van al final y en documentos propios: no tocan plan, progreso ni PRs.
   await archiveStaffParts(bid, plan.length);
+  // Calendario del bloque: copiarlo al archivo y dejar vacío el del bloque activo (solo si la copia se guardó)
+  await archiveBlockCalendar(bid);
   return bid;
+}
+async function archiveBlockCalendar(bid){
+  try{
+    const cal=await sharedGet(K.BLOCK_CAL);
+    if(!cal) return;
+    if(await sharedSet(K.BLOCK_CAL_B(bid),cal)){ archivedCals[bid]=calIsDate(cal.startDate)?cal:null; if(await sharedSet(K.BLOCK_CAL,null)) blockCalendar=null; }
+  }catch(e){ console.error('Error archivando el calendario del bloque', e); }
+  adminState.cal=null;
 }
 async function archiveStaffParts(bid, weeks){
   for(let n=1;n<=weeks;n++){
@@ -1794,6 +1806,128 @@ function loadActiveWeek(){
   else if(blk!==currentBlockName) saved=null;
   if(typeof saved==='number' && plan && saved>=plan.length) saved=null;
   ST.activeWeek = (saved!==null&&saved!==undefined) ? saved : detectActiveWeek();
+}
+
+// ============================================================
+// CALENDARIO DEL BLOQUE (Fuerza): fechas reales de cada semana y semana activa por fecha.
+// Todo trabaja con strings 'YYYY-MM-DD' y aritmética de días en UTC (sin corrimientos de zona).
+// "Hoy" siempre es la fecha de Buenos Aires, no la del dispositivo.
+// Sin calendario cargado, la semana activa se calcula exactamente como antes.
+// ============================================================
+let blockCalendar=null;   // {startDate,forcedWeek,updatedBy,updatedByName,updatedAt} | null
+let calDebugToday=null;   // 'YYYY-MM-DD' | null — fecha simulada para probar (solo se carga desde Admin, en este dispositivo)
+const CAL_DEBUG_KEY='fs_debug_today_v1';
+// <block-calendar>
+const CAL_WD=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+const CAL_WD_TXT=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const CAL_MON=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const CAL_DAY_MS=86400000;
+function calParse(s){
+  const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s||'').trim()); if(!m) return null;
+  const t=Date.UTC(+m[1],+m[2]-1,+m[3]), d=new Date(t);
+  return (d.getUTCMonth()===+m[2]-1 && d.getUTCDate()===+m[3]) ? t : null;
+}
+function calIsDate(s){ return calParse(s)!==null; }
+function calFmt(t){ return new Date(t).toISOString().slice(0,10); }
+function calAddDays(s,n){ return calFmt(calParse(s)+n*CAL_DAY_MS); }
+function calWeekday(s){ return new Date(calParse(s)).getUTCDay(); }
+function calDiffDays(a,b){ return Math.round((calParse(b)-calParse(a))/CAL_DAY_MS); }
+// Fecha de hoy en Buenos Aires (UTC-3 todo el año, sin horario de verano)
+function calTodayBA(now){
+  now=now||new Date();
+  try{
+    const p=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argentina/Buenos_Aires',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);
+    const g=t=>(p.find(x=>x.type===t)||{}).value;
+    const r=g('year')+'-'+g('month')+'-'+g('day');
+    if(calIsDate(r)) return r;
+  }catch(e){}
+  return calFmt(now.getTime()-3*3600000);
+}
+function calToday(){ return calIsDate(calDebugToday) ? calDebugToday : calTodayBA(); }
+function snapToMonday(dateStr){
+  const wd=calWeekday(dateStr), back=(wd+6)%7;
+  return {date:calAddDays(dateStr,-back), moved:back>0, originalWeekday:CAL_WD_TXT[wd]};
+}
+function weekRange(startDate,n){ const from=calAddDays(startDate,(n-1)*7); return {from,to:calAddDays(from,6)}; }
+function getActiveWeekInfo(todayStr,startDate,totalWeeks,forcedWeek){
+  const f=Number(forcedWeek);
+  if(forcedWeek!=null && Number.isInteger(f) && f>=1 && f<=totalWeeks) return {state:'running',week:f,forced:true};
+  const d=calDiffDays(startDate,todayStr);
+  if(d<0) return {state:'before',week:null,forced:false,daysUntilStart:-d};
+  const w=Math.floor(d/7)+1;
+  if(w>totalWeeks) return {state:'finished',week:null,forced:false};
+  return {state:'running',week:w,forced:false};
+}
+// Nombres de día del campo `days` ("LUNES / MARTES", "MIÉRCOLES O JUEVES", "VIE-SÁB") -> fechas de esa semana.
+// Tolera mayúsculas, acentos y abreviaturas de 3+ letras. Si no reconoce nada devuelve [].
+function calNorm(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(); }
+function dayDates(startDate,weekN,daysField){
+  if(!calIsDate(startDate)) return [];
+  const out=[];
+  (calNorm(daysField).match(/[a-z]+/g)||[]).forEach(w=>{
+    if(w.length<3) return;
+    const i=CAL_WD.findIndex(n=>n===w || n.startsWith(w));
+    if(i<0) return;
+    const ds=calAddDays(startDate,(weekN-1)*7+(i+6)%7);
+    if(!out.includes(ds)) out.push(ds);
+  });
+  return out;
+}
+// Formatos de pantalla
+function calDM(s){ const t=new Date(calParse(s)); return t.getUTCDate()+'/'+(t.getUTCMonth()+1); }
+function calDMY(s){ const t=new Date(calParse(s)); return calDM(s)+'/'+t.getUTCFullYear(); }
+function calDayMon(s){ const t=new Date(calParse(s)); return t.getUTCDate()+' '+CAL_MON[t.getUTCMonth()]; }
+function calShortDay(s){ const n=CAL_WD_TXT[calWeekday(s)]; return n.charAt(0).toUpperCase()+n.slice(1,3)+' '+calDayMon(s); }
+function calRangeTxt(r){ return calDM(r.from)+' – '+calDM(r.to); }
+// Estado del calendario del bloque activo, o null si no hay calendario (=> lógica de siempre)
+function getBlockCalInfo(){
+  const total=Array.isArray(plan)?plan.length:0;
+  if(!blockCalendar || !calIsDate(blockCalendar.startDate) || !total) return null;
+  return getActiveWeekInfo(calToday(), blockCalendar.startDate, total, blockCalendar.forcedWeek);
+}
+// ÚNICA función que decide la semana activa (índice 0-based).
+// Con calendario: por fecha (o la fijada por el Admin). Antes del inicio, la 1; terminado, la última.
+// Sin calendario: como siempre — la del alumno (opts.group: la más común del grupo, para el Admin).
+function getActiveWeek(opts){
+  const info=getBlockCalInfo();
+  if(!info){
+    if(opts && opts.group) return groupActiveWeekIdx();
+    return ST.activeWeek!==null&&ST.activeWeek!==undefined ? ST.activeWeek : detectActiveWeek();
+  }
+  if(info.state==='before') return 0;
+  if(info.state==='finished') return plan.length-1;
+  return info.week-1;
+}
+// Semana para la que conviene preparar mensajes/partes: antes del inicio es la 1; si no, la siguiente a la activa
+function getNextWeekIdx(){
+  const info=getBlockCalInfo();
+  if(info && info.state==='before') return 0;
+  if(info && info.state==='finished') return plan.length;
+  return getActiveWeek({group:true})+1;
+}
+// </block-calendar>
+
+async function loadBlockCalendar(){
+  const r=await sharedGet(K.BLOCK_CAL);
+  blockCalendar=(r && typeof r==='object' && calIsDate(r.startDate)) ? r : null;
+  try{ const d=localStorage.getItem(CAL_DEBUG_KEY); calDebugToday=calIsDate(d)?d:null; }catch(e){ calDebugToday=null; }
+}
+// Calendarios de bloques archivados (carga diferida, como las partes de clase)
+const archivedCals={}, archivedCalsLoading={};
+function archivedCalDoc(bid){
+  if(!bid || bid==='current') return null;
+  if(archivedCals[bid]!==undefined) return archivedCals[bid];
+  if(!archivedCalsLoading[bid]){
+    archivedCalsLoading[bid]=true;
+    sharedGet(K.BLOCK_CAL_B(bid)).then(r=>{ archivedCals[bid]=(r&&calIsDate(r.startDate))?r:null; }).catch(()=>{ archivedCals[bid]=null; }).finally(()=>{ archivedCalsLoading[bid]=false; render(); });
+  }
+  return undefined;
+}
+// "2/11/2026 – 3/1/2027" para un bloque archivado, o '' si no tiene calendario
+function archivedRangeTxt(bid,weeks){
+  const c=archivedCalDoc(bid);
+  if(!c || !weeks) return '';
+  return calDMY(c.startDate)+' – '+calDMY(weekRange(c.startDate,weeks).to);
 }
 
 // ============================================================
@@ -3680,7 +3814,8 @@ function ficha_onPhoto(uid,inputEl){
 
 function renderHome(){
   const streak=calcStreak();
-  const activeIdx=ST.activeWeek!==null?ST.activeWeek:detectActiveWeek();
+  const activeIdx=getActiveWeek();
+  const calInfo=getBlockCalInfo();
 
   // Streak badge
   // Build week progress bars (one per week in block)
@@ -3724,15 +3859,32 @@ function renderHome(){
     </div>
   </div>${msgHTML}`;
 
+  // Calendario del bloque: aviso de una línea sobre la grilla (solo si el Admin cargó la fecha de inicio)
+  let calNotice='';
+  if(calInfo){
+    const st=blockCalendar.startDate, today=calToday();
+    let txt;
+    if(calInfo.forced) txt='Semana activa fijada por el profe · Semana '+calInfo.week+' de '+plan.length;
+    else if(calInfo.state==='before') txt='Tu bloque arranca el lunes '+calDM(st)+' · '+(calInfo.daysUntilStart===1?'falta 1 día':'faltan '+calInfo.daysUntilStart+' días');
+    else if(calInfo.state==='finished') txt='Bloque finalizado';
+    else txt='Hoy '+CAL_WD_TXT[calWeekday(today)]+' '+calDayMon(today)+' · Semana '+calInfo.week+' de '+plan.length;
+    if(calDebugToday) txt+=' · fecha de prueba';
+    calNotice=`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--text2);display:flex;align-items:center;gap:8px">${hcIcon('calendar',14)}<span>${escH(txt)}</span></div>`;
+  }
+
   const cards=plan.map((wd,i)=>{
     const pct=calcWeekPct(wd);
     const complete=pct===100;
-    const isActive=i===activeIdx;
+    // Con calendario, ACTIVA solo mientras el bloque está en curso; el resto, Terminada / Próxima
+    const isActive=calInfo ? (calInfo.state==='running' && i===calInfo.week-1) : i===activeIdx;
+    const calTag=!calInfo||isActive ? '' : ((calInfo.state==='finished' || (calInfo.state==='running' && i<calInfo.week-1)) ? 'TERMINADA' : 'PRÓXIMA');
+    const range=calInfo ? calRangeTxt(weekRange(blockCalendar.startDate,i+1)) : '';
     return `<div class="week-card ${isActive?'active-week':''}" onclick="setActiveWeek(${i});nav('week',{week:${i}})" style="${isActive?'border-color:var(--orange);box-shadow:0 0 0 1px rgba(var(--orange-rgb),0.3)':''}">
       <div class="week-card-header">
         <div class="week-icon">${isActive?hcIcon('mapPin',18,'var(--orange)'):'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f05a28" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>'}</div>
         <div>
-          <div class="week-label">SEMANA ${wd.week} ${isActive?'<span style="font-size:9px;color:var(--orange);font-weight:700;letter-spacing:.5px">● ACTIVA</span>':''}</div>
+          <div class="week-label">SEMANA ${wd.week} ${isActive?'<span style="font-size:9px;color:var(--orange);font-weight:700;letter-spacing:.5px">● ACTIVA</span>':''}${calTag?'<span style="font-size:9px;color:var(--text3);font-weight:700;letter-spacing:.5px">'+calTag+'</span>':''}</div>
+          ${range?`<div class="week-sub">${range}</div>`:''}
           <div class="week-sub">${complete?'✓ COMPLETADA':wd.days.length+' DÍAS'}</div>
         </div>
       </div>
@@ -3749,6 +3901,7 @@ function renderHome(){
       </div>
       <div style="text-align:center">${streakHTML}</div>
       ${activeBanner}
+      ${calNotice}
       <div class="admin-section-title" style="margin-bottom:12px">TODAS LAS SEMANAS</div>
       <div class="weeks-grid">${cards}</div>
       ${archivedBlocks.length?`
@@ -3809,13 +3962,16 @@ function renderWeek(){
   const wd=plan[ST.week];
   const mainRpe=getWeekMainRpe(wd);
 
-  const days=wd.days.map((day,di)=>
-    `<div class="day-card" onclick="nav('day',{week:${ST.week},dayIdx:${di}})">
+  const calOn=!!getBlockCalInfo(), today=calOn?calToday():'';
+  const days=wd.days.map((day,di)=>{
+    const dates=calOn ? dayDates(blockCalendar.startDate, ST.week+1, day.days) : [];
+    const isToday=dates.includes(today);
+    return `<div class="day-card" onclick="nav('day',{week:${ST.week},dayIdx:${di}})">
       <div class="day-icon-wrap">${iconFromData(day.icon,22)}</div>
-      <div class="day-info"><div class="day-name">${day.name}</div><div class="day-days">${day.days}</div></div>
+      <div class="day-info"><div class="day-name">${day.name}${isToday?' <span class="badge badge-active">Hoy</span>':''}</div><div class="day-days">${day.days}</div>${dates.length?`<div class="day-days">${dates.map(calShortDay).join(' o ')}</div>`:''}</div>
       <div>${IC.chevron}</div>
-    </div>`
-  ).join('');
+    </div>`;
+  }).join('');
 
   return `${navBarHTML(true,"nav('home')")}
     <div class="page-tabbed">
@@ -4115,6 +4271,8 @@ async function setAdminTab(i){
   if(i===10){ fsTplIndex=null; stplIndex=null; stplState.edit=null; }
   if(i===0||i===12){ staffParts={}; staffState.editing=null; } // partes de clase: releer al entrar
   if(i!==3){ adminState.weeksTextMode=false; fsSafeText=null; }
+  // Calendario del bloque: releer al entrar a Semanas (puede haberlo cambiado otro dispositivo)
+  if(i===3){ adminState.cal=null; loadBlockCalendar().then(()=>{ adminState.cal=null; if(adminState.open&&adminState.tab===3) renderModal(); render(); }); }
   if(i===0||i===1||i===11){
     await loadUsers();
     renderModal();
@@ -4155,7 +4313,7 @@ function groupActiveWeekIdx(){
 // Tarjeta del Dashboard: avisa si la semana siguiente a la activa no tiene mensaje (solo aviso)
 function renderNextWeekMsgCard(){
   if(getClub()!=='fuerza' || !Array.isArray(plan) || !plan.length) return '';
-  const cur=groupActiveWeekIdx(), next=cur+1;
+  const next=getNextWeekIdx(), cur=Math.max(0,next-1), cal=getBlockCalInfo();
   if(next>=plan.length) return '';
   const msg=((plan[next]&&plan[next].message)||'').trim();
   const ok=!!msg;
@@ -4163,7 +4321,7 @@ function renderNextWeekMsgCard(){
     <div style="min-width:0">
       <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;display:flex;align-items:center;gap:5px">${hcIcon('chat',12)} Mensaje de la próxima semana</div>
       <div style="font-size:13px;color:${ok?'var(--green)':'var(--yellow)'};font-weight:600">${ok?'Semana '+plan[next].week+': mensaje listo':'La Semana '+plan[next].week+' todavía no tiene mensaje'}</div>
-      <div style="font-size:10px;color:var(--text3);margin-top:2px">Semana activa del grupo: ${plan[cur].week}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:2px">${!cal?'Semana activa del grupo: '+plan[cur].week:cal.state==='before'?'El bloque arranca el lunes '+calDM(blockCalendar.startDate):'Semana activa: '+plan[cur].week+(cal.forced?' (fijada a mano)':' (según la fecha)')}</div>
     </div>
     <button class="adm-btn adm-btn-ghost" style="padding:8px 12px;font-size:12px;flex-shrink:0" onclick="setAdminTab(3)">${ok?'Ver':'Escribir'} →</button>
   </div>`;
@@ -4463,7 +4621,8 @@ function staffCurWeekIdx(){
   if(!Array.isArray(plan) || !plan.length) return -1;
   if(staffState.week==null){
     const saved=lsGet(STAFF_UI_KEY);
-    staffState.week=(saved && typeof saved.week==='number') ? saved.week : (Object.keys(userActiveWeekMap).length ? groupActiveWeekIdx() : 0);
+    staffState.week=getBlockCalInfo() ? getActiveWeek({group:true})
+      : (saved && typeof saved.week==='number') ? saved.week : (Object.keys(userActiveWeekMap).length ? getActiveWeek({group:true}) : 0);
   }
   if(staffState.week>=plan.length) staffState.week=plan.length-1;
   if(staffState.week<0) staffState.week=0;
@@ -4501,9 +4660,10 @@ function renderStaffPlanning(){
   if(wi<0) return head+`<div class="cc-empty">No hay bloque activo.</div>`;
   const wd=plan[wi], day=staffCurDay(), n=wi+1;
   const chip=(on,label,fn)=>`<div class="admin-tab ${on?'active':''}" style="flex-shrink:0;min-height:40px;display:flex;align-items:center" onclick="${fn}">${label}</div>`;
-  const weekTabs=`<div id="staff-weektabs" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:8px">${plan.map((w,i)=>chip(i===wi,'Semana '+(i+1),'staffSetWeek('+i+')')).join('')}</div>`;
+  const calOn=!!getBlockCalInfo(), calAct=calOn&&getBlockCalInfo().state==='running'?getActiveWeek():-1;
+  const weekTabs=`<div id="staff-weektabs" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:8px">${plan.map((w,i)=>chip(i===wi,'Semana '+(i+1)+(i===calAct?' ●':''),'staffSetWeek('+i+')')).join('')}</div>`;
   const dayTabs=`<div id="staff-daytabs" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px">${(wd.days||[]).map((d,i)=>chip(i===staffState.day,escH(d.name),'staffSetDay('+i+')')).join('')}</div>`;
-  const intro=`<div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:12px">${escH(currentBlockName)} · Las partes de clase las ven solo el Admin y los profesores. Los alumnos no las ven.</div>`;
+  const intro=`<div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:12px">${escH(currentBlockName)}${calOn?' · Semana '+n+': '+calRangeTxt(weekRange(blockCalendar.startDate,n))+(wi===calAct?' (activa)':''):''} · Las partes de clase las ven solo el Admin y los profesores. Los alumnos no las ven.</div>`;
   if(!day) return head+intro+weekTabs+`<div class="cc-empty">Esta semana no tiene días.</div>`;
   const doc=staffWeekDoc(n);
   if(doc===undefined) return head+intro+weekTabs+dayTabs+`<div class="cc-empty">Cargando partes de clase...</div>`;
@@ -4873,7 +5033,7 @@ function renderStplEditor(){
 // Tarjeta del Dashboard: qué partes de clase faltan cargar para la próxima semana (solo aviso)
 function renderStaffPartsDashCard(){
   if(getClub()!=='fuerza' || !Array.isArray(plan) || !plan.length) return '';
-  const next=groupActiveWeekIdx()+1;
+  const next=getNextWeekIdx();
   if(next>=plan.length) return '';
   const doc=staffWeekDoc(next+1);
   const missing=doc===undefined?null:staffMissingParts(doc,plan[next]);
@@ -6870,6 +7030,7 @@ function renderArchivedBlock(){
       <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:16px">
         <div style="font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px">Bloque archivado</div>
         <div style="font-family:var(--font-display);font-size:18px;font-weight:700;margin-bottom:2px">${escH(block.name)}</div>
+        ${archivedRangeTxt(block.id,blockPlan.length)?`<div style="font-size:12px;color:var(--text2);margin-bottom:2px">${archivedRangeTxt(block.id,blockPlan.length)}</div>`:''}
         <div style="font-size:11px;color:var(--text3);margin-bottom:14px">Archivado el ${new Date(block.archivedAt).toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'})} · ${blockPlan.length} semanas</div>
         <div>
           <button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;padding:10px" onclick="openBlockSummary(archivedBlockView.blockId,archivedBlockView.block.name,archivedBlockView.blockPlan)">
@@ -7127,9 +7288,85 @@ function renderTabWeeks(){
     </div>`;
   }).join('');
   const textBtn=plan.length?`<button class="adm-btn adm-btn-ghost" onclick="fsSafeOpen()" style="width:100%;justify-content:center;padding:12px;margin-bottom:12px;min-height:44px">${hcIcon('pencil',15)} Editar como texto</button>`:'';
-  return `<div>${textBtn}${rows}
+  return `<div>${renderBlockCalendarAdmin()}${textBtn}${rows}
     ${SHOW_WEEK_BUILDER?`<button class="adm-btn adm-btn-orange" onclick="addWeek()" style="width:100%;justify-content:center;padding:12px;margin-top:4px">${IC.plus} Agregar semana</button>`:`<div style="font-size:11px;color:var(--text3);line-height:1.5;margin:4px 0 0">Para armar un bloque nuevo (semanas, días y ejercicios) usá la pestaña <b>Borrador</b>.</div>`}
     <button class="adm-btn adm-btn-ghost" onclick="doSavePlan()" style="width:100%;justify-content:center;padding:12px;margin-top:8px">${hcIcon('save',15)} Guardar cambios</button>
+  </div>`;
+}
+
+// ---- Calendario del bloque (Admin > Semanas) ----
+// adminState.cal: copia en edición {startDate, forcedWeek, note}; se guarda solo con "Guardar calendario".
+function calAdminState(){
+  if(!adminState.cal) adminState.cal={startDate:blockCalendar?blockCalendar.startDate:'', forcedWeek:blockCalendar&&blockCalendar.forcedWeek!=null?blockCalendar.forcedWeek:null, note:''};
+  return adminState.cal;
+}
+// Ajusta cualquier fecha al lunes de esa semana y arma el aviso para el Admin
+function calSnapNote(v){
+  if(!calIsDate(v)) return {date:'',note:''};
+  const r=snapToMonday(v);
+  return {date:r.date, note:r.moved?'Elegiste un '+r.originalWeekday+'. Se ajustó al lunes '+calDM(r.date)+'.':''};
+}
+function calAdminSetStart(v){ const c=calAdminState(), r=calSnapNote(v); c.startDate=r.date; c.note=r.note; renderModal(); }
+function calAdminSetForced(v){ const c=calAdminState(); c.forcedWeek=v===''?null:parseInt(v,10); renderModal(); }
+async function calAdminSave(){
+  const c=calAdminState();
+  if(!calIsDate(c.startDate)){ showToast('Elegí la fecha de inicio de la semana 1'); return; }
+  const doc={startDate:c.startDate, forcedWeek:c.forcedWeek, updatedBy:staffWho().uid||'admin', updatedByName:staffWho().name||'Admin', updatedAt:new Date().toISOString()};
+  if(!await sharedSet(K.BLOCK_CAL,doc)){ showToast('No se pudo guardar. Revisá la conexión'); return; }
+  blockCalendar=doc; c.note='';
+  showToast('Calendario guardado');
+  renderModal(); render();
+}
+async function calAdminClear(){
+  if(!blockCalendar){ adminState.cal=null; renderModal(); return; }
+  if(!confirm('¿Quitar el calendario del bloque? Las semanas dejan de mostrar fechas y la semana activa vuelve a calcularse como antes (por alumno). No se borra ningún dato de los alumnos.')) return;
+  if(!await sharedSet(K.BLOCK_CAL,null)){ showToast('No se pudo guardar. Revisá la conexión'); return; }
+  blockCalendar=null; adminState.cal=null;
+  showToast('Calendario quitado'); renderModal(); render();
+}
+// Fecha de prueba: solo en este dispositivo, para ver cómo queda la app otro día
+function calDebugSet(v){
+  calDebugToday=calIsDate(v)?v:null;
+  try{ if(calDebugToday) localStorage.setItem(CAL_DEBUG_KEY,calDebugToday); else localStorage.removeItem(CAL_DEBUG_KEY); }catch(e){}
+  showToast(calDebugToday?'Probando como si hoy fuera '+calDMY(calDebugToday):'Volviste a la fecha real');
+  renderModal(); render();
+}
+function renderBlockCalendarAdmin(){
+  if(getClub()!=='fuerza' || !Array.isArray(plan) || !plan.length) return '';
+  const c=calAdminState(), n=plan.length;
+  const savedForced=blockCalendar&&blockCalendar.forcedWeek!=null?blockCalendar.forcedWeek:null;
+  const dirty=(c.startDate||'')!==((blockCalendar&&blockCalendar.startDate)||'') || (c.forcedWeek!=null?c.forcedWeek:null)!==savedForced;
+  const info=calIsDate(c.startDate)?getActiveWeekInfo(calToday(),c.startDate,n,c.forcedWeek):null;
+  const lbl='font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin:10px 0 6px;display:block';
+  const opts=`<option value="" ${c.forcedWeek==null?'selected':''}>Automática, según la fecha</option>`+plan.map((_,i)=>`<option value="${i+1}" ${c.forcedWeek===i+1?'selected':''}>Fijar semana ${i+1}</option>`).join('');
+  const list=calIsDate(c.startDate)?plan.map((_,i)=>{
+    const on=info&&info.state==='running'&&info.week===i+1;
+    return `<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;color:${on?'var(--orange)':'var(--text2)'};font-weight:${on?'700':'400'}">
+      <span>Semana ${i+1}${on?' ● ACTIVA':''}</span><span>${calRangeTxt(weekRange(c.startDate,i+1))}</span></div>`;
+  }).join(''):`<div style="font-size:12px;color:var(--text3);padding:6px 0">Sin fecha de inicio: la semana activa se calcula como siempre (por alumno) y no se muestran fechas.</div>`;
+  const state=info?(info.forced?'Semana activa fijada a mano: '+info.week:info.state==='before'?'Arranca en '+info.daysUntilStart+' día'+(info.daysUntilStart===1?'':'s'):info.state==='finished'?'Bloque finalizado':'Hoy es la semana '+info.week):'';
+  const meta=blockCalendar&&blockCalendar.updatedAt?'Guardado por '+escH(blockCalendar.updatedByName||'—')+' · '+staffFmtAt(blockCalendar.updatedAt):'Todavía no se guardó';
+  const btn='justify-content:center;padding:10px 12px;min-height:44px;font-size:12px';
+  return `<div class="ex-edit-card">
+    <div class="ex-edit-card-header"><span class="ex-edit-title" style="display:inline-flex;align-items:center;gap:6px">${hcIcon('calendar',14)} Calendario del bloque</span></div>
+    <label style="${lbl}">Inicio de la semana 1 (lunes)</label>
+    <input class="adm-inp" type="date" style="margin:0;width:100%" value="${escH(c.startDate||'')}" onchange="calAdminSetStart(this.value)">
+    ${c.note?`<div style="font-size:12px;color:var(--yellow);margin-top:6px">${escH(c.note)}</div>`:''}
+    <label style="${lbl}">Semana activa</label>
+    <select class="adm-inp" style="margin:0;width:100%" onchange="calAdminSetForced(this.value)" ${calIsDate(c.startDate)?'':'disabled'}>${opts}</select>
+    ${state?`<div style="font-size:12px;color:var(--text2);margin-top:8px">${escH(state)}${calDebugToday?' · con fecha de prueba '+calDMY(calDebugToday):''}</div>`:''}
+    <div style="margin-top:8px">${list}</div>
+    <div style="display:grid;grid-template-columns:${blockCalendar||dirty?'1fr 1fr':'1fr'};gap:8px;margin-top:12px">
+      <button class="adm-btn adm-btn-orange" style="${btn};${dirty?'':'opacity:.6'}" onclick="calAdminSave()">${hcIcon('save',14)} Guardar calendario</button>
+      ${blockCalendar||dirty?`<button class="adm-btn adm-btn-ghost" style="${btn}" onclick="${blockCalendar&&!dirty?'calAdminClear()':'adminState.cal=null;renderModal()'}">${blockCalendar&&!dirty?'Quitar calendario':'Deshacer cambios'}</button>`:''}
+    </div>
+    <div style="font-size:10px;color:var(--text3);margin-top:6px">${dirty?'<span style="color:var(--yellow)">Hay cambios sin guardar.</span> ':''}${meta}</div>
+    <details style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+      <summary style="cursor:pointer;font-size:12px;color:var(--text2);min-height:32px;display:flex;align-items:center">Probar con otra fecha (solo en este dispositivo)</summary>
+      <div style="font-size:11px;color:var(--text3);line-height:1.5;margin:6px 0 8px">La app usa la fecha de Buenos Aires, así que cambiar la fecha del celular no sirve. Elegí acá un día para ver cómo lo ve un alumno. No cambia nada para nadie más.</div>
+      <input class="adm-inp" type="date" style="margin:0;width:100%" value="${escH(calDebugToday||'')}" onchange="calDebugSet(this.value)">
+      ${calDebugToday?`<button class="adm-btn adm-btn-ghost" style="${btn};width:100%;margin-top:8px" onclick="calDebugSet('')">Volver a la fecha real (hoy ${calDMY(calTodayBA())})</button>`:''}
+    </details>
   </div>`;
 }
 
@@ -7687,6 +7924,10 @@ async function restoreArchivedBlock(bid){
   syncWeekMessagesFromPlan();
   await savePlan();
   await saveWeekMessages();
+  // El calendario activo pasa a ser el del bloque restaurado (si no tenía, queda sin calendario)
+  const restoredCal=await sharedGet(K.BLOCK_CAL_B(bid));
+  if(await sharedSet(K.BLOCK_CAL, restoredCal&&calIsDate(restoredCal.startDate)?restoredCal:null)) blockCalendar=restoredCal&&calIsDate(restoredCal.startDate)?restoredCal:null;
+  adminState.cal=null;
   // Remove from archived list — it's now the active plan, not an archive
   archivedBlocks = archivedBlocks.filter(b=>b.id!==bid);
   await saveBlocks();
@@ -7964,6 +8205,20 @@ function fsDraftInput(v){
   window._draftPrevTimer=setTimeout(()=>{ fsDraftReparse(); fsDraftRefreshLive(); },250);
 }
 function fsDraftMsg(wn,val){ fsDraft.messages[wn]=val; fsDraftScheduleSave(); }
+// Inicio de la semana 1 del próximo bloque (siempre lunes). Viaja con el borrador; las plantillas no guardan fechas.
+let fsDraftStartNote='';
+function fsDraftSetStart(v){ const r=calSnapNote(v); fsDraft.startDate=r.date||null; fsDraftStartNote=r.note; fsDraftScheduleSave(); renderModal(); }
+// Próximo lunes (si hoy es lunes, el de la semana que viene) en fecha de Buenos Aires
+function calNextMonday(){ const t=calToday(); const wd=calWeekday(t); return calAddDays(t,((8-wd)%7)||7); }
+function fsDraftStartHTML(){
+  const v=fsDraft&&calIsDate(fsDraft.startDate)?fsDraft.startDate:'';
+  return `<div class="ex-edit-card" style="margin-bottom:12px">
+    <label style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:5px">${hcIcon('calendar',12)} Inicio de la semana 1 (lunes)</label>
+    <input class="adm-inp" type="date" style="margin:0;width:100%" value="${escH(v)}" onchange="fsDraftSetStart(this.value)">
+    ${fsDraftStartNote?`<div style="font-size:12px;color:var(--yellow);margin-top:6px">${escH(fsDraftStartNote)}</div>`:''}
+    <div style="font-size:10px;color:var(--text3);margin-top:4px">${v?'La semana 1 va del '+calRangeTxt(weekRange(v,1))+'. Al publicar, pasa a ser el calendario del bloque.':'Opcional. Si no la cargás, te la pido al publicar.'}</div>
+  </div>`;
+}
 function fsDraftPublishHTML(){
   if(!fsDraft.text.trim()) return '';
   const errs=fsDraftAllErrors();
@@ -7998,6 +8253,7 @@ function renderTabDraft(){
     ${btEditorHTML('draft-text',fsDraft.text,'fsDraftInput')}
     <div id="draft-status" style="font-size:10px;color:var(--text3);margin:5px 0 12px">${fsDraftStatusText()}</div>
     <div id="draft-issues">${fsDraft.text.trim()?btIssuesHTML(fsDraftAllErrors(),P.warnings,'draft-text'):''}</div>
+    ${fsDraftStartHTML()}
     <div id="draft-publish">${fsDraftPublishHTML()}</div>
     <div class="admin-section-title" style="margin-top:20px">Vista previa y mensajes semanales</div>
     <div style="font-size:11px;color:var(--text3);line-height:1.5;margin:-4px 0 10px">Tocá una semana para verla como la ve el alumno. Abajo de cada semana podés escribir su mensaje cuando quieras.</div>
@@ -8014,7 +8270,7 @@ function planMessagesMap(p){
 async function fsDraftReplace(text, messages, what){
   if(!fsDraft) await loadDraft();
   if(fsDraft.text.trim() && !confirm('El borrador ya tiene contenido. ¿Reemplazarlo por '+what+'?\n\nNo se publica nada: solo cambia el borrador.')) return false;
-  fsDraft={text,plan:null,name:'',messages:JSON.parse(JSON.stringify(messages||{})),bid:Date.now().toString(36),errorCount:0,updatedAt:0};
+  fsDraft={text,plan:null,name:'',messages:JSON.parse(JSON.stringify(messages||{})),startDate:fsDraft&&calIsDate(fsDraft.startDate)?fsDraft.startDate:null,bid:Date.now().toString(36),errorCount:0,updatedAt:0};
   btPrevOpen.draft=new Set();
   fsDraftReparse();
   const ok=await saveDraftNow();
@@ -8050,6 +8306,16 @@ async function fsPublishDraft(){
     ? 'Se archivará el bloque actual ("'+currentBlockName+'") y "'+newName+'" pasará a ser el bloque activo.\n\nLos pesos y PRs que los alumnos cargaron en el bloque actual quedan guardados en el archivo.\n\n¿Publicar ahora?'
     : '"'+newName+'" pasará a ser el bloque activo. ¿Publicar ahora?';
   if(!confirm(msg)) return;
+  // Calendario del bloque nuevo: si el borrador no tiene fecha de inicio, pedirla (sugerido: el próximo lunes)
+  let startDate=calIsDate(fsDraft.startDate)?fsDraft.startDate:null;
+  if(!startDate){
+    const ans=prompt('¿Qué día arranca la semana 1 de "'+newName+'"? (lunes, formato AAAA-MM-DD)', calNextMonday());
+    if(ans===null) return;
+    const r=calSnapNote(ans.trim());
+    if(!r.date){ alert('Fecha no válida. Usá el formato AAAA-MM-DD (por ejemplo '+calNextMonday()+'). No se publicó nada.'); return; }
+    if(r.note) alert(r.note);
+    startDate=r.date;
+  }
   try{
     showToast('Publicando...');
     clearTimeout(window._draftTimer);
@@ -8074,6 +8340,10 @@ async function fsPublishDraft(){
     await saveBlockName();
     syncWeekMessagesFromPlan();
     await saveWeekMessages();
+    // 3b) Calendario del bloque nuevo (el del bloque anterior ya quedó copiado en su archivo)
+    const newCal={startDate, forcedWeek:null, updatedBy:staffWho().uid||'admin', updatedByName:staffWho().name||'Admin', updatedAt:new Date().toISOString()};
+    if(await sharedSet(K.BLOCK_CAL,newCal)) blockCalendar=newCal; else showToast('Ojo: no se pudo guardar la fecha de inicio. Cargala en Semanas');
+    adminState.cal=null; fsDraftStartNote='';
     // 4) Limpiar el borrador
     await sharedSet(K.DRAFT,null); lsSet(K.DRAFT,null);
     fsDraft=fsEmptyDraft(); fsDraftReparse(); btPrevOpen.draft=new Set(); fsDraftSaveState='';
@@ -8765,7 +9035,7 @@ function renderBlockSummarySheet(){
   const dots=weekStatus.map((s,i)=>`<div class="wdot ${dotColor(s)}">S${i+1}</div>`).join('');
   const prRows=DEFAULT_TRACKED.map(t=>{ const found=prData.find(p=>p.name===t.name); if(!found)return `<div class="summary-pr-row"><div style="font-size:13px;font-weight:600;color:var(--text)">${escH(t.name)}</div><div style="font-size:12px;color:var(--text3)">Sin registro</div></div>`; return `<div class="summary-pr-row"><div><div style="font-size:13px;font-weight:600;color:var(--text)">${escH(t.name)}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">${found.range.label} · Semana ${found.week}</div></div><div style="text-align:right"><div style="font-family:var(--font-display);font-size:22px;font-weight:700;color:var(--orange)">${found.weight} <span style="font-size:13px;color:var(--text3)">kg</span></div><div style="font-size:9px;color:var(--gold);font-weight:700;display:flex;align-items:center;justify-content:flex-end;gap:3px">${hcIcon('trophy',10)} PR EN ESTE BLOQUE</div></div></div>`; }).join('');
   const ac=adherence>=80?'var(--green)':adherence>=50?'var(--orange)':'var(--red)';
-  return `<div class="summary-overlay" onclick="closeBlockSummary()"><div class="summary-sheet" onclick="event.stopPropagation()"><div class="summary-handle"></div><div class="summary-hero"><div class="summary-block-tag" style="display:flex;align-items:center;gap:6px">${hcIcon('archive',12)} RESUMEN DEL BLOQUE</div><div class="summary-block-title">${escH(blockName)}</div><div class="summary-stats-grid"><div class="summary-stat"><div class="summary-stat-val">${completedWeeks}<span style="font-size:14px;color:var(--text3)">/${totalWeeks}</span></div><div class="summary-stat-label">SEMANAS COMPLETAS</div></div><div class="summary-stat"><div class="summary-stat-val" style="color:${ac}">${adherence}%</div><div class="summary-stat-label">ADHERENCIA</div></div><div class="summary-stat"><div class="summary-stat-val" style="color:var(--gold)">${prData.length}</div><div class="summary-stat-label">PRs LOGRADOS</div></div></div></div><div style="padding:16px 20px 0"><div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">SEMANA A SEMANA</div><div class="week-dots">${dots}</div><div style="display:flex;gap:12px;font-size:10px;color:var(--text3);margin-bottom:16px"><span><i class="legend-dot" style="background:var(--green)"></i>Completa</span><span><i class="legend-dot" style="background:var(--yellow)"></i>Parcial</span><span><i class="legend-dot" style="background:var(--surface3);border:1px solid var(--border2)"></i>Sin registro</span></div><div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase">RÉCORDS DEL BLOQUE</div></div><div style="margin-top:8px">${prRows}</div><button class="summary-close-btn" onclick="closeBlockSummary()">CERRAR</button></div></div>`;
+  return `<div class="summary-overlay" onclick="closeBlockSummary()"><div class="summary-sheet" onclick="event.stopPropagation()"><div class="summary-handle"></div><div class="summary-hero"><div class="summary-block-tag" style="display:flex;align-items:center;gap:6px">${hcIcon('archive',12)} RESUMEN DEL BLOQUE</div><div class="summary-block-title">${escH(blockName)}</div>${archivedRangeTxt(blockSummaryState.blockId,(blockPlan||[]).length)?`<div style="font-size:12px;color:var(--text3);margin:-2px 0 10px">${archivedRangeTxt(blockSummaryState.blockId,(blockPlan||[]).length)}</div>`:''}<div class="summary-stats-grid"><div class="summary-stat"><div class="summary-stat-val">${completedWeeks}<span style="font-size:14px;color:var(--text3)">/${totalWeeks}</span></div><div class="summary-stat-label">SEMANAS COMPLETAS</div></div><div class="summary-stat"><div class="summary-stat-val" style="color:${ac}">${adherence}%</div><div class="summary-stat-label">ADHERENCIA</div></div><div class="summary-stat"><div class="summary-stat-val" style="color:var(--gold)">${prData.length}</div><div class="summary-stat-label">PRs LOGRADOS</div></div></div></div><div style="padding:16px 20px 0"><div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">SEMANA A SEMANA</div><div class="week-dots">${dots}</div><div style="display:flex;gap:12px;font-size:10px;color:var(--text3);margin-bottom:16px"><span><i class="legend-dot" style="background:var(--green)"></i>Completa</span><span><i class="legend-dot" style="background:var(--yellow)"></i>Parcial</span><span><i class="legend-dot" style="background:var(--surface3);border:1px solid var(--border2)"></i>Sin registro</span></div><div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase">RÉCORDS DEL BLOQUE</div></div><div style="margin-top:8px">${prRows}</div><button class="summary-close-btn" onclick="closeBlockSummary()">CERRAR</button></div></div>`;
 }
 
 const RANGE_COLORS={'rm1':'#f05a28','rm2':'#e91e63','rm3':'#9c27b0','rm4':'#3b82f6'};
@@ -9195,6 +9465,7 @@ window.__fsAppInit = async function(){
   await loadBlocks();
   await loadBlockName();
   await loadWeekMessages();
+  await loadBlockCalendar();
   syncWeekMessagesFromPlan();
   if(session && session.uid!=='__pending__'){ loadActiveWeek(); loadExpressMode(); }
   if(session && session.uid!=='__pending__') await loadProgress();
