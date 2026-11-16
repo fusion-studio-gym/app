@@ -453,6 +453,23 @@ a.ic-btn{text-decoration:none;}
 .express-block-nav{display:flex;gap:8px;padding:10px 16px;border-top:1px solid var(--border);background:var(--surface2);position:sticky;bottom:48px;}
 .express-nav-btn{flex:1;padding:10px;border-radius:var(--radius-sm);border:none;font-family:var(--font-display);font-size:13px;font-weight:700;letter-spacing:1px;cursor:pointer;}
 .express-prev{background:var(--surface3);color:var(--text2);}
+/* "Semana pasada": referencia de la misma serie en la última semana anterior con registros */
+.lw-ref{display:flex;flex-direction:column;align-items:flex-start;gap:2px;margin:-3px 0 8px;min-width:0;max-width:100%;}
+.lw-chip{font-family:'Inter',sans-serif;font-size:10px;font-weight:700;letter-spacing:.5px;line-height:1.3;display:inline-flex;align-items:center;gap:4px;max-width:100%;padding:3px 7px;border-radius:4px;border:1px dashed rgba(var(--orange-rgb),.55);background:transparent;color:var(--orange);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;-webkit-tap-highlight-color:transparent;}
+.lw-chip.used{border-style:solid;background:var(--orange-dim);}
+.lw-chip.static{cursor:default;color:var(--text2);border-color:var(--border2);}
+.lw-chip.none{cursor:default;color:var(--text3);border:1px solid var(--border);}
+.lw-chip:focus-visible,.lw-switch:focus-visible{outline:2px solid var(--orange);outline-offset:2px;}
+.lw-ok{color:var(--green);}
+.lw-note{font-size:11px;color:var(--text3);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lw-var{font-size:10px;font-weight:600;color:var(--yellow);max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lw-chip.lw-x{font-size:9px;padding:2px 4px;gap:2px;letter-spacing:0;}
+.express-ex-block .lw-var{margin:-4px 0 6px;}
+.lw-bar{flex-wrap:wrap;row-gap:6px;}
+.lw-bar .express-toggle-label{white-space:nowrap;}
+.lw-tg{display:inline-flex;align-items:center;gap:8px;}
+.lw-tg .express-toggle-label{flex:0 0 auto;}
+.lw-switch{padding:0;border:0;-webkit-appearance:none;appearance:none;}
 .express-next{background:linear-gradient(135deg,var(--orange),var(--orange2));color:var(--on-accent);}
 /* PR TIMELINE */
 .pr-detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:250;display:flex;align-items:flex-end;justify-content:center;animation:fadeIn .2s ease;}
@@ -1393,6 +1410,89 @@ function setSetData(k,f,v){
   // Recalculate ALL PRs from scratch whenever weight changes (handles edits and deletions correctly)
   if(f==='weight') recalcPrsFromProgress();
 }
+
+// <last-week>
+// "Semana pasada": para cada serie del día que se está entrenando, lo que el alumno registró en el mismo
+// día de la última semana ANTERIOR que tenga algún registro (peso, nota o check) en ese día.
+// Función pura: no lee ni escribe nada global (salvo matchTracked, que también es pura).
+function lwNorm(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim(); }
+function lwHas(d){ return !!d && (String(d.weight==null?'':d.weight).trim()!=='' || String(d.notes==null?'':d.notes).trim()!=='' || d.done===true); }
+function lwSetKeys(ex){
+  const out=[]; if(!ex) return out;
+  if(ex.type==='single') (ex.sets||[]).forEach((_,si)=>out.push(`${ex.id}_s${si}`));
+  else for(let si=0;si<(ex.count||0);si++) (ex.parts||[]).forEach(p=>out.push(`${ex.id}_${p.pid}_s${si}`));
+  return out;
+}
+function lwDayHasRecords(day,progress){ return !!day && (day.blocks||[]).some(bl=>(bl.exercises||[]).some(ex=>lwSetKeys(ex).some(k=>lwHas(progress[k])))); }
+function lwSameBase(a,b,tracked){
+  if(!tracked||typeof matchTracked!=='function') return false;
+  const x=matchTracked(a,tracked), y=matchTracked(b,tracked);
+  return !!x && !!y && x.name===y.name;
+}
+function lwFindBlock(prevDay,block,bi){
+  const bs=prevDay.blocks||[];
+  return bs.find(b=>b.id!=null&&b.id===block.id) || bs.find(b=>lwNorm(b.name)===lwNorm(block.name)) || bs[bi] || null;
+}
+// Devuelve { semana, mapa }: semana = número de la semana de la que salen los datos (null si no hay);
+// mapa = clave de la serie actual → { semana, peso, hecho, nota, nombreAnterior, variante, sinRegistro }.
+// En la semana 1 del bloque el mapa queda vacío (no se muestra nada).
+function lastWeekRefs(plan,weekIdx,dayIdx,progress,tracked){
+  const res={semana:null,mapa:{}};
+  if(!Array.isArray(plan)||!(weekIdx>0)) return res;
+  const cur=plan[weekIdx]&&plan[weekIdx].days&&plan[weekIdx].days[dayIdx];
+  if(!cur) return res;
+  progress=progress||{};
+  let pw=-1;
+  for(let w=weekIdx-1;w>=0;w--){ const d=plan[w]&&plan[w].days&&plan[w].days[dayIdx]; if(lwDayHasRecords(d,progress)){ pw=w; break; } }
+  const exs=(cur.blocks||[]).map(bl=>bl.exercises||[]);
+  if(pw<0){ exs.forEach(l=>l.forEach(ex=>lwSetKeys(ex).forEach(k=>{ res.mapa[k]={semana:null,sinRegistro:true}; }))); return res; }
+  const semana=plan[pw].week!=null?plan[pw].week:pw+1; res.semana=semana;
+  const prevDay=plan[pw].days[dayIdx];
+  const allPrev=(prevDay.blocks||[]).reduce((a,b)=>a.concat(b.exercises||[]),[]);
+  const isSingle=e=>e&&e.type==='single';
+  const isVariant=(prevName,name)=>!(lwNorm(prevName)===lwNorm(name)||lwSameBase(prevName,name,tracked));
+  const ref=(k,prevName,variante)=>{
+    const d=progress[k];
+    const base={semana,nombreAnterior:variante?prevName:null,variante:!!variante};
+    if(!lwHas(d)) return Object.assign(base,{sinRegistro:true});
+    return Object.assign(base,{peso:String(d.weight==null?'':d.weight).trim(),hecho:d.done===true,nota:String(d.notes==null?'':d.notes).trim()});
+  };
+  const none={semana,sinRegistro:true};
+  (cur.blocks||[]).forEach((bl,bi)=>{
+    const pb=lwFindBlock(prevDay,bl,bi);
+    const pexs=pb?(pb.exercises||[]):[];
+    (bl.exercises||[]).forEach((ex,ei)=>{
+      // 1) misma posición dentro del mismo bloque; si el tipo cambió (simple/combinado) no vale
+      let pe=(ex.order!=null&&pexs.find(e=>e.order===ex.order))||pexs[ei]||null;
+      if(pe&&isSingle(pe)!==isSingle(ex)) pe=null;
+      if(isSingle(ex)){
+        let src=null, variante=false;
+        if(pe){ src=pe; variante=isVariant(pe.name,ex.name); }
+        else src=allPrev.find(e=>isSingle(e)&&lwNorm(e.name)===lwNorm(ex.name))||null;
+        (ex.sets||[]).forEach((_,si)=>{
+          const k=`${ex.id}_s${si}`;
+          res.mapa[k]=src&&si<(src.sets||[]).length?ref(`${src.id}_s${si}`,src.name,variante):Object.assign({},none);
+        });
+      } else {
+        (ex.parts||[]).forEach((p,pi)=>{
+          let src=null, sp=null, variante=false;
+          if(pe&&pe.parts&&pe.parts[pi]){ src=pe; sp=pe.parts[pi]; variante=isVariant(sp.name,p.name); }
+          else for(const e of allPrev){
+            if(isSingle(e)) continue;
+            const q=(e.parts||[]).find(q=>lwNorm(q.name)===lwNorm(p.name));
+            if(q){ src=e; sp=q; break; }
+          }
+          for(let si=0;si<(ex.count||0);si++){
+            const k=`${ex.id}_${p.pid}_s${si}`;
+            res.mapa[k]=src&&si<(src.count||0)?ref(`${src.id}_${sp.pid}_s${si}`,sp.name,variante):Object.assign({},none);
+          }
+        });
+      }
+    });
+  });
+  return res;
+}
+// </last-week>
 
 // ============================================================
 // DEFAULT ROUTINE BUILDER
@@ -4024,13 +4124,14 @@ function renderWorkout(){
       }
     }
   });
+  lwPrepare();
   const exsH=block.exercises.map(ex=>renderExercise(ex)).join('');
   return `<div class="workout-header">
       <button class="nav-back" onclick="nav('day',{week:${ST.week},dayIdx:${ST.dayIdx}})">${IC.back}</button>
       <div class="workout-info"><div class="workout-week">SEM. ${wd.week} · ${day.name} · ${day.days}</div><div class="workout-block">${block.name}</div></div>
       <div style="width:36px"></div>
     </div>
-    <div class="express-toggle-bar"><span class="express-toggle-label" style="display:inline-flex;align-items:center;gap:6px">${hcIcon('zap',13)} Modo Express</span><div class="express-toggle off" onclick="toggleExpressMode()"><div class="express-toggle-dot"></div></div></div>
+    <div class="express-toggle-bar lw-bar"><span class="express-toggle-label" style="display:inline-flex;align-items:center;gap:6px">${hcIcon('zap',13)} Modo Express</span><div class="express-toggle off" onclick="toggleExpressMode()"><div class="express-toggle-dot"></div></div>${lwToggleHTML()}</div>
     <div class="workout-content">${exsH}
       <button class="finish-btn" onclick="handleFinish()">${IC.trophy} FINALIZAR BLOQUE</button>
     </div>`;
@@ -4078,6 +4179,7 @@ function renderSingleSet(exId,si,s){
         <span class="set-target">${s.r} <span class="set-target-rpe">${s.rpe!=='-'?s.rpe:''}</span></span>
       </div>
     </div>
+    ${lwRefHTML(k,si===0)}
     <div class="set-inputs">
       <input class="inp-kg" type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="Kg" value="${escH(d.weight)}" oninput="handleWeightInput(this,'${k}')">
       <input class="inp-notes" type="text" placeholder="Sensaciones, RPE real..." value="${escH(d.notes)}" oninput="setSetData('${k}','notes',this.value)">
@@ -4098,6 +4200,7 @@ function renderSSPart(exId,part,si){
         <span class="set-target" style="font-size:11px">${part.r} <span class="set-target-rpe">${part.rpe!=='-'?part.rpe:''}</span></span>
       </div>
     </div>
+    ${lwRefHTML(k,si===0)}
     <div class="set-inputs">
       <input class="inp-kg" type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="Kg" value="${escH(d.weight)}" oninput="handleWeightInput(this,'${k}')">
       <input class="inp-notes" type="text" placeholder="Sensaciones..." value="${escH(d.notes)}" oninput="setSetData('${k}','notes',this.value)">
@@ -9042,6 +9145,63 @@ const RANGE_COLORS={'rm1':'#f05a28','rm2':'#e91e63','rm3':'#9c27b0','rm4':'#3b82
 
 function toggleExpressMode(){ expressMode=!expressMode; saveExpressMode(); render(); }
 
+// ---- "Semana pasada" (UI). La lógica pura está en lastWeekRefs (<last-week>). ----
+let lwUsed={}; // clave de serie → peso copiado desde la etiqueta (para poder deshacerlo)
+function lwIsOn(){ return lsGet('fs_lastweek_'+(session?.uid))!==false; } // activado por defecto
+function toggleLastWeek(){ lsSet('fs_lastweek_'+(session?.uid),!lwIsOn()); render(); }
+// Se calcula una vez por pantalla (al abrir/redibujar el bloque), no en cada tecla.
+function lwPrepare(){
+  window.__lwRefs=(getClub()==='fuerza'&&lwIsOn())?lastWeekRefs(plan,ST.week,ST.dayIdx,progress,tracked||DEFAULT_TRACKED):null;
+}
+function lwToggleHTML(){
+  const on=lwIsOn();
+  return `<span class="lw-tg"><span class="express-toggle-label" id="lw-tg-lbl">↺ Semana pasada</span><button type="button" class="express-toggle lw-switch ${on?'on':'off'}" role="switch" aria-checked="${on}" aria-labelledby="lw-tg-lbl" onclick="toggleLastWeek()"><span class="express-toggle-dot"></span></button></span>`;
+}
+function lwRef(k){ const R=window.__lwRefs; return R&&R.mapa?R.mapa[k]||null:null; }
+function lwIsUsed(k){ return lwUsed[k]!=null && String(getSetData(k).weight||'')===lwUsed[k]; }
+function lwAria(r,used){ return `Semana ${r.semana}: ${r.peso} kg${r.hecho?', hecha':''}. `+(used?'Peso copiado, tocar para borrarlo':'Tocar para copiar el peso'); }
+// Etiqueta de una serie. compact=true para las tarjetas del Modo Express.
+function lwChipHTML(k,compact){
+  const r=lwRef(k); if(!r) return '';
+  const x=compact?' lw-x':'';
+  if(r.sinRegistro) return `<span class="lw-chip none${x}">Sin registro</span>`;
+  const sem=compact?`S${r.semana}`:`Sem. ${r.semana}`;
+  const ok=r.hecho?' <span class="lw-ok">✓</span>':'';
+  if(!r.peso) return `<span class="lw-chip static${x}"${r.nota?` title="${escH(r.nota)}"`:''}>↺ ${sem} · sin peso${ok}</span>`;
+  const used=lwIsUsed(k);
+  return `<button type="button" class="lw-chip${used?' used':''}${x}" data-lwk="${k}" onclick="lwTap('${k}')" aria-label="${escH(lwAria(r,used))}"${r.nota?` title="${escH(r.nota)}"`:''}>↺ ${sem} · ${escH(r.peso)}${compact?'':' kg'}${ok}${compact?'':`<span class="lw-used">${used?' · usado':''}</span>`}</button>`;
+}
+function lwVarHTML(r){ return r&&r.variante&&r.nombreAnterior?`<div class="lw-var">Sem. ${r.semana} fue: ${escH(String(r.nombreAnterior).toUpperCase())}</div>`:''; }
+// Bloque completo bajo "SERIE N" / nombre de la parte: etiqueta + nota + aviso de variante (solo en la 1ª serie).
+function lwRefHTML(k,first){
+  const r=lwRef(k); if(!r) return '';
+  return `<div class="lw-ref">${lwChipHTML(k,false)}${r.nota&&!r.sinRegistro?`<div class="lw-note">“${escH(r.nota)}”</div>`:''}${first?lwVarHTML(r):''}</div>`;
+}
+function lwSyncInput(k,v){
+  const a=document.getElementById('sr_'+k), b=document.getElementById('xsr_'+k);
+  [a&&a.querySelector('.inp-kg'), b&&b.querySelector('.express-kg-inp')].forEach(el=>{ if(el) el.value=v; });
+}
+function lwUpdateChip(k){
+  const r=lwRef(k); const used=lwIsUsed(k);
+  document.querySelectorAll('.lw-chip[data-lwk="'+k+'"]').forEach(b=>{
+    b.classList.toggle('used',used); b.setAttribute('aria-label',lwAria(r,used));
+    const u=b.querySelector('.lw-used'); if(u) u.textContent=used?' · usado':'';
+  });
+}
+// Tocar la etiqueta: copia el peso solo si el casillero está vacío; tocar de nuevo lo borra si sigue igual.
+// Usa el mismo camino que cuando el alumno escribe (setSetData → guarda y recalcula PRs). No marca la serie ni copia la nota.
+function lwTap(k){
+  const r=lwRef(k); if(!r||!r.peso) return;
+  const cur=String(getSetData(k).weight||'');
+  if(lwIsUsed(k)){ setSetData(k,'weight',''); delete lwUsed[k]; lwSyncInput(k,''); }
+  else if(cur.trim()===''){
+    const w=r.peso.replace(',','.').replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1');
+    if(!w) return;
+    setSetData(k,'weight',w); lwUsed[k]=w; lwSyncInput(k,w);
+  } else { showToast('Esta serie ya tiene un peso cargado'); return; }
+  lwUpdateChip(k);
+}
+
 function renderExpressDay(){
   const wd=plan[ST.week]; const day=wd.days[ST.dayIdx]; const block=day.blocks[ST.blockIdx];
   let totalSets=0,doneSets=0;
@@ -9050,6 +9210,7 @@ function renderExpressDay(){
     else { for(let si=0;si<ex.count;si++) ex.parts.forEach(p=>{ totalSets++; if(getSetData(`${ex.id}_${p.pid}_s${si}`).done) doneSets++; }); }
   }); });
   const pct=totalSets?Math.round(doneSets/totalSets*100):0;
+  lwPrepare();
   const exsHTML=block.exercises.map(ex=>{
     let setCards='';
     if(ex.type==='single'){
@@ -9058,6 +9219,7 @@ function renderExpressDay(){
         return `<div class="express-set-card ${d.done?'done':''}" id="xsr_${k}">
           <div class="express-set-num">S${si+1}</div>
           <div class="express-set-target">${s.r} ${s.rpe!=='-'?s.rpe:''}</div>
+          ${lwChipHTML(k,true)}
           <input class="express-kg-inp" type="text" inputmode="decimal" placeholder="kg" value="${escH(d.weight)}" oninput="handleWeightInput(this,'${k}')">
           <button class="express-check-btn ${d.done?'checked':'unchecked'}" onclick="expressToggleDone('${k}')">${d.done?'✓':'○'}</button>
         </div>`;
@@ -9069,6 +9231,7 @@ function renderExpressDay(){
           setCards+=`<div class="express-set-card ${d.done?'done':''}" id="xsr_${k}" style="min-width:56px">
             <div class="express-set-num">S${si+1}${p.pid.toUpperCase()}</div>
             <div class="express-set-target">${p.r}</div>
+            ${lwChipHTML(k,true)}
             <input class="express-kg-inp" type="text" inputmode="decimal" placeholder="kg" value="${escH(d.weight)}" oninput="handleWeightInput(this,'${k}')">
             <button class="express-check-btn ${d.done?'checked':'unchecked'}" onclick="expressToggleDone('${k}')">${d.done?'✓':'○'}</button>
           </div>`;
@@ -9076,8 +9239,10 @@ function renderExpressDay(){
       }
     }
     const exLabel=ex.type==='single'?ex.name:ex.parts.map(p=>p.name).join(' + ');
+    const lwVar=ex.type==='single'?lwVarHTML(lwRef(`${ex.id}_s0`)):ex.parts.map(p=>lwVarHTML(lwRef(`${ex.id}_${p.pid}_s0`))).join('');
     return `<div class="express-ex-block">
       <div class="express-ex-title">${ex.order} ${escH(exLabel)}</div>
+      ${lwVar}
       <div class="express-sets-wrap">${setCards}</div>
     </div>`;
   }).join('');
@@ -9087,9 +9252,10 @@ function renderExpressDay(){
     <div class="workout-info"><div class="workout-week">SEM. ${wd.week} · ${day.name}</div><div class="workout-block" style="display:flex;align-items:center;gap:6px">${block.name} ${hcIcon('zap',14)}</div></div>
     <div style="width:36px"></div>
   </div>
-  <div class="express-toggle-bar">
+  <div class="express-toggle-bar lw-bar">
     <span class="express-toggle-label" style="display:inline-flex;align-items:center;gap:6px">${hcIcon('zap',13)} Modo Express</span>
     <div class="express-toggle on" onclick="toggleExpressMode()"><div class="express-toggle-dot"></div></div>
+    ${lwToggleHTML()}
   </div>
   <div class="express-progress-bar"><div class="express-progress-fill" style="width:${pct}%"></div></div>
   <div style="padding-bottom:${hasPrev||hasNext?120:80}px">${exsHTML}</div>
