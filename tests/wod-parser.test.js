@@ -7,7 +7,7 @@ const block=(a,b)=>{ const m=html.match(new RegExp('// <'+a+'>[\\s\\S]*?// </'+b
 function grabFn(name){ const s=html.indexOf('function '+name+'('); let i=html.indexOf('{',s),d=0; for(;i<html.length;i++){ if(html[i]==='{')d++; else if(html[i]==='}'){ d--; if(!d) break; } } return html.slice(s,i+1); }
 const ctx={}; vm.createContext(ctx);
 vm.runInContext([grabFn('hashStr'),block('block-calendar','block-calendar').replace(/function getBlockCalInfo[\s\S]*$/,''),block('wod-core','wod-core'),
-  'this.W={parseWodText,wodStreak,wodWeekCount,wodValidateLog,wodFmtResult,wodSimilar,wodDiff,wodProgressPairs,wodInferScore,wodCells,wodSexRow,wodDateLine,wodWeekSig,wodStatusOf,wodTeacherListed};'].join('\n'),ctx);
+  'this.W={parseWodText,wodStreak,wodWeekCount,wodValidateLog,wodFmtResult,wodSimilar,wodDiff,wodProgressPairs,wodPresent,wodApplyWeights,wodLinesFromText,wodCase,wodParseMove,wodCells,wodSexRow,wodDateLine,wodWeekSig,wodStatusOf,wodTeacherListed};'].join('\n'),ctx);
 const W=ctx.W, J=x=>JSON.parse(JSON.stringify(x));
 const fx=n=>fs.readFileSync(path.join(__dirname,'fixtures',n),'utf8');
 let passed=0;
@@ -31,20 +31,85 @@ const DATES=['2026-11-02','2026-11-04','2026-11-06','2026-11-09','2026-11-11','2
   test(kind+': etiquetas FERIADO',()=>{
     assert.deepStrictEqual(DATES.filter(dt=>day(dt).label).map(dt=>[dt,day(dt).label]),[['2026-11-09','FERIADO'],['2026-11-11','FERIADO'],['2026-11-23','FERIADO']]);
   });
-  test(kind+': WODs por día, partner, TC, sector y tipo de registro',()=>{
-    const sum=dt=>day(dt).wods.map(w=>[w.id,w.partner,w.timeCap,w.sector,w.scoreType]);
-    assert.deepStrictEqual(sum('2026-11-02'),[['U',false,'','','completed']]);          // OTM x 30'
-    assert.deepStrictEqual(sum('2026-11-04'),[['A',false,"5'",'','time'],['B',false,'','','reps']]);
-    assert.deepStrictEqual(sum('2026-11-06'),[['U',true,"35' / 40'",'','time']]);
-    assert.deepStrictEqual(sum('2026-11-09'),[['U',false,'','','reps']]);               // 4' Work x 1' Rest
-    assert.deepStrictEqual(sum('2026-11-11'),[['A',false,"16'",'ESCALERA','time'],['B',false,'','JAULA','reps']]);
-    assert.deepStrictEqual(sum('2026-11-13'),[['U',true,'','','reps']]);
-    assert.deepStrictEqual(sum('2026-11-16'),[['U',false,'','','reps']]);               // "B) WARM UP" mal tipeado
-    assert.deepStrictEqual(sum('2026-11-18'),[['A',false,'','','reps'],['B',false,'','','reps']]);
-    assert.deepStrictEqual(sum('2026-11-20'),[['U',true,"25' / 30' / 35'",'','time']]);
-    assert.deepStrictEqual(sum('2026-11-23'),[['A',false,"16'",'ESCALERA','rounds'],['B',false,'','JAULA','reps']]);
-    assert.deepStrictEqual(sum('2026-11-25'),[['A',false,'','','reps'],['B',false,'','','reps']]);
-    assert.deepStrictEqual(sum('2026-11-27'),[['U',true,"35' / 40'",'','time']]);
+  test(kind+': WODs por día, partner, TC, sector y formato (badge)',()=>{
+    const sum=dt=>day(dt).wods.map(w=>[w.id,w.partner,w.timeCap,w.sector,W.wodPresent(w).badge]);
+    assert.deepStrictEqual(sum('2026-11-02'),[['U',false,'','','OTM']]);
+    assert.deepStrictEqual(sum('2026-11-04'),[['A',false,"5'",'','Rondas'],['B',false,'','','Intervalos']]);
+    assert.deepStrictEqual(sum('2026-11-06'),[['U',true,"35' / 40'",'','Rondas']]);
+    assert.deepStrictEqual(sum('2026-11-09'),[['U',false,'','','Intervalos']]);
+    assert.deepStrictEqual(sum('2026-11-11'),[['A',false,"16'",'ESCALERA','Escalera'],['B',false,'','JAULA','Intervalos']]);
+    assert.deepStrictEqual(sum('2026-11-13'),[['U',true,'','','Intervalos']]);
+    assert.deepStrictEqual(sum('2026-11-16'),[['U',false,'','','Intervalos']]);               // "B) WARM UP" mal tipeado
+    assert.deepStrictEqual(sum('2026-11-18'),[['A',false,'','','Intervalos'],['B',false,'','','Intervalos']]);
+    assert.deepStrictEqual(sum('2026-11-20'),[['U',true,"25' / 30' / 35'",'','For time']]);
+    assert.deepStrictEqual(sum('2026-11-23'),[['A',false,"16'",'ESCALERA','Rondas'],['B',false,'','JAULA','Intervalos']]);
+    assert.deepStrictEqual(sum('2026-11-25'),[['A',false,'','','Intervalos'],['B',false,'','','Intervalos']]);
+    assert.deepStrictEqual(sum('2026-11-27'),[['U',true,"35' / 40'",'','For time']]);
+  });
+  // ---- Checklist de presentación (pesos según "Ver pesos de") ----
+  const pres=(dt,i,view)=>{ const w=day(dt).wods[i]; return J(W.wodApplyWeights(W.wodPresent(w),w,view)); };
+  const rows=P=>{ const out=[]; P.items.forEach(it=>{ if(it.k==='row') out.push(it); if(it.k==='note') it.rows.forEach(r=>out.push(r)); }); return out; };
+  const rowOf=(P,name)=>rows(P).find(r=>r.name===name);
+  test(kind+': 27/11 bloques con chip de peso y recuadro "al principio de cada bloque"',()=>{
+    const P=pres('2026-11-27',0,{sex:'F',level:'rx'});
+    const subs=P.items.filter(i=>i.k==='sub').map(i=>[i.txt,i.chips.map(c=>c.txt)]);
+    assert.deepStrictEqual(subs,[['Bloque 1 · 4 rondas',['50 kg']],['Bloque 2 · 3 rondas',['45 kg']],['Bloque 3 · 2 rondas',['40 kg']],['Bloque 4 · 1 ronda',['35 kg']]]);
+    const note=P.items.find(i=>i.k==='note');
+    assert.strictEqual(note.txt,'Al principio de cada bloque deben completar');
+    assert.deepStrictEqual(note.rows.map(r=>[r.reps,r.name,r.tags]),[['30 / 40','Pull Ups o T2B',['M / H','Dividen']]]);
+    assert.deepStrictEqual(P.chips.map(c=>c.txt),["TC 35' / 40'",'Partner']);
+    assert.strictEqual(P.name,'PARTNER WOD');
+  });
+  test(kind+': 25/11 WOD A: pesos M/H en el texto y "80 / 100 kg" en el Sled',()=>{
+    let P=pres('2026-11-25',0,{sex:'M',level:'avanzado'});
+    assert.deepStrictEqual(rowOf(P,'Deadlift').chips.map(c=>c.txt),['80 kg']);
+    assert.strictEqual(rowOf(P,'Deadlift').reps,'4/6');
+    assert.deepStrictEqual(rowOf(P,'mts Sled Push').chips.map(c=>c.txt),['100 / 120 kg']);
+    P=pres('2026-11-25',0,{sex:'F',level:'principiante'});
+    assert.deepStrictEqual(rowOf(P,'mts Sled Push').chips.map(c=>c.txt),['80 / 100 kg']);
+    assert.deepStrictEqual(rowOf(P,'Deadlift').chips.map(c=>c.txt),['45 kg']);
+    assert.ok(P.chips.some(c=>c.txt==="2' work x 1' rest · x6") && P.chips.some(c=>c.txt==='Alterno'));
+    assert.ok(!P.items.some(i=>(i.txt||'').includes('Work')),'la línea de formato no se repite');
+    assert.deepStrictEqual(rowOf(P,'mts Run').tags,['arrancando abajo']);
+  });
+  test(kind+': 23/11 WOD A: tabla por RONDA en la fila del Power Clean',()=>{
+    const P=pres('2026-11-23',0,{sex:'F',level:'intermedio'});
+    assert.deepStrictEqual(rowOf(P,'Power Clean').sub.map(x=>x.ab+' '+x.v),['R1-2 35','R3-4 35','R5-6 40','R7-8 45/50']);
+    assert.deepStrictEqual(P.fallback,[]);
+  });
+  test(kind+': 13/11 tabla de dos columnas Front Rack Lunges / Thrusters',()=>{
+    const P=pres('2026-11-13',0,{sex:'M',level:'rx'});
+    assert.deepStrictEqual(rowOf(P,'Synchro Front Rack Lunges').chips.map(c=>c.txt),['50 kg']);
+    assert.deepStrictEqual(rowOf(P,'Synchro Thrusters').chips.map(c=>c.txt),['45 kg']);
+    assert.deepStrictEqual(P.fallback,[]);
+  });
+  test(kind+': 2/11 tabla por nivel (con X) y tabla de una columna en el Front Squat*',()=>{
+    let P=pres('2026-11-02',0,{sex:'F',level:'rx'});
+    assert.deepStrictEqual(rowOf(P,'BMU/Pull Ups/T2B/K2C').chips.map(c=>c.txt),['T2B/K2C: 4/6','BMU: 2/3']); // Pull Ups = X en Rx
+    assert.deepStrictEqual(rowOf(P,'Front Squat').chips.map(c=>c.txt),['55 kg']);
+    P=pres('2026-11-02',0,{sex:'M',level:'principiante'});
+    assert.deepStrictEqual(rowOf(P,'BMU/Pull Ups/T2B/K2C').chips.map(c=>c.txt),['T2B/K2C: 8','Pull Ups: 8']);
+    assert.deepStrictEqual(rowOf(P,'Front Squat').chips.map(c=>c.txt),['50/55 kg']);
+    assert.strictEqual(P.badge,'OTM'); assert.deepStrictEqual(P.chips.map(c=>c.txt),["30'",'Alterno']);
+  });
+  test(kind+': una columna sin * -> "Tu peso" arriba; 6/11 PESO 1..4 en cada Parte',()=>{
+    let P=pres('2026-11-09',0,{sex:'F',level:'avanzado'});
+    assert.deepStrictEqual(P.top,[{label:'Tu peso',txt:'45/50 kg'}]);
+    P=pres('2026-11-06',0,{sex:'M',level:'rx'});
+    assert.deepStrictEqual(P.items.filter(i=>i.k==='sub'&&/^Parte/.test(i.txt)).map(i=>i.txt+' '+i.chips[0].txt),['Parte 1 60 kg','Parte 2 70 kg','Parte 3 75 kg','Parte 4 80 kg']);
+  });
+  test(kind+': 20/11 tabla por movimiento con "/" aplica a los dos',()=>{
+    const P=pres('2026-11-20',0,{sex:'F',level:'intermedio'});
+    assert.deepStrictEqual(['Deadlift','Hang Power Clean','Front Squat','Thrusters'].map(n=>rowOf(P,n).chips[0].txt),['45 kg','35 kg','35 kg','30 kg']);
+  });
+  test(kind+': mayúsculas a formato oración, siglas respetadas',()=>{
+    const P=pres('2026-11-04',0,{sex:'F',level:'rx'});
+    assert.ok(P.items.some(i=>i.k==='note'&&i.icon==='rest'&&/^Rest 8’ entre WODs – debe ser una pausa completa antes de prepararse para el WOD B$/.test(i.txt)));
+    assert.ok(P.items.some(i=>i.k==='sub'&&i.txt==='For time'),'segunda parte: For time sin repetir el TC');
+  });
+  test(kind+': warm up con el mismo estilo (columnas WOD A / WOD B en orden)',()=>{
+    const P=J(W.wodPresent({},{warm:true,lines:W.wodLinesFromText(day('2026-11-23').warmupText)}));
+    assert.deepStrictEqual(P.items.filter(i=>i.k==='sub').map(i=>i.txt),['Movilidad · 2 rondas','WOD A · 3 rondas','WOD B · 3 rondas']);
   });
   test(kind+': tablas de pesos por sexo y nivel',()=>{
     const t=day('2026-11-02').wods[0].weightTables;
@@ -122,7 +187,7 @@ WOD B – SECTOR JAULA
   assert.deepStrictEqual(P.errors,[]);
   const d=P.weeks[0].days[0];
   assert.strictEqual(d.label,'FERIADO'); assert.ok(d.warmupText.includes('WOD A'));
-  assert.deepStrictEqual(d.wods.map(w=>[w.id,w.sector,w.scoreType,w.timeCap]),[['A','ESCALERA','rounds',"16'"],['B','JAULA','reps','']]);
+  assert.deepStrictEqual(d.wods.map(w=>[w.id,w.sector,w.timeCap]),[['A','ESCALERA',"16'"],['B','JAULA','']]);
   const tb=d.wods[0].weightTables[0];
   assert.deepStrictEqual(tb.head,['RONDA 1 - 2','RONDA 3 - 4','RONDA 5 - 6','RONDA 7 - 8']);
   assert.deepStrictEqual(tb.rows.map(r=>r.label),['Mujeres principiante','Mujeres intermedio','Hombres Rx']);
@@ -131,18 +196,17 @@ test('letras mal puestas: "A) WOD" y "B) WARM UP" se leen por la palabra',()=>{
   const P=J(W.parseWodText('1/12\nB) WARM UP\n- 10 Squats\nA) WOD\nAMRAP 12\'\n- 10 Burpees',{ref:REF}));
   const d=P.weeks[0].days[0];
   assert.strictEqual(d.date,'2026-12-01'); assert.ok(d.warmupText.includes('Squats'));
-  assert.deepStrictEqual(d.wods.map(w=>[w.id,w.scoreType]),[['U','reps']]);
+  assert.deepStrictEqual(d.wods.map(w=>w.id),['U']);
 });
-test('REGISTRO: explícito gana y no se muestra',()=>{
+test('REGISTRO: se ignora sin error ni advertencia',()=>{
   const P=J(W.parseWodText('2/12\nA) WARM UP\n- x\nB) WOD\nFOR TIME\nREGISTRO: rondas\n- 10 Burpees',{ref:REF}));
-  const w=P.weeks[0].days[0].wods[0];
-  assert.strictEqual(w.scoreType,'rounds'); assert.strictEqual(w.scoreHow,'explicit');
-  assert.ok(!JSON.stringify(w.contentLines).includes('REGISTRO'));
+  assert.deepStrictEqual([P.errors,P.warnings],[[],[]]);
+  assert.ok(!JSON.stringify(P.weeks[0].days[0].wods[0].contentLines).includes('REGISTRO'));
 });
-test('formato ambiguo -> completado con advertencia',()=>{
+test('formato no reconocido: sin badge y sin advertencia',()=>{
   const P=J(W.parseWodText('3/12\nB) WOD\nCHIPPER LOCO\n- 10 Burpees',{ref:REF}));
-  assert.strictEqual(P.weeks[0].days[0].wods[0].scoreType,'completed');
-  assert.ok(P.warnings.some(w=>/no se reconoce el formato/.test(w.msg)));
+  assert.deepStrictEqual(P.warnings,[]);
+  assert.strictEqual(W.wodPresent(P.weeks[0].days[0].wods[0]).badge,null);
 });
 test('marcas de lo no interpretado: sin fecha, sin B) WOD, fecha inválida y repetida',()=>{
   const P=J(W.parseWodText('texto suelto\n4/12\nA) WARM UP\n- 5 Squats\n31/11\n4/12\nB) WOD\nFOR TIME\n- 1 Run',{ref:REF}));
@@ -170,22 +234,27 @@ test('racha: semanas lun–dom con 2+ WODs; la semana en curso no corta',()=>{
   assert.strictEqual(W.wodStreak([],'2026-11-26'),0);
   assert.strictEqual(W.wodWeekCount(logs,'2026-11-26'),1);
 });
-test('validación del registro',()=>{
-  assert.strictEqual(W.wodValidateLog({scoreType:'time',min:'4',sec:'30'}).ok,false); // sin categoría
-  assert.strictEqual(J(W.wodValidateLog({level:'rx',scoreType:'time',min:'4',sec:'30'})).log.timeSec,270);
-  assert.strictEqual(W.wodValidateLog({level:'rx',scoreType:'time',min:'4',sec:'75'}).ok,false);
-  assert.strictEqual(J(W.wodValidateLog({level:'rx',scoreType:'time',capped:true,reps:'85'})).log.reps,85);
-  assert.strictEqual(W.wodValidateLog({level:'rx',scoreType:'reps',reps:''}).ok,false);
-  assert.deepStrictEqual([J(W.wodValidateLog({level:'avanzado',scoreType:'rounds',rounds:'5',extraReps:'3'})).log].map(l=>[l.rounds,l.extraReps]),[[5,3]]);
-  assert.strictEqual(J(W.wodValidateLog({level:'principiante',scoreType:'completed',completed:'partial'})).log.completed,'partial');
+test('registro: solo la categoría es obligatoria; resultado en texto libre',()=>{
+  assert.strictEqual(W.wodValidateLog({resultText:'14:32'}).ok,false);
+  assert.deepStrictEqual(J(W.wodValidateLog({level:'rx',resultText:' 6 rondas + 12 ',kgText:'PC 40',notes:'bien'})).log,{level:'rx',resultText:'6 rondas + 12',kgText:'PC 40',notes:'bien'});
+  assert.strictEqual(W.wodValidateLog({level:'intermedio'}).ok,true);
 });
-test('formato de resultados y diferencias',()=>{
-  assert.strictEqual(W.wodFmtResult({scoreType:'time',timeSec:275}),'4:35');
+test('registros viejos: el resultado se arma con los campos anteriores',()=>{
+  assert.strictEqual(W.wodFmtResult({resultText:'85 reps',scoreType:'time',timeSec:1}),'85 reps');
+  assert.strictEqual(W.wodFmtResult({scoreType:'time',timeSec:872}),'14:32');
   assert.strictEqual(W.wodFmtResult({scoreType:'time',capped:true,reps:85}),'TC · 85 reps');
-  assert.strictEqual(W.wodFmtResult({scoreType:'rounds',rounds:5,extraReps:3}),'5 rondas + 3');
+  assert.strictEqual(W.wodFmtResult({scoreType:'reps',reps:54}),'54 reps');
+  assert.strictEqual(W.wodFmtResult({scoreType:'rounds',rounds:6,extraReps:12}),'6 rondas + 12');
   assert.deepStrictEqual(J(W.wodDiff({scoreType:'time',timeSec:250},{scoreType:'time',timeSec:275})),{txt:'−0:25',better:true});
-  assert.deepStrictEqual(J(W.wodDiff({scoreType:'reps',reps:110},{scoreType:'reps',reps:120})),{txt:'−10 reps',better:false});
-  assert.strictEqual(W.wodDiff({scoreType:'reps',reps:1},{scoreType:'time',timeSec:1}),null);
+  assert.strictEqual(W.wodDiff({resultText:'5 rondas'},{resultText:'4 rondas'}),null);
+});
+test('mayúsculas: formato oración con siglas; Title Case queda igual',()=>{
+  assert.strictEqual(W.wodCase('SI ES NECESARIO, AGREGAR UN INTERVALO MÁS'),'Si es necesario, agregar un intervalo más');
+  assert.strictEqual(W.wodCase('30 PULL UPS / T2B CON KBs Y DBs EN EL WOD'),'30 pull ups / T2B con KBs y DBs en el WOD');
+  assert.strictEqual(W.wodCase('RowErg o Bike'),'RowErg o Bike');
+  assert.strictEqual(W.wodCase('DU O SU'),'DU o SU');
+  assert.deepStrictEqual(J(W.wodParseMove('4 - 3 - 2 - 1 Clean and Jerk*')),{reps:'4 - 3 - 2 - 1',name:'Clean and Jerk',tags:[],star:true,iw:null,pre:null});
+  assert.deepStrictEqual(J(W.wodParseMove('150/200 mts Row o 8/12 Cal Bike (ALTERNO UNA RONDA Y UNA)')).tags,['Alterno una ronda y una']);
 });
 test('progresión: busca el anterior parecido más reciente',()=>{
   const P=J(W.parseWodText(fx('wod-noviembre-2026-word.txt'),{ref:REF}));

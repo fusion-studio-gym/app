@@ -61,6 +61,8 @@ Marca Hybrid Club:
 - Misma cuenta para los tres clubes: la pertenencia al WOD va en `clubs.wod` del usuario (`status`, `role`) y el sexo en `sex`. No hay ficha ni nivel guardado.
 - Unidad de planificación: la semana (lunes a domingo). El borrador se pega tal cual desde Word y cada semana se publica por separado. El Warm Up lo ven solo Admin y Profesores.
 - Marca: negro `#000000`, azul `#2B35E0` (logo de `#1A1F9E` a `#2B35E0`), azul claro `#7C86FF`, blanco. Títulos en Orbitron (soporta tildes y ñ). Logo en `assets/logo-wod.png`.
+- Registro del alumno: categoría (obligatoria), resultado en texto libre (`resultText`), kilos y notas. Los registros viejos muestran su resultado armado con los campos anteriores.
+- El WOD se ve desde el día anterior (sin poder registrarlo). La presentación (tarjetas, chips de peso, "Ver pesos de") se arma en `wodPresent` / `wodApplyWeights` sin cambiar el texto guardado.
 - Colores de nivel: Principiante `#555555`, Intermedio `#7C86FF`, Avanzado `#2B35E0`, Rx `#FFFFFF` (texto negro).
 
 La landing de Fusión Hybrid Club (fusionhybridclub.online) es un deploy aparte: **no** se toca desde este repo.
