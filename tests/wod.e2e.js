@@ -1,12 +1,22 @@
 // Prueba de punta a punta del Club WOD con un Firestore SIMULADO en memoria (nunca toca la base real).
 // Cubre: selector con 3 clubes, cuenta nueva en WOD, cuenta de Fuerza que pide acceso, aprobación del Admin,
-// borrador con la planificación de noviembre 2026, publicación por semana, alumno (Inicio, WOD, registro,
+// borrador sincronizado desde Google Docs (script simulado) con noviembre 2026, publicación por semana, alumno (Inicio, WOD, registro,
 // Registros, popup), profesor (solo lectura) y que Fuerza/Hybrid sigan entrando igual.
 // Correr con: node tests/wod.e2e.js   (SHOTS=carpeta para guardar capturas)
 const assert=require('assert'), fs=require('fs'), path=require('path');
 const {chromium}=require('playwright');
 const {PLAN_JSON,HASH_1234,doc,val,openApp,listen,close,shot,noHScroll}=require('./helpers/e2e-harness');
-const NOV0=fs.readFileSync(path.join(__dirname,'fixtures','wod-noviembre-2026-word.txt'),'utf8');
+// Respuesta simulada del Apps Script: noviembre (armada desde el .docx) + un documento de diciembre con la semana 5
+const DRIVE=JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures','wod-noviembre-2026-drive.json'),'utf8'));
+DRIVE.docs.push({id:'doc-dic',name:'12. Planificación WOD Diciembre 2026',updated:'2026-11-26T13:00:00.000Z',url:'https://docs.google.com/document/d/doc-dic/edit',blocks:[
+  {t:'p',text:'SEMANA 5',bold:true},{t:'p',text:'30/11'},{t:'p',text:'B) WOD',bold:true},{t:'p',text:"AMRAP 12'",bold:true},{t:'li',text:'10 Burpees',level:0},
+  {t:'p',text:'1/12'},{t:'p',text:'B) WOD',bold:true},{t:'p',text:'FOR TIME',bold:true},{t:'li',text:'50 Wall Ball',level:0}]});
+const EXEC='https://script.google.com/macros/s/TEST/exec';
+// Simula la aplicación web: valida la clave y devuelve DRIVE
+async function mockScript(page){
+  await page.route(EXEC+'*',route=>{ const u=new URL(route.request().url()); const ok=u.searchParams.get('token')==='clave123';
+    route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify(ok?DRIVE:{ok:false,error:'token'})}); });
+}
 
 const seed={
   fs_users_v1:doc({
@@ -19,7 +29,6 @@ const seed={
   // registro viejo (antes del campo libre "Resultado"): tiene que seguir mostrándose
   wod_logs_f1_v1:doc({logs:{'2026-11-23_B':{uid:'f1',date:'2026-11-23',weekId:'2026-11-23',wodId:'B',level:'avanzado',scoreType:'reps',reps:54,feeling:'duro',createdAt:1,updatedAt:1}}}),
 };
-const EXTRA='\n\nSEMANA 5\n\n30/11\nB) WOD\nAMRAP 12\'\n- 10 Burpees\n\n1/12\nB) WOD\nFOR TIME\n- 50 Wall Ball';
 // La base simulada vive en cada página: se lee de ahí
 const V=async(page,k)=>val(await page.evaluate(()=>window.__fakeDb),k);
 async function adminLogin(page,pw){
@@ -76,7 +85,7 @@ async function adminLogin(page,pw){
     await adminLogin(page);
     assert.ok((await page.locator('.modal-title').innerText()).includes('WOD'));
     const tabs=await page.locator('.admin-nav .admin-tab').allInnerTexts();
-    assert.deepStrictEqual(tabs.map(t=>t.trim()),['Dashboard','Alumnos','Profesores','Planificación','Borrador','Plantillas','Anuncio','Contraseña']);
+    assert.deepStrictEqual(tabs.map(t=>t.trim()),['Dashboard','Alumnos','Profesores','Planificación','Borrador','Anuncio','Contraseña']);
     await page.waitForSelector('text=Solicitudes pendientes (2)');
     await page.waitForTimeout(400);
     await shot(page,'wod-04-dashboard');
@@ -88,42 +97,73 @@ async function adminLogin(page,pw){
     assert.strictEqual(us[luId].status,'active'); assert.strictEqual(us[luId].clubs.wod.status,'active');
     // Fuerza no ve a la alumna nueva del WOD
     assert.ok(!(await page.evaluate(()=>Object.values(users).filter(u=>(u.club||'fuerza')==='fuerza').map(u=>u.email))).includes('lu@x.com'));
-    await page.evaluate(()=>setAdminTab('borrador'));
-    await page.waitForSelector('#wod-draft');
-    await page.evaluate(t=>{ const ta=document.getElementById('wod-draft'); ta.value=t; wodDraftInput(t); },NOV0+EXTRA);
-    await page.waitForTimeout(1200);
-    assert.ok((await V(page,'wod_draft_v1')).text.includes('SEMANA 4'),'autoguardado');
-    await page.evaluate(()=>wodSetDraftView('prev'));
-    const weeks=await page.locator('.wod-week').count();
-    assert.strictEqual(weeks,5);
-    assert.ok(!(await page.locator('#wod-draft-prev').innerText()).includes('Errores'));
-    await shot(page,'wod-05-borrador-preview');
+    // Borrador = Drive: configurar la conexión (clave mal y bien), actualizar, vista previa y publicar por semana
+    await mockScript(page);
+    const dialogs=[]; page.on('dialog',d=>dialogs.push(d.message()));
+    await page.evaluate(()=>setAdminTab('borrador')); await page.waitForTimeout(300);
+    assert.ok((await page.locator('.adm-main').innerText()).includes('Primero configurá la conexión'));
+    assert.strictEqual(await page.locator('.adm-main textarea').count(),0,'ya no hay editor de texto');
+    await page.evaluate(()=>wodDriveCfgOpen());
+    await page.evaluate(u=>{ wodDrive.cfgDraft={url:u,token:'mal'}; return wodDriveTest(); },EXEC);
+    assert.ok((await page.locator('.summary-sheet').innerText()).includes('La clave no coincide'));
+    await page.evaluate(()=>{ wodDrive.cfgDraft.url='https://script.google.com/macros/s/TEST/edit'; return wodDriveTest(); });
+    assert.ok((await page.locator('.summary-sheet').innerText()).includes('tiene que terminar en /exec'));
+    await page.evaluate(u=>{ wodDrive.cfgDraft={url:u,token:'clave123'}; return wodDriveTest(); },EXEC);
+    assert.ok((await page.locator('.summary-sheet').innerText()).includes('Conectado: 2 documentos encontrados'));
+    await shot(page,'wod-05-conexion');
+    await page.evaluate(()=>wodDriveCfgSave());
+    await page.waitForFunction(()=>wodDrive.synced && !wodDrive.loading);
+    assert.deepStrictEqual((await V(page,'wod_settings_drive_v1')).token,'clave123');
+    assert.strictEqual((await V(page,'wod_drive_cache_v1')).docs.length,2);
+    let bt=await page.locator('.adm-main').innerText();
+    assert.ok(bt.includes('Última actualización: recién'));
+    assert.deepStrictEqual(await page.locator('.adm-main .wod-list-row b').allInnerTexts(),['SEMANA 3','SEMANA 4','SEMANA 5'],'desde la semana pasada');
+    assert.ok(bt.includes('Ver semanas anteriores (2)'));
+    assert.strictEqual(await page.locator('.adm-main .wod-badge:has-text("Nueva")').count(),3);
+    await shot(page,'wod-06-borrador-drive');
     await noHScroll(page);
-    await page.evaluate(()=>wodPublishWeek('2026-11-16')); await page.waitForTimeout(200);
-    await page.evaluate(()=>wodPublishWeek('2026-11-23')); await page.waitForTimeout(200);
-    await page.evaluate(()=>wodPublishWeek('2026-11-30')); await page.waitForTimeout(200);
+    // vista previa: alumnos sin warm up; admin y profes con warm up; link al documento
+    await page.evaluate(()=>wodDriveOpen('2026-11-23')); await page.waitForTimeout(300);
+    let pv=await page.locator('.adm-main').innerText();
+    assert.ok(pv.includes('Abrir documento')); assert.ok(!pv.includes('WARM UP')); assert.ok(pv.includes('Power Clean'));
+    assert.ok((await page.locator('.adm-main .wb-row:has-text("Power Clean") .wb-compact').innerText()).includes('R1-2'));
+    await shot(page,'wod-07-preview-alumnos');
+    await page.locator('.adm-main .wod-seg2 button:has-text("Admin y profes")').click();
+    pv=await page.locator('.adm-main').innerText();
+    assert.ok(pv.includes('WARM UP')); assert.ok(pv.includes('Activación WOD A'));
+    await page.evaluate(()=>wodDrivePublish('2026-11-23')); await page.waitForTimeout(300);
+    assert.ok(/Publicar SEMANA 4/.test(dialogs[dialogs.length-1]) && !/registro/.test(dialogs[dialogs.length-1]));
+    await page.evaluate(()=>{ wodDrive.sel=null; return wodDrivePublish('2026-11-16'); }); await page.waitForTimeout(300);
+    await page.evaluate(()=>wodDrivePublish('2026-11-30')); await page.waitForTimeout(300);
     const idx=(await V(page,'wod_index_v1'));
     assert.deepStrictEqual(Object.keys(idx.weeks).sort(),['2026-11-16','2026-11-23','2026-11-30']);
     assert.deepStrictEqual(idx.weeks['2026-11-23'].days['2026-11-23'],{label:'FERIADO',n:2,sectors:['ESCALERA','JAULA'],partner:false});
     assert.ok(!(await V(page,'wod_week_2026-11-02_v1')),'semana 1 sin publicar: no existe para nadie');
-    assert.ok((await page.locator('#wod-draft-prev').innerText()).includes('Publicada · sin cambios'));
-    // Planificación: corregir un día queda registrado
-    await page.evaluate(()=>setAdminTab('plan')); await page.waitForTimeout(300);
-    assert.ok((await page.locator('.adm-main').innerText()).includes('SEMANA 4'));
-    await page.evaluate(()=>wodPlanEdit('2026-11-25'));
-    await page.evaluate(()=>{ wodPlanView.editText=wodPlanView.editText.replace('3/4/5 Wall Walk','4/5/6 Wall Walk'); });
-    await page.evaluate(()=>wodPlanSaveDay()); await page.waitForTimeout(200);
-    const wk=(await V(page,'wod_week_2026-11-23_v1'));
-    const d25=wk.days.find(d=>d.date==='2026-11-25');
-    assert.ok(d25.raw.includes('4/5/6 Wall Walk')); assert.ok(d25.editedAt); assert.strictEqual(wk.history[0].what,'Corrección del 25/11');
-    await shot(page,'wod-06-planificacion');
-    // Anuncio y plantilla
+    let wk=(await V(page,'wod_week_2026-11-23_v1'));
+    assert.ok(wk.textSig && wk.docUrl.includes('doc-nov-2026'));
+    await page.evaluate(()=>{ wodDrive.sel=null; renderModal(); });
+    assert.strictEqual(await page.locator('.adm-main .wod-badge:has-text("Publicada")').count(),3);
+    // cambio en el documento -> "Publicada con cambios en Drive" -> Publicar cambios (avisa los registros que ya hay)
+    DRIVE.docs[0].blocks.forEach(b=>{ if(b.t==='li' && b.text==='3/4/5 Wall Walk o 10/12/14 HSPU') b.text='4/5/6 Wall Walk o 10/12/14 HSPU'; });
+    await page.evaluate(()=>{ wodDrive.synced=false; return wodDriveSync(); });
+    assert.strictEqual(await page.locator('.adm-main .wod-badge:has-text("Publicada con cambios en Drive")').count(),1);
+    await page.evaluate(()=>wodDriveOpen('2026-11-23')); await page.waitForTimeout(300);
+    assert.strictEqual(await page.locator('.adm-main button:has-text("Publicar cambios")').count(),2);
+    await page.evaluate(()=>wodDrivePublish('2026-11-23')); await page.waitForTimeout(300);
+    assert.ok(dialogs[dialogs.length-1].includes('Esta semana ya tiene 1 registro. Los registros se mantienen.'));
+    wk=(await V(page,'wod_week_2026-11-23_v1'));
+    assert.ok(wk.days.find(d=>d.date==='2026-11-25').raw.includes('4/5/6 Wall Walk'));
+    assert.strictEqual(wk.history[0].what,'Cambios publicados desde Drive');
+    assert.strictEqual((await V(page,'wod_logs_f1_v1')).logs['2026-11-23_B'].reps,54,'los registros no se tocan');
+    // Planificación: solo lectura, con link al documento
+    await page.evaluate(()=>setAdminTab('plan')); await page.waitForTimeout(400);
+    const pl=await page.locator('.adm-main').innerText();
+    assert.ok(pl.includes('SEMANA 4') && pl.includes('Abrir documento') && !pl.includes('Corregir'));
+    await shot(page,'wod-08-planificacion');
+    // Anuncio
     await page.evaluate(()=>setAdminTab('anuncio')); await page.waitForTimeout(200);
     await page.evaluate(()=>{ wodAnnDraft={text:'El viernes 4/12 no hay clase.',expiresAt:'2026-12-04'}; return wodAnnPublish(); });
     assert.strictEqual((await V(page,'wod_announcement_v1')).text,'El viernes 4/12 no hay clase.');
-    await page.evaluate(()=>setAdminTab('plantillas')); await page.waitForTimeout(200);
-    await page.evaluate(()=>{ wodTplEdit={id:null,name:'Movilidad base',category:'Warm up',text:'MOVILIDAD - 2 RONDAS\n- 10 Buenos Días'}; return wodTplSave(); });
-    assert.strictEqual((await V(page,'wod_templates_v1'))[0].name,'Movilidad base');
     assert.deepStrictEqual(errors,[]);
     db=await page.evaluate(()=>window.__fakeDb); await page.close();
 
@@ -249,11 +289,11 @@ async function adminLogin(page,pw){
     assert.ok(aTxt.includes('Fer Fuerza')); assert.ok(aTxt.includes('132 reps'));
     assert.strictEqual(await page.locator('.adm-main button:has-text("Editar registro")').count(),0);
     await shot(page,'wod-14-admin-registros');
-    // vista de escritorio y tablet: borrador lado a lado
+    // vista de tablet: el borrador muestra lo último que se trajo (guardado en la base) aunque no haya conexión
     await page.setViewportSize({width:1024,height:768});
-    await page.evaluate(()=>setAdminTab('borrador')); await page.waitForTimeout(400);
-    const side=await page.evaluate(()=>{ const a=document.querySelector('.wod-split-ed').getBoundingClientRect(), b=document.querySelector('.wod-split-prev').getBoundingClientRect(); return b.left>a.left && Math.abs(a.top-b.top)<5; });
-    assert.ok(side,'editor y vista previa lado a lado');
+    await page.evaluate(()=>setAdminTab('borrador')); await page.waitForTimeout(800);
+    const tb=await page.locator('.adm-main').innerText();
+    assert.ok(tb.includes('SEMANA 4') && tb.includes('No se pudo conectar'),'sin script: error simple y queda lo último');
     await shot(page,'wod-15-borrador-tablet');
     assert.deepStrictEqual(errors,[]);
     db=await page.evaluate(()=>window.__fakeDb); await page.close();
