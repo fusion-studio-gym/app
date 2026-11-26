@@ -90,7 +90,7 @@ body{max-width:480px;margin:0 auto;}
 /* CLUB SELECT */
 .club-pick{width:100%;max-width:360px;background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:22px;margin-bottom:16px;display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:border-color .15s,transform .1s;}
 .club-pick:active{transform:scale(0.98);}
-.club-pick:hover{border-color:var(--orange);}
+.club-pick:hover{border-color:var(--pick,var(--orange));} /* cada club se resalta con su color principal */
 .club-pick-title{font-family:var(--font-display);font-size:18px;font-weight:700;letter-spacing:2px;text-align:center;}
 .club-pick-title span{color:var(--orange);}
 .club-pick-sub{font-size:12px;color:var(--text3);margin-top:4px;}
@@ -3072,19 +3072,19 @@ function renderClubSelect(){
   return `<div class="auth-wrap">
     <h1 class="auth-title" style="font-size:22px;margin-bottom:4px">ELEGÍ TU CLUB</h1>
     <p class="auth-subtitle" style="margin-bottom:28px">¿A qué programa querés acceder?</p>
-    <div class="club-pick" onclick="selectClub('fuerza')">
+    <div class="club-pick" style="--pick:#f05a28" onclick="selectClub('fuerza')">
       <div class="auth-logo" style="width:64px;height:64px;margin:0 0 12px;background-image:url('${LOGO_URL}')" oncontextmenu="return false" ondragstart="return false"></div>
       <div class="club-pick-title">FUSION<span>STUDIO</span></div>
       <div class="club-pick-sub">Plan de fuerza</div>
     </div>
-    <div class="club-pick" onclick="selectClub('hybrid')">
+    <div class="club-pick" style="--pick:#FFEC03" onclick="selectClub('hybrid')">
       <div class="auth-logo" style="width:64px;height:64px;margin:0 0 12px;background-image:url('${LOGO_HYBRID_URL}');border-color:#FFEC03;box-shadow:0 0 40px rgba(255,236,3,0.3)" oncontextmenu="return false" ondragstart="return false"></div>
       <div class="club-pick-title">FUSION<span style="color:#FFEC03">HYBRID CLUB</span></div>
       <div class="club-pick-sub">Entrenamiento híbrido (HYROX)</div>
     </div>
-    <div class="club-pick" onclick="selectClub('wod')">
+    <div class="club-pick" style="--pick:#2B35E0" onclick="selectClub('wod')">
       <div class="auth-logo" style="width:64px;height:64px;margin:0 0 12px;background-image:url('${LOGO_WOD_URL}');border-color:#2B35E0;box-shadow:0 0 40px rgba(43,53,224,0.35)" oncontextmenu="return false" ondragstart="return false"></div>
-      <div class="club-pick-title" style="font-family:'Orbitron','Oswald',sans-serif">FUSION<span style="color:#7C86FF">WOD</span></div>
+      <div class="club-pick-title">FUSION<span style="color:#7C86FF">WOD</span></div>
       <div class="club-pick-sub">Clases de WOD</div>
     </div>
   </div>`;
