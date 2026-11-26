@@ -10,7 +10,7 @@ Instrucciones fijas para Claude Code. Leer antes de cada tarea.
 
 ## Qué es esta app
 
-Una sola web app con **dos ramas** (clubes), elegidas con un selector en la pantalla de login. Cada rama tiene su propio acceso de Admin.
+Una sola web app con **tres ramas** (clubes), elegidas con un selector en la pantalla de login. Cada rama tiene su propio acceso de Admin.
 
 ### Stack
 - App en un único archivo HTML (`index.html`), con su CSS y JS adentro. Mantener ese formato salvo que Ramiro pida lo contrario.
@@ -55,6 +55,13 @@ Marca Hybrid Club:
 - La fuente de títulos **no soporta acentos**: escribir los textos visibles de títulos sin tilde (ej. "Recuperacion").
 - Sobre fondo amarillo, íconos y tildes van en **negro**, nunca en blanco.
 - Logo: "F" negro/amarillo con wordmark en bloque "HYBRID CLUB".
+
+### Rama 3 — Club WOD (clases de WOD)
+- Toma la base del Admin de Fuerza y una versión reducida de la experiencia de alumno de Hybrid Club. Todo el código vive en el bloque "CLUB WOD" de `index.html` y en `// <wod-core>` (funciones puras, con tests en `tests/wod-parser.test.js` y `tests/wod.e2e.js`).
+- Misma cuenta para los tres clubes: la pertenencia al WOD va en `clubs.wod` del usuario (`status`, `role`) y el sexo en `sex`. No hay ficha ni nivel guardado.
+- Unidad de planificación: la semana (lunes a domingo). El borrador se pega tal cual desde Word y cada semana se publica por separado. El Warm Up lo ven solo Admin y Profesores.
+- Marca: negro `#000000`, azul `#2B35E0` (logo de `#1A1F9E` a `#2B35E0`), azul claro `#7C86FF`, blanco. Títulos en Orbitron (soporta tildes y ñ). Logo en `assets/logo-wod.png`.
+- Colores de nivel: Principiante `#555555`, Intermedio `#7C86FF`, Avanzado `#2B35E0`, Rx `#FFFFFF` (texto negro).
 
 La landing de Fusión Hybrid Club (fusionhybridclub.online) es un deploy aparte: **no** se toca desde este repo.
 

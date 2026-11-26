@@ -24,8 +24,10 @@ function listen(){ return new Promise(r=>server.listen(0,r)); }
 function close(){ server.close(); }
 // db: objeto compartido. Si `shared` es true, todas las páginas abiertas usan la MISMA base (para probar
 // ediciones simultáneas); si no, cada página arranca con una copia de `db`.
-async function openApp(browser,db,sessionUid){
-  const page=await browser.newPage({viewport:{width:390,height:844}});
+// opts (opcional): {club, session:{...}, today:'YYYY-MM-DD', viewport:{width,height}} — para el Club WOD
+async function openApp(browser,db,sessionUid,opts){
+  opts=opts||{};
+  const page=await browser.newPage({viewport:opts.viewport||{width:390,height:844}});
   const errors=[]; page.on('pageerror',e=>errors.push(e.message));
   page.on('dialog',d=>d.accept(d.type()==='prompt'?d.defaultValue():undefined));
   await page.route('**/*',r=>{
@@ -35,11 +37,13 @@ async function openApp(browser,db,sessionUid){
     if(u.startsWith('http://localhost')) return r.continue();
     return r.abort();
   });
-  await page.addInitScript(([db,uid])=>{
+  await page.addInitScript(([db,uid,o])=>{
     window.__fakeDb=db;
-    if(uid) localStorage.setItem('fs_session_v1',JSON.stringify({uid,email:uid+'@x.com',name:uid,club:'fuerza'}));
-    localStorage.setItem('fs_current_club_v1',JSON.stringify('fuerza'));
-  },[db,sessionUid]);
+    if(o.session) localStorage.setItem('fs_session_v1',JSON.stringify(o.session));
+    else if(uid) localStorage.setItem('fs_session_v1',JSON.stringify({uid,email:uid+'@x.com',name:uid,club:'fuerza'}));
+    if(o.club!==null) localStorage.setItem('fs_current_club_v1',JSON.stringify(o.club||'fuerza'));
+    if(o.today) localStorage.setItem('fs_debug_today_v1',o.today);
+  },[db,sessionUid,{club:opts.club,session:opts.session||null,today:opts.today||null}]);
   await page.goto('http://localhost:'+server.address().port+'/index.html');
   await page.waitForFunction(()=>window.__fsCloudReady && typeof plan!=='undefined' && plan);
   await page.waitForTimeout(500);
