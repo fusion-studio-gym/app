@@ -6,7 +6,7 @@
 const assert=require('assert'), fs=require('fs'), path=require('path');
 const {chromium}=require('playwright');
 const {PLAN_JSON,HASH_1234,doc,val,openApp,listen,close,shot,noHScroll}=require('./helpers/e2e-harness');
-const NOV=fs.readFileSync(path.join(__dirname,'fixtures','wod-noviembre-2026-word.txt'),'utf8');
+const NOV0=fs.readFileSync(path.join(__dirname,'fixtures','wod-noviembre-2026-word.txt'),'utf8');
 
 const seed={
   fs_users_v1:doc({
@@ -16,7 +16,10 @@ const seed={
   }),
   fs_plan_v1:{value:PLAN_JSON,updatedAt:1},
   fs_block_name_v1:doc('Bloque 5 - 2026'),
+  // registro viejo (antes del campo libre "Resultado"): tiene que seguir mostrándose
+  wod_logs_f1_v1:doc({logs:{'2026-11-23_B':{uid:'f1',date:'2026-11-23',weekId:'2026-11-23',wodId:'B',level:'avanzado',scoreType:'reps',reps:54,feeling:'duro',createdAt:1,updatedAt:1}}}),
 };
+const EXTRA='\n\nSEMANA 5\n\n30/11\nB) WOD\nAMRAP 12\'\n- 10 Burpees\n\n1/12\nB) WOD\nFOR TIME\n- 50 Wall Ball';
 // La base simulada vive en cada página: se lee de ahí
 const V=async(page,k)=>val(await page.evaluate(()=>window.__fakeDb),k);
 async function adminLogin(page,pw){
@@ -87,19 +90,20 @@ async function adminLogin(page,pw){
     assert.ok(!(await page.evaluate(()=>Object.values(users).filter(u=>(u.club||'fuerza')==='fuerza').map(u=>u.email))).includes('lu@x.com'));
     await page.evaluate(()=>setAdminTab('borrador'));
     await page.waitForSelector('#wod-draft');
-    await page.evaluate(t=>{ const ta=document.getElementById('wod-draft'); ta.value=t; wodDraftInput(t); },NOV);
+    await page.evaluate(t=>{ const ta=document.getElementById('wod-draft'); ta.value=t; wodDraftInput(t); },NOV0+EXTRA);
     await page.waitForTimeout(1200);
     assert.ok((await V(page,'wod_draft_v1')).text.includes('SEMANA 4'),'autoguardado');
     await page.evaluate(()=>wodSetDraftView('prev'));
     const weeks=await page.locator('.wod-week').count();
-    assert.strictEqual(weeks,4);
+    assert.strictEqual(weeks,5);
     assert.ok(!(await page.locator('#wod-draft-prev').innerText()).includes('Errores'));
     await shot(page,'wod-05-borrador-preview');
     await noHScroll(page);
     await page.evaluate(()=>wodPublishWeek('2026-11-16')); await page.waitForTimeout(200);
     await page.evaluate(()=>wodPublishWeek('2026-11-23')); await page.waitForTimeout(200);
+    await page.evaluate(()=>wodPublishWeek('2026-11-30')); await page.waitForTimeout(200);
     const idx=(await V(page,'wod_index_v1'));
-    assert.deepStrictEqual(Object.keys(idx.weeks).sort(),['2026-11-16','2026-11-23']);
+    assert.deepStrictEqual(Object.keys(idx.weeks).sort(),['2026-11-16','2026-11-23','2026-11-30']);
     assert.deepStrictEqual(idx.weeks['2026-11-23'].days['2026-11-23'],{label:'FERIADO',n:2,sectors:['ESCALERA','JAULA'],partner:false});
     assert.ok(!(await V(page,'wod_week_2026-11-02_v1')),'semana 1 sin publicar: no existe para nadie');
     assert.ok((await page.locator('#wod-draft-prev').innerText()).includes('Publicada · sin cambios'));
@@ -123,59 +127,104 @@ async function adminLogin(page,pw){
     assert.deepStrictEqual(errors,[]);
     db=await page.evaluate(()=>window.__fakeDb); await page.close();
 
-    // 5) Alumno (Fer, hombre) el miércoles 25/11: Inicio, WOD, registro
+    // 5) Alumno (Fer, hombre) el martes 24/11: hoy no hay WOD y mañana sí -> lo ve completo, sin registrar
     const sesF={uid:'f1',email:'fer@x.com',name:'Fer Fuerza',club:'wod'};
-    ({page,errors}=await openApp(browser,db,null,{club:'wod',session:sesF,today:'2026-11-25'}));
+    ({page,errors}=await openApp(browser,db,null,{club:'wod',session:sesF,today:'2026-11-24'}));
     await page.waitForSelector('.wod-hello');
     let home=await page.locator('.page-tabbed').innerText();
-    assert.ok(home.includes('Hola, Fer')); assert.ok(home.includes('Miércoles 25/11')); assert.ok(home.includes('2 WODs'));
-    assert.ok(home.includes('El viernes 4/12 no hay clase.')); assert.ok(home.includes('Esta semana: 0 WODs'));
-    await shot(page,'wod-07-inicio');
+    assert.ok(/WOD de mañana · Miércoles 25\/11/i.test(home)); assert.ok(home.includes('Ver WOD'));
+    assert.ok(home.includes('El viernes 4/12 no hay clase.')); assert.ok(home.includes('Esta semana: 1 WOD'));
+    const av=await page.evaluate(()=>{ const c=getComputedStyle(document.querySelector('.nav-avatar')); return [c.backgroundColor,c.borderTopColor,c.color]; });
+    assert.deepStrictEqual(av,['rgb(0, 0, 0)','rgb(43, 53, 224)','rgb(124, 134, 255)'],'avatar negro con borde azul');
+    await shot(page,'wod-07-inicio-manana');
     await page.evaluate(()=>wodTab('wod')); await page.waitForTimeout(300);
     let wodTxt=await page.locator('.page-tabbed').innerText();
-    assert.ok(wodTxt.includes('4/5/6 Wall Walk'),'ve la corrección'); assert.ok(!wodTxt.includes('Iso Sled Push'),'no ve el warm up');
-    assert.ok(!wodTxt.includes('MOVILIDAD'),'no ve movilidad');
+    assert.ok(wodTxt.includes('Mañana · Miércoles 25/11')); assert.ok(wodTxt.includes('Vas a poder registrarlo el miércoles 25/11'));
+    assert.strictEqual(await page.locator('button:has-text("Registrar WOD")').count(),0,'mañana no se registra');
+    assert.strictEqual(await page.locator('.wod-seg2 button:has-text("Mañana")').count(),0,'sin WOD hoy no hay Hoy/Mañana');
+    assert.ok(wodTxt.includes('4/5/6')&&wodTxt.includes('Wall Walk'),'ve la corrección'); assert.ok(!wodTxt.includes('Iso Sled Push'),'no ve el warm up');
+    // "Ver pesos de": Hombre + última categoría registrada (Avanzado) -> Deadlift H avanzado 80 kg
+    assert.deepStrictEqual(await page.locator('.wod-vp .on').allInnerTexts(),['Hombre','Avanz.']);
+    assert.ok((await page.locator('.wb-row:has-text("Deadlift")').first().innerText()).includes('80 kg'));
+    await page.locator('.wod-vp button:has-text("Mujer")').click();
+    assert.ok((await page.locator('.wb-row:has-text("Deadlift")').first().innerText()).includes('55 kg'));
+    assert.ok((await page.locator('.wb-row:has-text("Sled")').first().innerText()).includes('80 / 100 kg'));
+    await shot(page,'wod-08-wod-manana');
+    await noHScroll(page);
+    // calendario: mañana se abre con el aviso; pasado mañana no
+    await page.evaluate(()=>wodTab('reg')); await page.waitForTimeout(400);
+    await page.evaluate(()=>wodOpenDay('2026-11-25','f1',false)); await page.waitForSelector('#wod-sheet-root .summary-sheet');
+    assert.ok((await page.locator('#wod-sheet-root').innerText()).includes('Vas a poder registrarlo'));
+    assert.strictEqual(await page.locator('#wod-sheet-root button:has-text("Registrar")').count(),0);
+    await page.evaluate(()=>wodCloseSheet());
+    await page.evaluate(()=>wodOpenDay('2026-11-27','f1',false));
+    assert.strictEqual(await page.locator('#wod-sheet-root').count(),0);
+    // registro viejo con su resultado
+    assert.ok((await page.locator('.page-tabbed').innerText()).includes('54 reps'));
+    assert.ok(!(await page.locator('.page-tabbed').innerText()).includes('Sensación'));
+    assert.deepStrictEqual(errors,[]);
+    db=await page.evaluate(()=>window.__fakeDb); await page.close();
+
+    // 5b) El mismo día (miércoles 25/11) aparece el formulario nuevo
+    ({page,errors}=await openApp(browser,db,null,{club:'wod',session:sesF,today:'2026-11-25'}));
+    await page.waitForSelector('.wod-hello');
+    assert.ok(/WOD de hoy/i.test(await page.locator('.page-tabbed').innerText()));
+    await page.evaluate(()=>wodTab('wod')); await page.waitForTimeout(300);
     await page.locator('button:has-text("Registrar WOD A")').click();
+    assert.deepStrictEqual((await page.locator('.wod-form .wod-flabel').allInnerTexts()).map(x=>x.replace(/\s*\*$/,'').trim()),['Categoría en la que lo hiciste','Resultado','Kilos (opcional)','Notas personales']);
+    assert.strictEqual(await page.locator('.wod-form .wod-chip.on').count(),0,'sin categoría preseleccionada');
+    assert.strictEqual(await page.locator('.wod-form :text("Duro")').count(),0,'sin Sensación');
+    assert.strictEqual(await page.locator('.wod-form input[placeholder="Ej: 6 rondas + 12, 14:32, 85 reps"]').count(),1);
     await page.locator('button:has-text("Guardar registro")').first().click();
     await page.waitForTimeout(100);
     assert.ok((await page.locator('#toast').innerText()).includes('categoría'),'sin categoría no guarda');
     await page.locator('.wod-form .wod-chip:has-text("Intermedio")').first().click();
-    await page.locator('.wod-form input[placeholder="Reps totales"]').fill('132');
-    await page.locator('.wod-form .wod-chip:has-text("Duro")').first().click();
+    await page.locator('.wod-form input[placeholder^="Ej: 6 rondas"]').fill('132 reps');
     await page.locator('.wod-form input[placeholder^="Ej: PC"]').fill('DL 80');
-    await shot(page,'wod-08-registro');
+    await page.locator('.wod-form textarea').fill('Bien de ritmo');
+    await shot(page,'wod-09-registro');
     await page.locator('button:has-text("Guardar registro")').first().click();
     await page.waitForTimeout(300);
     let logs=(await V(page,'wod_logs_f1_v1')).logs;
-    assert.deepStrictEqual([logs['2026-11-25_A'].level,logs['2026-11-25_A'].reps,logs['2026-11-25_A'].feeling,logs['2026-11-25_A'].kgText],['intermedio',132,'duro','DL 80']);
-    // Popup desde Registros: registrar un día anterior olvidado (23/11 WOD A, rondas)
+    const la=logs['2026-11-25_A'];
+    assert.deepStrictEqual([la.level,la.resultText,la.kgText,la.notes,la.feeling],['intermedio','132 reps','DL 80','Bien de ritmo',undefined]);
+    // popup de un día anterior: registro viejo visible y registrar el WOD A olvidado
     await page.evaluate(()=>wodTab('reg')); await page.waitForTimeout(400);
-    assert.ok((await page.locator('.page-tabbed').innerText()).includes('Noviembre 2026'));
     await page.evaluate(()=>wodOpenDay('2026-11-23','f1',false)); await page.waitForSelector('#wod-sheet-root .summary-sheet');
+    assert.ok((await page.locator('#wod-sheet-root').innerText()).includes('54 reps'));
+    await page.locator('#wod-sheet-root button:has-text("Ver tabla completa de pesos")').click();
+    assert.strictEqual((await page.locator('#wod-sheet-root tr.pick th').first().innerText()).trim(),'Hombres avanzado');
     await page.locator('#wod-sheet-root button:has-text("Registrar WOD A")').click();
-    await page.locator('#wod-sheet-root .wod-chip:has-text("Rx")').first().click();
-    // la tabla resalta la fila Hombres Rx
-    assert.strictEqual((await page.locator('#wod-sheet-root tr.pick th').first().innerText()).trim(),'Hombres Rx');
-    await page.locator('#wod-sheet-root input[placeholder="Rondas"]').fill('8');
+    await page.locator('#wod-sheet-root .wod-form .wod-chip:has-text("Rx")').click();
+    await page.locator('#wod-sheet-root input[placeholder^="Ej: 6 rondas"]').fill('8 rondas');
     await page.locator('#wod-sheet-root button:has-text("Guardar registro")').click();
     await page.waitForTimeout(300);
     logs=(await V(page,'wod_logs_f1_v1')).logs;
-    assert.deepStrictEqual([logs['2026-11-23_A'].rounds,logs['2026-11-23_A'].level],[8,'rx']);
-    assert.ok(logs['2026-11-25_A'],'no pisa el registro anterior');
-    await shot(page,'wod-09-popup');
+    assert.deepStrictEqual([logs['2026-11-23_A'].resultText,logs['2026-11-23_A'].level],['8 rondas','rx']);
+    assert.strictEqual(logs['2026-11-23_B'].reps,54,'el registro viejo no se toca');
+    await shot(page,'wod-10-popup');
     await page.evaluate(()=>wodCloseSheet());
     const reg=await page.locator('.page-tabbed').innerText();
-    assert.ok(reg.includes('Lunes 23/11') && reg.includes('8 rondas'));
-    assert.ok((await page.locator('.wod-cal-d.logged').count())===2);
-    await shot(page,'wod-10-registros');
+    assert.ok(reg.includes('Lunes 23/11') && reg.includes('8 rondas') && reg.includes('132 reps'));
+    assert.strictEqual(await page.locator('.wod-cal-d.logged').count(),2);
+    await shot(page,'wod-11-registros');
     await noHScroll(page);
-    // no puede abrir días futuros
-    await page.evaluate(()=>wodOpenDay('2026-11-27','f1',false));
-    assert.strictEqual(await page.locator('#wod-sheet-root').count(),0);
-    // racha: 2 WODs esta semana
     await page.evaluate(()=>wodTab('home')); await page.waitForTimeout(300);
     home=await page.locator('.page-tabbed').innerText();
-    assert.ok(home.includes('Esta semana: 2 WODs')); assert.ok(/racha\s*1 semana/i.test(home));
+    assert.ok(home.includes('Esta semana: 3 WODs')); assert.ok(/racha\s*1 semana/i.test(home));
+    assert.deepStrictEqual(errors,[]);
+    db=await page.evaluate(()=>window.__fakeDb); await page.close();
+
+    // 5c) Lunes 30/11: hay WOD hoy y mañana -> Hoy / Mañana
+    ({page,errors}=await openApp(browser,db,null,{club:'wod',session:sesF,today:'2026-11-30'}));
+    await page.waitForSelector('.wod-hello');
+    await page.evaluate(()=>wodTab('wod')); await page.waitForTimeout(300);
+    assert.deepStrictEqual(await page.locator('.wod-seg2 button').allInnerTexts(),['Hoy','Mañana']);
+    assert.strictEqual(await page.locator('button:has-text("Registrar WOD")').count(),1);
+    await page.locator('.wod-seg2 button:has-text("Mañana")').click();
+    assert.ok((await page.locator('.page-tabbed').innerText()).includes('Vas a poder registrarlo el martes 1/12'));
+    assert.strictEqual(await page.locator('button:has-text("Registrar WOD")').count(),0);
+    await shot(page,'wod-12-hoy-manana');
     assert.deepStrictEqual(errors,[]);
     db=await page.evaluate(()=>window.__fakeDb); await page.close();
 
@@ -183,12 +232,12 @@ async function adminLogin(page,pw){
     ({page,errors}=await openApp(browser,db,null,{club:'wod',session:{uid:'t1',email:'tomi@x.com',name:'Tomi Profe',club:'wod',role:'teacher'},today:'2026-11-25'}));
     await page.waitForSelector('.wod-day');
     const tTxt=await page.locator('.page-tabbed').innerText();
-    assert.ok(tTxt.includes('Warm Up y activación')); assert.ok(tTxt.includes('Iso Sled Push'));
+    assert.ok(tTxt.includes('WARM UP')); assert.ok(tTxt.includes('Iso Sled Push'));
     assert.ok(!tTxt.includes('Corregir'),'el profesor no edita');
     assert.strictEqual(await page.locator('.tab-bar').count(),0);
     await page.evaluate(()=>openAdmin());
     assert.strictEqual(await page.locator('#modal-root .modal').count(),0);
-    await shot(page,'wod-11-profesor');
+    await shot(page,'wod-13-profesor');
     assert.deepStrictEqual(errors,[]);
     db=await page.evaluate(()=>window.__fakeDb); await page.close();
 
@@ -199,13 +248,13 @@ async function adminLogin(page,pw){
     const aTxt=await page.locator('.adm-main').innerText();
     assert.ok(aTxt.includes('Fer Fuerza')); assert.ok(aTxt.includes('132 reps'));
     assert.strictEqual(await page.locator('.adm-main button:has-text("Editar registro")').count(),0);
-    await shot(page,'wod-12-admin-registros');
+    await shot(page,'wod-14-admin-registros');
     // vista de escritorio y tablet: borrador lado a lado
     await page.setViewportSize({width:1024,height:768});
     await page.evaluate(()=>setAdminTab('borrador')); await page.waitForTimeout(400);
     const side=await page.evaluate(()=>{ const a=document.querySelector('.wod-split-ed').getBoundingClientRect(), b=document.querySelector('.wod-split-prev').getBoundingClientRect(); return b.left>a.left && Math.abs(a.top-b.top)<5; });
     assert.ok(side,'editor y vista previa lado a lado');
-    await shot(page,'wod-13-borrador-tablet');
+    await shot(page,'wod-15-borrador-tablet');
     assert.deepStrictEqual(errors,[]);
     db=await page.evaluate(()=>window.__fakeDb); await page.close();
 
