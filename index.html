@@ -22,7 +22,7 @@
 <meta name="apple-mobile-web-app-title" content="Fusion Studio">
 <meta name="application-name" content="Fusion Studio">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
 <style>
 @font-face {
   font-family:'UAV OSD Sans Mono';
@@ -509,6 +509,118 @@ select.adm-inp{appearance:none;cursor:pointer;}
 ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-track{background:var(--bg);} ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
 input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;}
 input[type=number]{-moz-appearance:textfield;}
+
+/* ===== CLUB WOD — negro / azul / blanco y Orbitron en títulos (solo con body.wod-theme; no toca Fuerza ni Hybrid) ===== */
+body.wod-theme{
+  --bg:#000000; --surface:#0b0b11; --surface2:#12121b; --surface3:#1b1b27; --border:#22222f; --border2:#2f2f40;
+  --orange:#2B35E0; --orange2:#7C86FF; --orange-rgb:43,53,224; --on-accent:#fff;
+  --wod-acc:#7C86FF; --wod-blue:#2B35E0; --wod-dark:#1A1F9E;
+  --font-display:'Orbitron','Oswald',sans-serif;
+}
+body.wod-theme .nav{background:rgba(0,0,0,0.93);}
+body.wod-theme .tab-bar{background:rgba(0,0,0,0.97);}
+body.wod-theme .nav-title{font-size:16px;letter-spacing:1.5px;}
+body.wod-theme .nav-title span,body.wod-theme .auth-title span,body.wod-theme .auth-link span,body.wod-theme .club-pick-title span,
+body.wod-theme .modal-title,body.wod-theme .nav-avatar,body.wod-theme .tab-bar-item.active,body.wod-theme .user-row-avatar,body.wod-theme .cc-chip.active{color:var(--wod-acc);}
+body.wod-theme .nav-logo,body.wod-theme .auth-logo{border-color:var(--wod-blue);box-shadow:0 0 40px rgba(43,53,224,0.35);}
+body.wod-theme .auth-btn,body.wod-theme .adm-btn-orange{background:linear-gradient(135deg,var(--wod-dark),var(--wod-blue));color:#fff;}
+body.wod-theme .auth-title{font-size:24px;}
+.wod-hello{font-family:var(--font-display);font-size:22px;font-weight:700;letter-spacing:1px;margin:4px 0 16px;}
+.wod-page-title{font-family:var(--font-display);font-size:17px;font-weight:700;letter-spacing:1px;margin:2px 0 14px;line-height:1.35;}
+.wod-kicker{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--wod-acc,#7C86FF);}
+.wod-sec{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin:18px 0 8px;}
+.wod-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px;min-width:0;}
+.wod-card-title{font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:1px;margin-bottom:6px;}
+.wod-badges{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px;}
+.wod-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;letter-spacing:.5px;padding:3px 8px;border-radius:20px;background:rgba(124,134,255,.12);color:#AEB4FF;border:1px solid rgba(124,134,255,.3);}
+.wod-badge.warn{background:rgba(245,158,11,.12);color:var(--yellow);border-color:rgba(245,158,11,.35);}
+.wod-badge.ok{background:rgba(34,197,94,.1);color:var(--green);border-color:rgba(34,197,94,.3);}
+.wod-label{display:inline-block;font-family:'Inter',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;padding:2px 7px;border-radius:5px;background:#fff;color:#000;vertical-align:middle;}
+.wod-mov{position:relative;padding:3px 0 3px 16px;font-size:14px;line-height:1.45;color:var(--text);overflow-wrap:anywhere;}
+.wod-mov::before{content:'';position:absolute;left:3px;top:11px;width:6px;height:6px;border-radius:50%;background:var(--wod-acc,#7C86FF);}
+.wod-txt{font-size:13px;font-weight:700;line-height:1.45;padding:3px 0;color:var(--text);overflow-wrap:anywhere;}
+.wod-gap{height:8px;}
+.wod-cols{display:grid;gap:4px 12px;margin:2px 0;}
+.wod-cols>div{min-width:0;}
+.wod-tbl-wrap{overflow-x:auto;margin:8px 0;border:1px solid var(--border);border-radius:10px;-webkit-overflow-scrolling:touch;}
+.wod-tbl{border-collapse:collapse;width:100%;font-size:12px;}
+.wod-tbl th,.wod-tbl td{padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;}
+.wod-tbl thead th{font-size:10px;letter-spacing:.5px;color:var(--text3);background:var(--surface2);}
+.wod-tbl tbody th{text-align:left;font-weight:600;color:var(--text2);}
+.wod-tbl tr:last-child th,.wod-tbl tr:last-child td{border-bottom:none;}
+.wod-tbl tr.me{background:rgba(124,134,255,.12);}
+.wod-tbl tr.me th{color:var(--text);}
+.wod-tbl tr.pick,.wod-tbl tr.pick th{background:#2B35E0;color:#fff;font-weight:700;}
+.wod-tbl .pick{background:#2B35E0;color:#fff;font-weight:700;}
+.wod-chips{display:flex;flex-wrap:wrap;gap:8px;}
+.wod-chip{min-height:42px;padding:8px 14px;border-radius:22px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;}
+.wod-chip.on{background:#2B35E0;border-color:#2B35E0;color:#fff;}
+.wod-dot{display:inline-block;border-radius:50%;flex-shrink:0;border:1px solid rgba(255,255,255,.25);vertical-align:middle;}
+.wod-form{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+.wod-flabel{font-size:11px;font-weight:700;color:var(--text2);margin:12px 0 6px;}
+.wod-inp{margin:0;height:46px;font-size:16px;}
+.wod-row{display:flex;align-items:center;gap:8px;}
+.wod-check{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2);margin-top:10px;min-height:32px;cursor:pointer;}
+.wod-check input{width:20px;height:20px;accent-color:#2B35E0;}
+.wod-res{margin-top:12px;padding:12px;border-radius:12px;background:rgba(43,53,224,.1);border:1px solid rgba(124,134,255,.3);}
+.wod-res-val{font-family:var(--font-display);font-size:22px;font-weight:700;letter-spacing:.5px;}
+.wod-res-meta{font-size:12px;color:var(--text2);line-height:1.6;margin-top:8px;}
+.wod-res-meta b{color:var(--text);font-weight:600;}
+.wod-lvl{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;flex-shrink:0;}
+.wod-streak{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:14px;margin-bottom:12px;background:linear-gradient(135deg,rgba(43,53,224,.35),rgba(26,31,158,.12));border:1px solid rgba(124,134,255,.4);}
+.wod-streak-ic{width:42px;height:42px;border-radius:12px;background:#2B35E0;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.wod-streak-val{font-family:var(--font-display);font-size:22px;font-weight:700;line-height:1.1;}
+.wod-streak-val span{font-family:'Inter',sans-serif;font-size:13px;font-weight:400;color:var(--text2);}
+.wod-today-date{font-family:var(--font-display);font-size:18px;font-weight:700;letter-spacing:.5px;margin-top:4px;}
+.wod-today-res{display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 0;border-top:1px solid var(--border);}
+.wod-today-res span{flex:1;color:var(--text2);}
+.wod-month{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.wod-mbtn{width:44px;height:44px;border-radius:12px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);font-size:22px;cursor:pointer;flex-shrink:0;}
+.wod-mbtn:disabled{opacity:.3;cursor:default;}
+.wod-cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;}
+.wod-cal-h{text-align:center;font-size:10px;font-weight:700;color:var(--text3);padding-bottom:2px;}
+.wod-cal-d{position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:10px;font-size:13px;font-weight:700;border:1.5px solid transparent;}
+.wod-cal-d.off{color:#3a3a48;}
+.wod-cal-d.sched{border-color:#7C86FF;color:var(--text);cursor:pointer;}
+.wod-cal-d.sched.fut{border-style:dashed;opacity:.55;cursor:default;}
+.wod-cal-d.logged{cursor:pointer;}
+.wod-cal-d.today{box-shadow:0 0 0 2px #fff inset;}
+.wod-dd,.wod-cal-d .wod-dd{position:absolute;bottom:3px;right:3px;width:7px;height:7px;border-radius:50%;background:#fff;border:1px solid #000;}
+.wod-legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:10px;color:var(--text3);margin-top:10px;}
+.wod-legend span{display:inline-flex;align-items:center;gap:5px;}
+.wod-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.wod-stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;min-width:0;}
+.wod-stat-v{font-family:var(--font-display);font-size:18px;font-weight:700;}
+.wod-stat-l{font-size:10px;color:var(--text3);margin-top:3px;letter-spacing:.3px;}
+.wod-prog{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.wod-prog-side{background:var(--surface2);border-radius:10px;padding:10px;cursor:pointer;min-width:0;}
+.wod-list-row{display:flex;align-items:center;gap:10px;padding:12px 2px;border-bottom:1px solid var(--border);font-size:13px;cursor:pointer;min-height:48px;}
+.wod-list-row:last-child{border-bottom:none;}
+.wod-list-res{font-weight:700;color:var(--text);flex-shrink:0;}
+.wod-seg{display:inline-flex;border:1px solid var(--border2);border-radius:10px;overflow:hidden;margin-right:auto;}
+.wod-seg button{min-height:40px;padding:6px 12px;background:transparent;border:none;color:var(--text3);font-size:12px;font-weight:600;cursor:pointer;}
+.wod-seg button.on{background:#2B35E0;color:#fff;}
+.wod-day{background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:12px;margin-bottom:12px;min-width:0;}
+.wod-day-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
+.wod-day-date{font-family:var(--font-display);font-size:14px;font-weight:700;letter-spacing:.5px;}
+.wod-day .wod-card{background:var(--surface);}
+.wod-warm{background:var(--surface);border:1px dashed var(--border2);border-radius:12px;padding:10px 12px;margin-bottom:10px;}
+.wod-warm summary{cursor:pointer;font-size:12px;font-weight:700;color:var(--text2);display:flex;align-items:center;gap:6px;min-height:28px;}
+.wod-unk{background:rgba(239,68,68,.08);border:1px dashed rgba(239,68,68,.6);color:#fca5a5;border-radius:10px;padding:8px 10px;font-size:12px;margin-bottom:10px;}
+.wod-unk-soft{border-left:3px solid rgba(245,158,11,.6);padding-left:8px;}
+.wod-week{border:1px solid var(--border2);border-radius:16px;padding:12px;margin-bottom:16px;}
+.wod-week-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;}
+.wod-split[data-view="edit"] .wod-split-prev{display:none;}
+.wod-split[data-view="prev"] .wod-split-ed{display:none;}
+@media(min-width:768px){
+  .wod-viewtgl{display:none !important;}
+  .wod-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start;}
+  .wod-split[data-view] .wod-split-prev,.wod-split[data-view] .wod-split-ed{display:block;}
+  .wod-split-prev{max-height:80vh;overflow-y:auto;}
+}
+@media(min-width:768px) and (max-width:1023px){
+  body.wod-theme .modal-overlay.adm-desk .modal{max-width:min(1000px,96vw);}
+}
 </style>
 </head>
 <body>
@@ -542,7 +654,7 @@ const K = {
   PRS:      (uid) => `fs_prs_${uid}_v2`,   // personal: {exName: {rm1,rm2,rm3,rm4}} each = {weight,week,newPr, history:[{weight,week}]}
   TRACKED:  'fs_tracked_v1',               // shared: [{name, matchTerms:[]}]
   SESSION:  'fs_session_v1',
-  ADMINPW:  (club) => club==='hybrid' ? 'fs_adminpw_hybrid_v1' : 'fs_adminpw_v1',
+  ADMINPW:  (club) => club==='hybrid' ? 'fs_adminpw_hybrid_v1' : club==='wod' ? 'fs_adminpw_wod_v1' : 'fs_adminpw_v1',
   RPE_INFO: 'fs_rpe_info_v1',
   BLOCK_NAME: 'fs_block_name_v1',  // shared: current block name string
   WEEK_MSGS: 'fs_week_messages_v1',  // shared: {weekIndex: message string} — espejo de compatibilidad; la fuente es plan[i].message
@@ -581,6 +693,13 @@ const K = {
   HC_DRIVE_LINKS: 'hc_drive_links_v1',  // shared: {[uid]: url} — link de la carpeta de Google Drive de cada alumno (canal de videos)
   HC_VIDEO_CATALOG: 'hc_video_catalog_v1',  // shared: {groups:[{id,name,movements:[{id,name,instruction}]}], updatedAt} — movimientos que el admin puede pedir en video
   HC_VIDEOS: (uid) => `hc_videos_${uid}_v1`,  // personal: [{id,group,movement,instruction,dueDate,createdAt,status:'pending'|'sent'|'reviewed',sentAt,feedback,reviewedAt,dismissedByStudent,dismissedAt}] — pedidos de video (sin links: los videos van a la carpeta de Drive)
+  // Club WOD (ver el bloque "CLUB WOD" más abajo)
+  WOD_INDEX: 'wod_index_v1',  // shared: índice de semanas publicadas
+  WOD_WEEK: (id) => `wod_week_${id}_v1`,  // shared: una semana (id = lunes YYYY-MM-DD)
+  WOD_DRAFT: 'wod_draft_v1',  // shared (solo Admin): borrador semanal
+  WOD_LOGS: (uid) => `wod_logs_${uid}_v1`,  // personal: registros de WODs del alumno
+  WOD_ANN: 'wod_announcement_v1',  // shared: anuncio del Inicio
+  WOD_TPL: 'wod_templates_v1',  // shared: plantillas de texto
 };
 const DEFAULT_ADMIN_PW = 'fusion2025';
 const DEFAULT_ADMIN_PW_HYBRID = 'hybrid2025';
@@ -2007,6 +2126,387 @@ function getNextWeekIdx(){
 }
 // </block-calendar>
 
+// <wod-core>
+// Club WOD — funciones puras (sin DOM ni Firebase): parser de la planificación semanal, tipo de registro,
+// racha, progresión y formatos. Usa las funciones de fecha de <block-calendar> (calParse, calAddDays...).
+const WOD_LEVELS=['principiante','intermedio','avanzado','rx'];
+const WOD_LEVEL_LABEL={principiante:'Principiante',intermedio:'Intermedio',avanzado:'Avanzado',rx:'Rx'};
+const WOD_LEVEL_COLOR={principiante:'#555555',intermedio:'#7C86FF',avanzado:'#2B35E0',rx:'#FFFFFF'};
+const WOD_FEELINGS=[['liviano','Liviano'],['bien','Bien'],['duro','Duro'],['limite','Al límite']];
+const WOD_SCORE_LABEL={time:'Tiempo',reps:'Repeticiones',rounds:'Rondas',completed:'Completado'};
+const WOD_SEX_LABEL={F:'Mujer',M:'Hombre'};
+// Limpia caracteres invisibles que trae el copiar/pegar de Word
+function wodCleanRaw(s){ return String(s==null?'':s).replace(/[​-‍﻿⁠]/g,'').replace(/ /g,' ').replace(/\r/g,''); }
+// Para comparar: sin acentos, mayúsculas, comillas y guiones unificados
+function wodFold(s){ return wodCleanRaw(s).normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/[’‘′`´]/g,"'").replace(/[”“″]/g,'"').replace(/[–—]/g,'-').replace(/\s+/g,' ').trim(); }
+function wodLevelOf(w){
+  const f=wodFold(w);
+  if(/^PRINCIPIANTES?$/.test(f)) return 'principiante';
+  if(/^INTERMEDI[OA]S?$/.test(f)) return 'intermedio';
+  if(/^AVANZAD[OA]S?$/.test(f)) return 'avanzado';
+  if(/^RX$/.test(f)) return 'rx';
+  return null;
+}
+const WOD_BULLET_RE=/^\s*(?:[-•·▪◦●○■□➢►✓–—]|o(?=\t))\s*/;
+function wodIsBullet(s){ return WOD_BULLET_RE.test(s) && wodCleanRaw(s).replace(WOD_BULLET_RE,'').trim()!==''; }
+function wodStripBullet(s){ return wodCleanRaw(s).replace(WOD_BULLET_RE,'').trim(); }
+// Celdas de una línea: tabs, 2+ espacios o |. Un guion suelto se une a la celda siguiente (viñeta de otra columna).
+function wodCells(s){
+  const raw=wodCleanRaw(s).trim().split(/\t+|\s{2,}|\s*\|\s*/).map(x=>x.trim()).filter(Boolean);
+  const out=[];
+  for(let i=0;i<raw.length;i++){
+    if(/^[-•·▪◦●–—]$/.test(raw[i]) && i+1<raw.length){ out.push('- '+raw[i+1]); i++; }
+    else out.push(raw[i]);
+  }
+  return out;
+}
+function wodLooksWeight(s){ return /^(?:[\dXx][\d\s.,\/xX-]*|-)$/.test(String(s).trim()); }
+// Fila de tabla de pesos: "Mujeres principiante  30  35 ..." -> {sex,level,label,cells}
+const WOD_SEXROW_RE=/^\s*(mujer(?:es)?|hombre(?:s)?)\s+(principiantes?|intermedi[oa]s?|avanzad[oa]s?|rx)\b\s*[:|]?\s*(.*)$/i;
+function wodSexRow(line){
+  const m=WOD_SEXROW_RE.exec(wodCleanRaw(line)); if(!m) return null;
+  let cells=wodCells(m[3]);
+  if(cells.length===1 && /\s/.test(cells[0]) && cells[0].split(/\s+/).every(wodLooksWeight)) cells=cells[0].split(/\s+/);
+  const sx=/^m/i.test(m[1])?'F':'M';
+  return { sex:sx, level:wodLevelOf(m[2]), label:(sx==='F'?'Mujeres ':'Hombres ')+WOD_LEVEL_LABEL[wodLevelOf(m[2])].toLowerCase().replace('rx','Rx'), cells };
+}
+// Fecha al principio de la línea: "23/11", "23/11 - FERIADO", "Lunes 2/11", "2/11/2026"
+const WOD_DATE_RE=/^\s*(?:(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s+)?(\d{1,2})\s*\/\s*(\d{1,2})(?:\s*\/\s*(\d{4}|\d{2}))?\s*(?:[-–—:]\s*(.*?))?\s*$/i;
+function wodResolveYear(d,m,ref){
+  const ry=+String(ref).slice(0,4);
+  let best=null, bestDiff=Infinity;
+  [ry-1,ry,ry+1].forEach(y=>{
+    const s=y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    if(!calIsDate(s)) return;
+    const diff=Math.abs(calDiffDays(ref,s));
+    if(diff<bestDiff){ best=s; bestDiff=diff; }
+  });
+  return best;
+}
+function wodDateLine(line,ref){
+  const m=WOD_DATE_RE.exec(wodCleanRaw(line)); if(!m) return null;
+  const d=+m[1], mo=+m[2];
+  if(mo<1||mo>12||d<1||d>31) return null;
+  let date=null;
+  if(m[3]){ const y=m[3].length===2?2000+(+m[3]):+m[3]; const s=y+'-'+String(mo).padStart(2,'0')+'-'+String(d).padStart(2,'0'); date=calIsDate(s)?s:''; }
+  else date=wodResolveYear(d,mo,ref)||'';
+  return { date, label:(m[4]||'').trim(), bad:!date };
+}
+function wodMonday(date){ return calAddDays(date,-((calWeekday(date)+6)%7)); }
+// Encabezados de sección: se interpreta por la palabra (WARM UP / WOD), no por la letra
+function wodSectionOf(line){
+  const f=wodFold(line);
+  if(/^(?:[A-Z]\s*\)\s*)?WARM\s*-?\s*UPS?\b/.test(f)) return 'warmup';
+  if(/^[A-Z]\s*\)\s*WODS?\s*:?$/.test(f)) return 'wod';
+  return null;
+}
+// "WOD A – SECTOR ESCALERA" / "PARTNER WOD B" -> {id, rest}
+function wodHeaderOf(line){
+  const f=wodFold(line);
+  const m=/^(PARTNER\s+)?WOD\s+([A-H])(?:\s*[-:]\s*(.*)|\s*)$/.exec(f);
+  if(m) return { id:m[2], partner:!!m[1], rest:(m[3]||'').trim() };
+  if(/^WODS?$/.test(f)) return { id:null, partner:false, rest:'' };
+  return null;
+}
+function wodFmtTc(s){ return s.replace(/\s+/g,' ').replace(/\s*\/\s*/g,' / ').trim(); }
+// Tipo de registro inferido del texto del WOD. how: 'explicit' | 'auto' | 'tc' | 'ambiguous'
+function wodInferScore(textLines, movLines, timeCap){
+  const T=textLines.map(wodFold), all=T.join('\n'), withMov=T.concat(movLines.map(wodFold)).join('\n');
+  if(/\bFOR\s*TIME\b/.test(all)) return {type:'time',how:'auto'};
+  if(/\bAMRAP\b|\bMAX\b|BUSCAR MEJORAR O IGUALAR/.test(withMov) || /\bWORK'?\b.*\bX\b/.test(all)) return {type:'reps',how:'auto'};
+  if(/\b(OTM|EMOM)\b/.test(all)) return {type:'completed',how:'auto'};
+  if(T.some(l=>/^\d+\s*RONDAS?\b/.test(l))) return {type:'rounds',how:'auto'};
+  if(timeCap) return {type:'time',how:'tc'};
+  return {type:'completed',how:'ambiguous'};
+}
+const WOD_REG_MAP={TIEMPO:'time',TIME:'time',REPS:'reps',REPETICIONES:'reps',RONDAS:'rounds',ROUNDS:'rounds',COMPLETADO:'completed',COMPLETO:'completed'};
+// Línea de estructura (para encontrar WODs parecidos): primera línea de formato, sin TC, sin comentarios ni cantidad de rondas
+function wodStructKey(textLines){
+  const fmt=/\d|WORK|REST|RONDA|FOR\s*TIME|AMRAP|OTM|EMOM|PARTES?\b|ESCALERA/;
+  for(const l of textLines){
+    let f=wodFold(l);
+    if(!f || /^(PARTNER\s+)?WODS?(\s+[A-H])?\b/.test(f) && !/FOR\s*TIME|WORK|AMRAP|OTM|EMOM/.test(f)) continue;
+    if(/^REST\b|^\*?TABLA\b|^REGISTRO\s*:/.test(f) || !fmt.test(f)) continue;
+    const segs=f.split(/\s+-\s+/).filter(seg=>!/^TC\b/.test(seg));
+    f=segs.every(x=>/^\d+$/.test(x))?segs.join(' - '):(/^(PARTNER\s+)?WODS?$/.test(segs[0])&&segs.length>1)?segs[1]:segs[0]||'';
+    f=f.replace(/\bTC\s*:?\s*[\d'\s\/]+/g,'').replace(/\(\s*X\s*\d+[^)]*\)/g,'(XN)').replace(/[-\s]+$/,'').replace(/\s+/g,' ').trim();
+    if(f) return f;
+  }
+  return '';
+}
+// Nombres de movimientos de una línea: "3 BMU o 3 Pull Ups/T2B" -> ['BMU','PULL UPS','T2B']
+function wodMoveNames(s){
+  let f=wodFold(s).replace(/\([^)]*\)/g,' ').replace(/\*/g,'').replace(/^(?:MIN(?:UTO)?\s*\d+\s*:|PARTE\s*\d+\s*:)/,'');
+  const out=[];
+  f.split(/\s+O\s+|\s+\+\s+|\s*\/\s*(?=[A-Z])/).forEach(p=>{
+    const n=p.replace(/^(?:[\d\s.,\/'"x-]|\bX\b)+/,'').replace(/^(?:MTS?|METROS|CAL|REPS?|KG|SEG)\b\.?\s*/,'').replace(/[:.,;]+$/,'').trim();
+    if(n && /[A-Z]{2,}/.test(n) && !/^(?:REST|MAX OBJETIVO GRUPAL)$/.test(n)) out.push(n);
+  });
+  return out;
+}
+// ---- Parser de la planificación ----
+// parseWodText(text,{ref:'YYYY-MM-DD'}) -> {weeks:[{id,label,days,lineFrom,lineTo}], errors:[{line,msg}], warnings:[{line,msg}], orphans:[{line,text}]}
+function parseWodText(text, opts){
+  opts=opts||{};
+  const ref=calIsDate(opts.ref)?opts.ref:'2026-01-01';
+  const lines=wodCleanRaw(text).split('\n');
+  const errors=[], warnings=[], orphans=[], days=[];
+  let semLabel='', semLine=0, day=null;
+  const closeDay=()=>{ if(day){ finishDay(day,warnings); days.push(day); day=null; } };
+  lines.forEach((raw,i)=>{
+    const ln=i+1, t=raw.trim();
+    const f=wodFold(t);
+    const sem=/^SEMANA\s*(\d+)\b\s*[-:]?\s*(.*)$/.exec(f);
+    if(sem && !wodIsBullet(raw)){ closeDay(); semLabel='SEMANA '+sem[1]; semLine=ln; return; }
+    const dl=!wodIsBullet(raw) && wodDateLine(t,ref);
+    if(dl){
+      closeDay();
+      if(dl.bad){ errors.push({line:ln,msg:'Fecha inválida: "'+t+'"'}); day=null; return; }
+      day={date:dl.date,label:dl.label,sem:semLabel,semLine,line:ln,endLine:ln,rawLines:[raw],section:null,pre:[],warm:[],wodLines:[]};
+      return;
+    }
+    if(!day){ if(t && !/^\/\//.test(t)) orphans.push({line:ln,text:t}); return; }
+    day.rawLines.push(raw); day.endLine=ln;
+    const sec=!wodIsBullet(raw) && wodSectionOf(t);
+    if(sec){ day.section=sec; if(sec==='wod') day.wodHeaderLine=ln; return; }
+    const item={raw,ln};
+    if(day.section==='wod') day.wodLines.push(item);
+    else if(day.section==='warmup') day.warm.push(item);
+    else day.pre.push(item);
+  });
+  closeDay();
+  // fechas repetidas
+  const seen={};
+  days.forEach(d=>{ if(seen[d.date]) errors.push({line:d.line,msg:'La fecha '+calDM(d.date)+' está repetida (también en la línea '+seen[d.date]+')'}); else seen[d.date]=d.line; });
+  orphans.forEach(o=>warnings.push({line:o.line,msg:'Fuera de un día (falta la fecha arriba): no se guarda'}));
+  // agrupar por semana (lunes de cada fecha)
+  const byWeek={};
+  days.forEach(d=>{
+    const id=wodMonday(d.date);
+    if(!byWeek[id]) byWeek[id]={id,label:'',days:[],lineFrom:d.line,lineTo:d.endLine};
+    const w=byWeek[id];
+    if(d.sem && !w.label) w.label=d.sem;
+    else if(d.sem && w.label && w.label!==d.sem) warnings.push({line:d.line,msg:calDM(d.date)+' cae en la misma semana que "'+w.label+'" pero está bajo "'+d.sem+'"'});
+    w.lineFrom=Math.min(w.lineFrom,d.line); w.lineTo=Math.max(w.lineTo,d.endLine);
+    w.days.push(d);
+  });
+  // un SEMANA N con días de semanas distintas
+  const semWeeks={};
+  days.forEach(d=>{ if(!d.sem) return; (semWeeks[d.sem]=semWeeks[d.sem]||new Set()).add(wodMonday(d.date)); });
+  Object.entries(semWeeks).forEach(([s,set])=>{ if(set.size>1){ const d=days.find(x=>x.sem===s); warnings.push({line:d.semLine||d.line,msg:s+' tiene días de '+set.size+' semanas distintas (lunes a domingo): se separan por fecha'}); } });
+  const weeks=Object.values(byWeek).sort((a,b)=>a.id<b.id?-1:1).map(w=>{
+    w.days.sort((a,b)=>a.date<b.date?-1:1);
+    w.days=w.days.map(d=>({date:d.date,label:d.label,raw:d.rawLines.join('\n').replace(/\s+$/,''),warmupText:d.warmupText,wods:d.wods,flags:d.flags}));
+    if(!w.label) w.label='';
+    return w;
+  });
+  return {weeks,errors,warnings,orphans};
+}
+// Arma los WODs de un día (y el texto de warm up). Agrega advertencias al array.
+function finishDay(d,warnings){
+  const flags=[];
+  const txt=a=>a.map(x=>x.raw.replace(/\s+$/,'')).join('\n').replace(/^\n+|\n+$/g,'');
+  let warm=txt(d.pre.concat(d.warm));
+  const hasContent=d.pre.concat(d.warm,d.wodLines).some(x=>x.raw.trim());
+  if(d.pre.some(x=>x.raw.trim())){ const l=d.pre.find(x=>x.raw.trim()); warnings.push({line:l.ln,msg:calDM(d.date)+': texto antes de "A) WARM UP" — queda en el Warm Up (solo staff)'}); flags.push('pre'); }
+  d.warmupText=warm;
+  d.wods=[];
+  if(!d.section || (d.section!=='wod' && !d.wodHeaderLine)){
+    if(hasContent){ warnings.push({line:d.line,msg:calDM(d.date)+': no encontré "B) WOD". Todo queda como Warm Up y los alumnos no ven nada ese día'}); flags.push('nowod'); }
+    d.flags=flags; return;
+  }
+  // dividir en WODs por "WOD A / WOD B"
+  const groups=[]; let cur={id:'U',header:null,items:[]}; groups.push(cur);
+  d.wodLines.forEach(it=>{
+    const h=!wodIsBullet(it.raw) && wodHeaderOf(it.raw.trim());
+    if(h && h.id){ cur={id:h.id,header:h,headerLine:it.ln,items:[]}; groups.push(cur); return; }
+    if(h && !h.id){ cur.plainHeader=true; return; } // "WOD" suelto = título del único WOD
+    cur.items.push(it);
+  });
+  const lettered=groups.filter(g=>g.id!=='U');
+  if(lettered.length){
+    const u=groups[0];
+    if(u.items.some(x=>x.raw.trim())) lettered[0].items=u.items.concat(lettered[0].items);
+    groups.splice(0,1);
+  }
+  const usedIds={};
+  groups.forEach(g=>{
+    if(usedIds[g.id]) warnings.push({line:g.headerLine||d.line,msg:calDM(d.date)+': hay dos "WOD '+g.id+'"'});
+    usedIds[g.id]=1;
+    const w=buildWod(g,d,warnings);
+    if(w) d.wods.push(w);
+  });
+  if(!d.wods.length && hasContent){ warnings.push({line:d.wodHeaderLine||d.line,msg:calDM(d.date)+': "B) WOD" está vacío'}); flags.push('emptywod'); }
+  d.flags=flags;
+}
+function buildWod(g,d,warnings){
+  const content=[], tables=[], textLines=[], movLines=[];
+  let partner=!!(g.header&&g.header.partner), sector='', titleExtra='', regType=null;
+  if(g.header && g.header.rest){
+    const r=g.header.rest;
+    const sm=/^SECTOR\s+(.+)$/.exec(r);
+    if(sm) sector=sm[1].trim(); else titleExtra=r;
+  }
+  let table=null; // tabla abierta {kind,...}
+  let pendingRow=null;
+  const lastNonBlank=()=>{ for(let i=content.length-1;i>=0;i--) if(content[i].t!=='blank') return {it:content[i],i}; return null; };
+  const items=g.items.slice();
+  while(items.length && !items[items.length-1].raw.trim()) items.pop();
+  while(items.length && !items[0].raw.trim()) items.shift();
+  items.forEach(it=>{
+    const raw=it.raw, t=raw.trim(), f=wodFold(t);
+    if(!t){ if(content.length && content[content.length-1].t!=='blank') content.push({t:'blank'}); if(table&&table.kind==='level') table=null; return; }
+    const reg=/^REGISTRO\s*:\s*(\S+)/.exec(f);
+    if(reg){ regType=WOD_REG_MAP[reg[1]]||null; if(!regType) warnings.push({line:it.ln,msg:'REGISTRO: usá tiempo, reps, rondas o completado'}); return; }
+    if(/^(?:\.{2,}|…)$/.test(t)){ const L=lastNonBlank(); if(L && L.it.t==='table') return; }
+    // fila de tabla por sexo y nivel
+    const sr=wodSexRow(t);
+    if(sr){
+      if(!sr.cells.length){ pendingRow=sr; pendingRow.ln=it.ln; return; }
+      addSexRow(sr,it.ln); return;
+    }
+    if(pendingRow){ const cells=wodCells(t); if(cells.length && cells.every(wodLooksWeight)){ pendingRow.cells=cells; addSexRow(pendingRow,pendingRow.ln); pendingRow=null; return; } pendingRow=null; }
+    const cells=wodCells(t);
+    // encabezado de tabla por nivel: "Rx | Avanzados | Intermedio | Principiante"
+    if(!wodIsBullet(raw) && cells.length>=2 && cells.every(c=>wodLevelOf(c))){
+      table={kind:'level',levels:cells.map(wodLevelOf),head:cells,rows:[]}; tables.push(table); content.push({t:'table',i:tables.length-1}); return;
+    }
+    if(table && table.kind==='level' && !wodIsBullet(raw) && cells.length===table.levels.length+1){ table.rows.push({label:cells[0],cells:cells.slice(1)}); return; }
+    table=null;
+    if(/\bPARTNER\b/.test(f)) partner=true;
+    if(wodIsBullet(raw)){
+      const body=wodStripBullet(raw);
+      const cs=wodCells(body);
+      if(cs.length>=2){ content.push({t:'cols',cells:cs.map(c=>({s:c.replace(/^-\s*/,''),mov:true}))}); cs.forEach(c=>movLines.push(c.replace(/^-\s*/,''))); }
+      else { content.push({t:'mov',s:body}); movLines.push(body); }
+      return;
+    }
+    if(cells.length>=2){
+      content.push({t:'cols',cells:cells.map(c=>({s:c.replace(/^-\s*/,''),mov:/^-\s/.test(c)}))});
+      cells.forEach(c=>{ if(/^-\s/.test(c)) movLines.push(c.slice(2)); });
+      return;
+    }
+    content.push({t:'text',s:t}); textLines.push(t);
+  });
+  function addSexRow(sr,ln){
+    let tb=null;
+    const last=lastNonBlank();
+    if(last && last.it.t==='table' && tables[last.it.i].kind==='sex') tb=tables[last.it.i];
+    if(!tb){
+      tb={kind:'sex',head:[],rows:[]};
+      // encabezado: hasta 2 líneas de columnas justo arriba con la misma cantidad de valores
+      const n=sr.cells.length, heads=[];
+      if(n>=2){
+        for(let k=0;k<2;k++){
+          const L=content[content.length-1];
+          if(L && L.t==='cols' && L.cells.length===n){ heads.unshift(L.cells.map(c=>c.s)); content.pop(); }
+          else break;
+        }
+      }
+      if(heads.length) tb.head=heads[0].map((h,ci)=>heads.map(r=>r[ci]).join(' · '));
+      tables.push(tb); content.push({t:'table',i:tables.length-1});
+    }
+    if(tb.rows.length && tb.rows[0].cells.length!==sr.cells.length) warnings.push({line:ln,msg:calDM(d.date)+': la fila "'+sr.label+'" tiene '+sr.cells.length+' valores y la primera tiene '+tb.rows[0].cells.length});
+    tb.rows.push({sex:sr.sex,level:sr.level,label:sr.label,cells:sr.cells});
+    table=tb;
+  }
+  while(content.length && content[content.length-1].t==='blank') content.pop();
+  if(!content.length && !g.header) return null;
+  let timeCap='';
+  textLines.concat(titleExtra?[titleExtra]:[]).some(l=>{ const m=/\bTC\s*:?\s*((?:\d+ *'? *(?:\/ *)?)+)/.exec(wodFold(l)); if(m) timeCap=wodFmtTc(m[1]).replace(/\s*\/\s*$/,''); return !!m; });
+  if(/PARTNER/.test(wodFold(titleExtra))) partner=true;
+  let score=regType?{type:regType,how:'explicit'}:wodInferScore(textLines.concat(titleExtra?[titleExtra]:[]),movLines,timeCap);
+  if(score.how==='ambiguous') warnings.push({line:g.headerLine||d.wodHeaderLine||d.line,msg:calDM(d.date)+' · WOD '+(g.id==='U'?'':g.id)+': no se reconoce el formato, se registra como "completado". Podés agregar REGISTRO: tiempo | reps | rondas | completado'});
+  const moves=[]; movLines.forEach(l=>wodMoveNames(l).forEach(n=>{ if(!moves.includes(n)) moves.push(n); }));
+  const id=g.id;
+  return {
+    id, title:id==='U'?(partner?'Partner WOD':'WOD'):'WOD '+id, sector, titleExtra:sector?'':titleExtra, partner, timeCap,
+    scoreType:score.type, scoreHow:score.how, structure:wodStructKey(textLines), movements:moves,
+    contentLines:content, weightTables:tables
+  };
+}
+// Firma de una semana para saber si lo publicado cambió
+function wodWeekSig(days){ return hashStr(JSON.stringify((days||[]).map(d=>[d.date,d.label,d.warmupText,d.wods]))); }
+// ---- Registros ----
+function wodLogKey(date,wodId){ return date+'_'+wodId; }
+const WOD_LEVEL_RANK={principiante:1,intermedio:2,avanzado:3,rx:4};
+// Semanas seguidas (lun–dom) con 2+ WODs registrados. La semana en curso suma si ya tiene 2 y no corta si no.
+function wodStreak(logDates,today){
+  const cnt={};
+  (logDates||[]).forEach(d=>{ if(calIsDate(d) && d<=today){ const m=wodMonday(d); cnt[m]=(cnt[m]||0)+1; } });
+  let w=wodMonday(today), s=0;
+  if((cnt[w]||0)>=2) s++;
+  w=calAddDays(w,-7);
+  while((cnt[w]||0)>=2){ s++; w=calAddDays(w,-7); }
+  return s;
+}
+function wodWeekCount(logDates,today){ const m=wodMonday(today); return (logDates||[]).filter(d=>calIsDate(d)&&wodMonday(d)===m&&d<=calAddDays(m,6)).length; }
+function wodFmtSec(sec){ sec=Math.max(0,Math.round(+sec||0)); return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0'); }
+function wodFmtResult(l){
+  if(!l) return '';
+  if(l.scoreType==='time') return l.capped ? 'TC'+(l.reps!=null&&l.reps!==''?' · '+l.reps+' reps':'') : (l.timeSec!=null?wodFmtSec(l.timeSec):'—');
+  if(l.scoreType==='reps') return (l.reps!=null&&l.reps!==''?l.reps:'—')+' reps';
+  if(l.scoreType==='rounds') return (l.rounds!=null&&l.rounds!==''?l.rounds:'—')+' rondas'+(+l.extraReps?' + '+l.extraReps:'');
+  return l.completed==='partial'?'Parcial':'Completo';
+}
+// Valida y normaliza un registro antes de guardar. Devuelve {ok, err, log}
+function wodValidateLog(f){
+  if(!WOD_LEVELS.includes(f.level)) return {ok:false,err:'Elegí la categoría en la que lo hiciste'};
+  const num=v=>{ const s=String(v==null?'':v).trim(); return s===''?null:(/^\d+$/.test(s)?+s:NaN); };
+  const out={level:f.level,scoreType:f.scoreType,kgText:String(f.kgText||'').trim().slice(0,120),feeling:f.feeling||'',notes:String(f.notes||'').trim().slice(0,1000),partnerName:String(f.partnerName||'').trim().slice(0,80)};
+  if(f.scoreType==='time'){
+    out.capped=!!f.capped;
+    if(out.capped){ const r=num(f.reps); if(r===null||isNaN(r)) return {ok:false,err:'Anotá las repeticiones que completaste'}; out.reps=r; out.timeSec=null; }
+    else { const mm=num(f.min), ss=num(f.sec); if(mm===null&&ss===null) return {ok:false,err:'Anotá el tiempo (min y seg)'}; if(isNaN(mm)||isNaN(ss)||(ss||0)>59) return {ok:false,err:'Tiempo inválido'}; out.timeSec=(mm||0)*60+(ss||0); if(!out.timeSec) return {ok:false,err:'Anotá el tiempo (min y seg)'}; }
+  } else if(f.scoreType==='reps'){ const r=num(f.reps); if(r===null||isNaN(r)) return {ok:false,err:'Anotá las repeticiones totales'}; out.reps=r; }
+  else if(f.scoreType==='rounds'){ const r=num(f.rounds), x=num(f.extraReps); if(r===null||isNaN(r)) return {ok:false,err:'Anotá las rondas'}; if(isNaN(x)) return {ok:false,err:'Reps extra inválidas'}; out.rounds=r; out.extraReps=x||0; }
+  else { out.scoreType='completed'; out.completed=f.completed==='partial'?'partial':'full'; }
+  return {ok:true,log:out};
+}
+// Dos WODs se parecen si tienen la misma línea de estructura y la mayoría de los movimientos en común
+function wodSimilar(a,b){
+  if(!a||!b||!a.structure||a.structure!==b.structure) return false;
+  const A=a.movements||[], B=b.movements||[];
+  if(!A.length||!B.length) return false;
+  const common=A.filter(x=>B.includes(x)).length;
+  return common*2>=Math.max(A.length,B.length);
+}
+// Diferencia entre dos resultados del mismo tipo: {txt, better:true|false|null}
+function wodDiff(cur,prev){
+  if(!cur||!prev||cur.scoreType!==prev.scoreType) return null;
+  const sg=n=>(n>0?'+':n<0?'−':'±')+Math.abs(n);
+  if(cur.scoreType==='time'){
+    if(!cur.capped && !prev.capped && cur.timeSec!=null && prev.timeSec!=null){ const d=cur.timeSec-prev.timeSec; return {txt:(d<0?'−':d>0?'+':'±')+wodFmtSec(Math.abs(d)),better:d<0?true:d>0?false:null}; }
+    if(cur.capped && prev.capped){ const d=(+cur.reps||0)-(+prev.reps||0); return {txt:sg(d)+' reps',better:d>0?true:d<0?false:null}; }
+    return {txt:cur.capped?'Esta vez no terminó en el TC':'Esta vez terminó dentro del TC',better:!cur.capped};
+  }
+  if(cur.scoreType==='reps'){ const d=(+cur.reps||0)-(+prev.reps||0); return {txt:sg(d)+' reps',better:d>0?true:d<0?false:null}; }
+  if(cur.scoreType==='rounds'){ const a=(+cur.rounds||0)*1000+(+cur.extraReps||0), b=(+prev.rounds||0)*1000+(+prev.extraReps||0); const dr=(+cur.rounds||0)-(+prev.rounds||0), dx=(+cur.extraReps||0)-(+prev.extraReps||0); return {txt:sg(dr)+' rondas'+(dx?' · '+sg(dx)+' reps':''),better:a>b?true:a<b?false:null}; }
+  return {txt:cur.completed===prev.completed?'Igual':(cur.completed==='full'?'Esta vez completo':'Esta vez parcial'),better:cur.completed===prev.completed?null:cur.completed==='full'};
+}
+// Pares de progresión: para cada registro del período, el anterior más reciente con un WOD parecido.
+// logs: [{date,wodId,...}]  wodOf(date,wodId) -> wod | null
+function wodProgressPairs(logs,wodOf,from,to){
+  const sorted=(logs||[]).slice().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:(a.wodId<b.wodId?-1:1));
+  const out=[];
+  sorted.forEach((l,i)=>{
+    if(l.date<from||l.date>to) return;
+    const w=wodOf(l.date,l.wodId); if(!w) return;
+    for(let j=i-1;j>=0;j--){
+      const p=sorted[j]; if(p.date>=l.date) continue;
+      const pw=wodOf(p.date,p.wodId);
+      if(pw && wodSimilar(w,pw)){ out.push({cur:l,prev:p,wod:w,prevWod:pw,diff:wodDiff(l,p)}); break; }
+    }
+  });
+  return out;
+}
+// Estado de pertenencia al Club WOD guardado en el usuario (clubs.wod), compatible con cuentas creadas en WOD
+function wodMember(u){ return u && u.clubs && u.clubs.wod ? u.clubs.wod : null; }
+function wodStatusOf(u){ const m=wodMember(u); return m ? m.status : (u && u.club==='wod' ? u.status : null); }
+function wodIsTeacherUser(u){ const m=wodMember(u); return !!(m && m.role==='teacher'); }
+function wodTeacherListed(u){ const m=wodMember(u); return !!m && (m.role==='teacher' || (m.roleRequest==='teacher' && m.status!=='active')); }
+// </wod-core>
+
 async function loadBlockCalendar(){
   const r=await sharedGet(K.BLOCK_CAL);
   blockCalendar=(r && typeof r==='object' && calIsDate(r.startDate)) ? r : null;
@@ -2213,8 +2713,8 @@ function navBarHTML(showBack=false,backFn=''){
   const initials=session?session.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase():'?';
   const impBanner='';
   const club=getClub();
-  const navLogo = club==='hybrid'
-    ? `<div class="nav-logo" style="width:36px;height:36px;margin:0;background-image:url('${LOGO_HYBRID_URL}')" oncontextmenu="return false" ondragstart="return false"
+  const navLogo = club==='hybrid'||club==='wod'
+    ? `<div class="nav-logo" style="width:36px;height:36px;margin:0;background-image:url('${club==='wod'?LOGO_WOD_URL:LOGO_HYBRID_URL}')" oncontextmenu="return false" ondragstart="return false"
         onmousedown="handleLogoMouseDown()" onmouseup="handleLogoMouseUp()" onmouseleave="cancelLogoHold()"
         ontouchstart="handleLogoTouchStart(event)" ontouchend="handleLogoTouchEnd(event)" ontouchcancel="cancelLogoHold()" ontouchmove="cancelLogoHold()"></div>`
     : `<div class="nav-logo" oncontextmenu="return false" ondragstart="return false"
@@ -2222,7 +2722,7 @@ function navBarHTML(showBack=false,backFn=''){
         onmousedown="handleLogoMouseDown()" onmouseup="handleLogoMouseUp()" onmouseleave="cancelLogoHold()"
         ontouchstart="handleLogoTouchStart(event)" ontouchend="handleLogoTouchEnd(event)" ontouchcancel="cancelLogoHold()" ontouchmove="cancelLogoHold()">
       </div>`;
-  const navTitle = club==='hybrid' ? `FUSION<span>HYBRID CLUB</span>` : `FUSION<span>STUDIO</span>`;
+  const navTitle = club==='hybrid' ? `FUSION<span>HYBRID CLUB</span>` : club==='wod' ? `FUSION<span>WOD</span>` : `FUSION<span>STUDIO</span>`;
   const avatarHTML = session?`<div class="nav-user" onclick="toggleUserMenu()" oncontextmenu="return false"
         onmousedown="handleAvatarMouseDown()" onmouseup="handleAvatarMouseUp()" onmouseleave="cancelAvatarHold()"
         ontouchstart="handleAvatarTouchStart(event)" ontouchend="handleAvatarTouchEnd(event)" ontouchcancel="cancelAvatarHold()" ontouchmove="cancelAvatarHold()">
@@ -2251,7 +2751,7 @@ function navBarHTML(showBack=false,backFn=''){
 
   return `<nav class="nav">
     ${showBack?`<button class="nav-back" onclick="${backFn}">${IC.back}</button>`:`<div class="nav-spacer"></div>`}
-    <div class="nav-brand" onclick="nav('home')">
+    <div class="nav-brand" onclick="${club==='wod'?"wodTab('home')":"nav('home')"}">
       ${navLogo}
       <div class="nav-title">${navTitle}</div>
     </div>
@@ -2288,7 +2788,8 @@ function getClub(){ return (session && session.club) || currentClub || 'fuerza';
 function selectClub(club){
   currentClub = club;
   lsSet('fs_current_club_v1', club);
-  authState = { mode:'login', name:'', email:'', pw:'', pw2:'', err:'', loading:false };
+  authState = { mode:'login', name:'', email:'', pw:'', pw2:'', err:'', loading:false, sex:'' };
+  wodJoin = null;
   render();
 }
 
@@ -2312,6 +2813,11 @@ function renderClubSelect(){
       <div class="club-pick-title">FUSION<span style="color:#FFEC03">HYBRID CLUB</span></div>
       <div class="club-pick-sub">Entrenamiento híbrido (HYROX)</div>
     </div>
+    <div class="club-pick" onclick="selectClub('wod')">
+      <div class="auth-logo" style="width:64px;height:64px;margin:0 0 12px;background-image:url('${LOGO_WOD_URL}');border-color:#2B35E0;box-shadow:0 0 40px rgba(43,53,224,0.35)" oncontextmenu="return false" ondragstart="return false"></div>
+      <div class="club-pick-title" style="font-family:'Orbitron','Oswald',sans-serif">FUSION<span style="color:#7C86FF">WOD</span></div>
+      <div class="club-pick-sub">Clases de WOD</div>
+    </div>
   </div>`;
 }
 
@@ -2322,6 +2828,8 @@ let authState={ mode:'login', name:'', email:'', pw:'', pw2:'', err:'', loading:
 
 function renderAuth(){
   const club=getClub();
+  if(club==='wod' && wodJoin) return wodRenderJoin();
+  if(club==='wod') return authState.mode==='login' ? renderLogin(wodLogoHTML()) : renderRegister(wodLogoHTML());
   const logoImg = club==='hybrid'
     ? `<div class="auth-logo" oncontextmenu="return false" ondragstart="return false"
         style="background-image:url('${LOGO_HYBRID_URL}')"
@@ -2353,7 +2861,7 @@ function pwFieldHTML(id, placeholder, oninput, onkeydown){
 
 function renderLogin(logoImg){
   const club=getClub();
-  const title = club==='hybrid' ? `FUSION<span>HYBRID CLUB</span>` : `FUSION<span>STUDIO</span>`;
+  const title = club==='hybrid' ? `FUSION<span>HYBRID CLUB</span>` : club==='wod' ? `FUSION<span>WOD</span>` : `FUSION<span>STUDIO</span>`;
   return `<div class="auth-wrap">
     ${logoImg}
     <h1 class="auth-title">${title}</h1>
@@ -2372,7 +2880,7 @@ function renderLogin(logoImg){
 
 function renderRegister(logoImg){
   const club=getClub();
-  const title = club==='hybrid' ? `FUSION<span>HYBRID CLUB</span>` : `FUSION<span>STUDIO</span>`;
+  const title = club==='hybrid' ? `FUSION<span>HYBRID CLUB</span>` : club==='wod' ? `FUSION<span>WOD</span>` : `FUSION<span>STUDIO</span>`;
   return `<div class="auth-wrap">
     ${logoImg}
     <h1 class="auth-title">${title}</h1>
@@ -2384,10 +2892,11 @@ function renderRegister(logoImg){
       <input class="auth-inp" type="email" placeholder="Email" id="a-reg-email" value="${escH(authState.email)}" oninput="authState.email=this.value" onkeydown="if(event.key==='Enter')document.getElementById('a-reg-pw').focus()">
       ${pwFieldHTML('a-reg-pw','Contraseña',"authState.pw=this.value","if(event.key==='Enter')document.getElementById('a-reg-pw2').focus()")}
       ${pwFieldHTML('a-reg-pw2','Repetir contraseña',"authState.pw2=this.value","if(event.key==='Enter')doRegister()")}
+      ${club==='wod'?wodRegisterExtrasHTML():''}
       <button class="auth-btn" onclick="doRegister()" ${authState.loading?'disabled':''}>CREAR CUENTA</button>
     </div>
     <div class="auth-link" onclick="switchAuth('login')">¿Ya tenés cuenta? <span>Iniciá sesión</span></div>
-    ${club==='fuerza'?`<div class="auth-link" style="margin-top:8px;opacity:0.6" onclick="authState.teacher=!authState.teacher;render()">${authState.teacher?'Registrarme como <span>alumno</span>':'Soy <span>profesor</span>'}</div>`:''}
+    ${club==='fuerza'||club==='wod'?`<div class="auth-link" style="margin-top:8px;opacity:0.6" onclick="authState.teacher=!authState.teacher;render()">${authState.teacher?'Registrarme como <span>alumno</span>':'Soy <span>profesor</span>'}</div>`:''}
     <div class="auth-link" style="margin-top:8px;opacity:0.6" onclick="changeClub()">Cambiar de <span>APP</span></div>
   </div>`;
 }
@@ -2395,6 +2904,7 @@ function renderRegister(logoImg){
 function switchAuth(mode){ authState={...authState,mode,err:'',teacher:false}; render(); }
 
 async function doLogin(){
+  if(getClub()==='wod') return wodDoLogin();
   authState.loading=true; authState.err=''; render();
   await loadUsers();
   const res=await loginUser(authState.email,authState.pw,getClub());
@@ -2410,6 +2920,7 @@ async function doLogin(){
 }
 
 async function doRegister(){
+  if(getClub()==='wod') return wodDoRegister();
   if(!authState.name.trim()){ authState.err='Ingresá tu nombre.'; render(); return; }
   if(!authState.email.includes('@')){ authState.err='Email inválido.'; render(); return; }
   if(authState.pw.length<6){ authState.err='La contraseña debe tener al menos 6 caracteres.'; render(); return; }
@@ -2425,7 +2936,7 @@ async function doRegister(){
   render();
 }
 
-function doLogout(){ clearSession(); progress={}; userMenuOpen=false; adminState.pwOk=false; teacherState={tab:'plan'}; staffParts={}; staffState={week:null,day:0,editing:null,hist:null,busy:false,picker:null,pickAll:false,useTpl:null}; stplIndex=null; stplState={cat:'Todas',edit:null}; authState={mode:'login',name:'',email:'',pw:'',pw2:'',err:'',loading:false,teacher:false}; render(); }
+function doLogout(){ wodResetState(); clearSession(); progress={}; userMenuOpen=false; adminState.pwOk=false; teacherState={tab:'plan'}; staffParts={}; staffState={week:null,day:0,editing:null,hist:null,busy:false,picker:null,pickAll:false,useTpl:null}; stplIndex=null; stplState={cat:'Todas',edit:null}; authState={mode:'login',name:'',email:'',pw:'',pw2:'',err:'',loading:false,teacher:false}; render(); }
 
 // ============================================================
 // PENDING SCREEN
@@ -2441,6 +2952,7 @@ function renderPending(){
 }
 
 async function recheckApproval(){
+  if(session && session.club==='wod') return wodRecheckApproval();
   await loadUsers();
   const u=getUserByEmail(authState.email||session.email, session.club||getClub());
   if(u&&u.status===STATUS.ACTIVE){ saveSession(u); await loadProgress(); if(session.club==='hybrid') await hcEnsureGoalData(); render(); showToast('¡Cuenta aprobada!'); }
@@ -4222,7 +4734,7 @@ function handleFinish(){ showToast('¡Bloque registrado!'); setTimeout(()=>nav('
 // ADMIN MODAL
 // ============================================================
 function openAdmin(){
-  if(isTeacherSession()) return; // el profesor no tiene panel admin ni modal de contraseña
+  if(isTeacherSession() || wodIsTeacherSession()) return; // el profesor no tiene panel admin ni modal de contraseña
   adminState.open=true;
   if(!adminState.pwOk){
     const club=getClub();
@@ -4270,7 +4782,7 @@ function renderModal(){
     adminState._lastViewUserIdx = adminState.viewUserIdx;
     root.innerHTML=`<div class="modal-overlay adm-desk" onclick="closeAdminBg(event)">
       <div class="modal">
-        <div class="modal-header"><span class="modal-title">${IC.lock} ADMIN ${getClub()==='hybrid'?'· HYBRID CLUB':'· FUERZA'}</span><button class="modal-close" onclick="closeAdmin()">✕</button></div>
+        <div class="modal-header"><span class="modal-title">${IC.lock} ADMIN ${getClub()==='hybrid'?'· HYBRID CLUB':getClub()==='wod'?'· WOD':'· FUERZA'}</span><button class="modal-close" onclick="closeAdmin()">✕</button></div>
         <div class="modal-body">${adminState.pwOk?renderAdminBody():renderAdminPw()}</div>
       </div>
     </div>`;
@@ -4310,7 +4822,7 @@ function renderAdminPw(){
 async function checkAdminPw(){
   const val=document.getElementById('adm-pw-inp').value;
   const club=getClub();
-  const defaultPw = club==='hybrid' ? DEFAULT_ADMIN_PW_HYBRID : DEFAULT_ADMIN_PW;
+  const defaultPw = club==='hybrid' ? DEFAULT_ADMIN_PW_HYBRID : club==='wod' ? DEFAULT_ADMIN_PW_WOD : DEFAULT_ADMIN_PW;
   const remote=await sharedGet(K.ADMINPW(club));
   const stored=remote || lsGet(K.ADMINPW(club)) || hashStr(defaultPw);
   if(remote) lsSet(K.ADMINPW(club),remote); // keep local cache in sync
@@ -4339,6 +4851,7 @@ const HC_ADM_TABS=[
   {k:'config',label:'Configuración',ic:'settings'}
 ];
 function renderAdminBody(){
+  if(getClub()==='wod') return wodRenderAdminBody();
   if(getClub()==='hybrid'){
     if(!HC_ADM_TABS.some(t=>t.k===adminState.tab)) adminState.tab='dash';
     const nav=HC_ADM_TABS.map(t=>`<div class="admin-tab ${adminState.tab===t.k?'active':''}" onclick="setAdminTab('${t.k}')"><span class="adm-tab-ic">${hcIcon(t.ic,16)}${t.label}</span></div>`).join('');
@@ -4367,6 +4880,7 @@ function renderAdminBody(){
 
 async function setAdminTab(i){
   if(getClub()==='hybrid') return hcSetAdminTab(i);
+  if(getClub()==='wod') return wodSetAdminTab(i);
   if(i!==1){ adminState.viewUserIdx=null; adminState.viewFichaUid=null; adminState.viewPlanUid=null; adminState.viewChatUid=null; adminState.viewMetricsUid=null; }
   adminState.tab=i;
   // Borrador y Plantillas se releen al entrar (el admin puede usar celular y tablet)
@@ -8994,7 +9508,7 @@ async function changeAdminPw(){
   const n2=document.getElementById('pw-new2').value;
   const err=document.getElementById('pw-ch-err');
   const club=getClub();
-  const defaultPw = club==='hybrid' ? DEFAULT_ADMIN_PW_HYBRID : DEFAULT_ADMIN_PW;
+  const defaultPw = club==='hybrid' ? DEFAULT_ADMIN_PW_HYBRID : club==='wod' ? DEFAULT_ADMIN_PW_WOD : DEFAULT_ADMIN_PW;
   const remote=await sharedGet(K.ADMINPW(club));
   const stored=remote || lsGet(K.ADMINPW(club)) || hashStr(defaultPw);
   if(hashStr(cur)!==stored){err.textContent='Contraseña actual incorrecta.';err.style.display='block';return;}
@@ -9553,6 +10067,7 @@ function renderImpBanner(){
 let __lastRenderKey=null;
 function render(){
   document.body.classList.toggle('hc-theme', getClub()==='hybrid');
+  document.body.classList.toggle('wod-theme', getClub()==='wod');
   const app=document.getElementById('app');
   // Guardamos el scroll ANTES de tocar el DOM, y sólo lo llevamos a 0 cuando
   // realmente cambiamos de pantalla — no en cada re-render dentro de la misma
@@ -9568,6 +10083,8 @@ function render(){
     app.innerHTML=renderPending(); renderKey='pending';
   } else if(session.club==='hybrid'){
     app.innerHTML=renderHybridHome(); renderKey='hybrid:'+hcState.tab;
+  } else if(session.club==='wod'){
+    app.innerHTML=wodRenderApp(); renderKey='wod:'+(wodIsTeacherSession()?'teacher':wodState.tab);
   } else if(isTeacherSession()){
     app.innerHTML=renderTeacherHome(); renderKey='teacher:'+teacherState.tab;
   } else {
@@ -9617,6 +10134,1054 @@ function render(){
 }
 
 // ============================================================
+// CLUB WOD — datos, acceso, alumno, profesor y Admin
+// Todo lo del Club WOD vive acá (y en <wod-core>). Fuerza e Hybrid Club no usan nada de este bloque.
+// Firestore (colección fusion_data, como el resto de la app):
+//   wod_index_v1            índice liviano de semanas PUBLICADAS {weeks:{[lunes]:{label,dates,days:{[fecha]:{label,n,sectors,partner}},publishedAt,updatedAt}}}
+//   wod_week_{lunes}_v1     semana publicada {id,status,label,rawText,days:[{date,label,raw,warmupText,wods,editedBy,editedAt}],sig,updatedBy,updatedAt,publishedAt,history}
+//   wod_draft_v1            borrador del Admin {text,updatedAt,updatedBy} (los alumnos nunca lo leen)
+//   wod_logs_{uid}_v1       registros del alumno {logs:{[fecha_wodId]:{...}}}
+//   wod_announcement_v1     anuncio {text,expiresAt,updatedBy,updatedAt}
+//   wod_templates_v1        plantillas [{id,name,category,text,updatedAt}]
+//   fs_users_v1 (existente) se le suma a cada usuario: sex ('F'|'M') y clubs.wod {status,requestedAt,role,roleRequest}
+// ============================================================
+const LOGO_WOD_URL=(()=>{ const base=window.location.href.replace(/\/[^\/]*$/,'/'); return base+'assets/logo-wod.png'; })();
+const DEFAULT_ADMIN_PW_WOD='wod2026';
+const WOD_TPL_CATS=['Warm up','Formato de WOD','Tabla de pesos','Otro'];
+let wodIndex=null;          // índice de semanas publicadas
+let wodWeeks={};            // caché {[lunes]: doc | null}
+let wodLogs=null;           // registros propios {[clave]: log}
+let wodAnn=null;            // anuncio vigente o no
+let wodState={tab:'home', month:null, loading:false};
+let wodForms={};            // formularios abiertos {[clave]: {...}}
+let wodSheet=null;          // popup de un día {date, uid, admin}
+let wodJoin=null;           // pantalla "sumate al Club WOD" {uid, sex, teacher, needsRequest, name}
+let wodPlanView={week:null, editDate:null, editText:'', busy:false}; // Planificación (Admin y Profesor)
+let wodDraft=null, wodDraftSave='', wodDraftView='edit', wodDraftCaret=null;
+let wodTpls=null, wodTplEdit=null, wodTplCat='Todas';
+let wodAdmLogs={};          // {[uid]: logs} — registros de cada alumno (Admin)
+
+function wodResetState(){ wodIndex=null; wodWeeks={}; wodLogs=null; wodAnn=null; wodState={tab:'home',month:null,loading:false}; wodForms={}; wodSheet=null; wodJoin=null; wodPlanView={week:null,editDate:null,editText:'',busy:false}; wodAdmLogs={}; wodRenderSheet(); }
+function wodToday(){ return calToday(); }
+function wodWho(){ return (session && session.uid && session.uid!=='__pending__' && session.name) ? session.name : 'Admin'; }
+function wodFirstName(n){ return String(n||'').trim().split(/\s+/)[0]||''; }
+function wodDayTxt(date){ const n=CAL_WD_TXT[calWeekday(date)]; return n.charAt(0).toUpperCase()+n.slice(1)+' '+calDM(date); }
+function wodMonthTxt(ym){ const M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']; return M[+ym.slice(5,7)-1]+' '+ym.slice(0,4); }
+function wodRerender(){ if(adminState.open && isAdmin() && getClub()==='wod') renderModal(); if(session && session.club==='wod') render(); wodRenderSheet(); }
+
+// ---------- datos ----------
+async function wodLoadIndex(){ const r=await sharedGet(K.WOD_INDEX); wodIndex=(r&&r.weeks)?r:{weeks:{}}; return wodIndex; }
+async function wodGetWeek(id,force){
+  if(!force && Object.prototype.hasOwnProperty.call(wodWeeks,id)) return wodWeeks[id];
+  const d=await sharedGet(K.WOD_WEEK(id));
+  wodWeeks[id]=(d && d.status==='published') ? d : null;
+  return wodWeeks[id];
+}
+async function wodEnsureWeeks(ids){ await Promise.all([...new Set(ids)].filter(id=>!Object.prototype.hasOwnProperty.call(wodWeeks,id)).map(id=>wodGetWeek(id))); }
+function wodDay(date){ const w=wodWeeks[wodMonday(date)]; return w ? (w.days||[]).find(d=>d.date===date)||null : null; }
+function wodOf(date,id){ const d=wodDay(date); return d ? (d.wods||[]).find(w=>w.id===id)||null : null; }
+function wodIdxDay(date){ const w=wodIndex && wodIndex.weeks[wodMonday(date)]; return w && w.days ? w.days[date]||null : null; }
+function wodScheduled(from,to){ const out=[]; Object.values((wodIndex&&wodIndex.weeks)||{}).forEach(w=>Object.entries(w.days||{}).forEach(([d,v])=>{ if(v.n>0 && d>=from && d<=to) out.push(d); })); return out.sort(); }
+function wodNextDate(after){ const all=wodScheduled(calAddDays(after,1),'9999-12-31'); return all[0]||null; }
+async function wodLoadLogs(uid){ const r=await personalGet(K.WOD_LOGS(uid)); return (r && r.logs) ? r.logs : {}; }
+async function wodLoadAnn(){ wodAnn=await sharedGet(K.WOD_ANN)||null; return wodAnn; }
+function wodAnnActive(){ return !!(wodAnn && String(wodAnn.text||'').trim() && (!wodAnn.expiresAt || wodToday()<=wodAnn.expiresAt)); }
+// Carga todo lo que necesita el alumno (o el profesor) al entrar
+async function wodLoadStudentData(){
+  await Promise.all([wodLoadIndex(), wodLoadAnn(), loadUsers()]);
+  const u=session && getUserById(session.uid);
+  if(u && wodStatusOf(u)!=='active'){ const em=u.email; clearSession(); authState.email=em; authState.err=wodStatusOf(u)==='blocked'?'Tu acceso al Club WOD está deshabilitado. Hablá con el profe.':''; if(wodStatusOf(u)==='pending') session={uid:'__pending__',name:'',email:em,club:'wod'}; return; }
+  if(session) session.role = u && wodIsTeacherUser(u) ? 'teacher' : undefined;
+  const t=wodToday();
+  await wodGetWeek(wodMonday(t));
+  if(!wodIsTeacherSession()) wodLogs=await wodLoadLogs(session.uid);
+}
+function wodIsTeacherSession(){
+  if(!session || session.club!=='wod' || session.uid==='__pending__') return false;
+  const u=getUserById(session.uid);
+  return u ? wodIsTeacherUser(u) : session.role==='teacher';
+}
+// Guarda un registro releyendo el documento (no pisa lo cargado desde otro dispositivo)
+async function wodPutLog(uid,key,log){
+  const cur=await personalGet(K.WOD_LOGS(uid));
+  const doc=(cur && cur.logs) ? cur : {logs:{}};
+  doc.logs[key]=log;
+  const ok=await personalSet(K.WOD_LOGS(uid),doc);
+  return ok ? doc.logs : null;
+}
+
+// ---------- acceso: login, registro, "sumate al Club WOD", pendiente ----------
+function wodLogoHTML(size,extra){
+  return `<div class="auth-logo" oncontextmenu="return false" ondragstart="return false" style="${size?`width:${size}px;height:${size}px;`:''}background-image:url('${LOGO_WOD_URL}');${extra||''}"
+    onmousedown="handleLogoMouseDown()" onmouseup="handleLogoMouseUp()" onmouseleave="cancelLogoHold()"
+    ontouchstart="handleLogoTouchStart(event)" ontouchend="handleLogoTouchEnd(event)" ontouchcancel="cancelLogoHold()" ontouchmove="cancelLogoHold()"></div>`;
+}
+function wodSexChipsHTML(sel,onclickFn){
+  return `<div class="wod-chips" style="margin-bottom:12px">${['F','M'].map(s=>`<button type="button" class="wod-chip ${sel===s?'on':''}" style="flex:1" onclick="${onclickFn}('${s}')">${WOD_SEX_LABEL[s]}</button>`).join('')}</div>`;
+}
+function wodRegisterExtrasHTML(){
+  return `<div style="font-size:12px;color:var(--text2);margin:2px 0 8px">Sexo <span style="color:var(--text3)">(para resaltar tu fila en las tablas de pesos)</span></div>${wodSexChipsHTML(authState.sex,'wodAuthSex')}`;
+}
+function wodAuthSex(s){ authState.sex=s; render(); }
+async function wodDoLogin(){
+  authState.loading=true; authState.err=''; render();
+  await loadUsers();
+  const email=String(authState.email||'').toLowerCase().trim(), h=hashStr(authState.pw||'');
+  const cands=Object.values(users).filter(u=>u.email===email && u.hash===h);
+  authState.loading=false;
+  if(!cands.length){ authState.err='Email o contraseña incorrectos.'; render(); return; }
+  const u=cands.find(wodMember)||cands.find(x=>x.club==='wod')||cands.find(x=>(x.club||'fuerza')==='fuerza')||cands[0];
+  await wodEnter(u);
+}
+// Decide qué ve la persona según su estado en el Club WOD
+async function wodEnter(u){
+  const st=wodStatusOf(u);
+  if(!u.sex || !st){ wodJoin={uid:u.id, name:u.name, sex:u.sex||'', teacher:false, needsRequest:!st, hasSex:!!u.sex}; render(); return; }
+  wodJoin=null;
+  if(st==='pending'){ authState.err=''; session={uid:'__pending__',name:'',email:u.email,club:'wod'}; render(); return; }
+  if(st!=='active'){ authState.err='Tu acceso al Club WOD está deshabilitado. Hablá con el profe.'; render(); return; }
+  session={uid:u.id,email:u.email,name:u.name,club:'wod'};
+  if(wodIsTeacherUser(u)) session.role='teacher';
+  lsSet(K.SESSION,session);
+  wodState={tab:'home',month:null,loading:false};
+  render();
+  await wodLoadStudentData();
+  render();
+}
+function wodRenderJoin(){
+  const j=wodJoin;
+  return `<div class="auth-wrap">
+    ${wodLogoHTML()}
+    <h1 class="auth-title">FUSION<span>WOD</span></h1>
+    <p class="auth-subtitle">Hola, ${escH(wodFirstName(j.name))}</p>
+    <div class="auth-card">
+      <div class="auth-card-title">${j.needsRequest?'SUMATE AL CLUB WOD':'UN DATO MÁS'}</div>
+      ${authState.err?`<div class="auth-err">${escH(authState.err)}</div>`:''}
+      ${j.needsRequest?`<p style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:14px">Entrás con tu misma cuenta de Fusion. Vamos a enviar una solicitud de acceso al Club WOD y el profe la tiene que aprobar.</p>`:''}
+      ${j.hasSex?'':`<div style="font-size:12px;color:var(--text2);margin-bottom:8px">Sexo <span style="color:var(--text3)">(se pide una sola vez, para resaltar tu fila en las tablas de pesos)</span></div>${wodSexChipsHTML(j.sex,'wodJoinSex')}`}
+      ${j.needsRequest?`<label style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2);margin:4px 0 14px;cursor:pointer"><input type="checkbox" ${j.teacher?'checked':''} onchange="wodJoin.teacher=this.checked" style="width:18px;height:18px;accent-color:var(--wod-blue)"> Soy profesor</label>`:''}
+      <button class="auth-btn" onclick="wodConfirmJoin()" ${authState.loading?'disabled':''}>${j.needsRequest?'ENVIAR SOLICITUD':'CONTINUAR'}</button>
+    </div>
+    <div class="auth-link" onclick="wodJoin=null;authState.err='';render()">Volver</div>
+  </div>`;
+}
+function wodJoinSex(s){ wodJoin.sex=s; render(); }
+async function wodConfirmJoin(){
+  const j=wodJoin; if(!j) return;
+  if(!j.hasSex && !j.sex){ authState.err='Elegí Mujer u Hombre.'; render(); return; }
+  authState.loading=true; authState.err=''; render();
+  await loadUsers();
+  const u=users[j.uid];
+  if(!u){ authState.loading=false; authState.err='No encontré tu cuenta. Probá de nuevo.'; wodJoin=null; render(); return; }
+  if(!u.sex) u.sex=j.sex;
+  if(!wodStatusOf(u)){
+    u.clubs=u.clubs&&typeof u.clubs==='object'?u.clubs:{};
+    u.clubs.wod={status:STATUS.PENDING, requestedAt:Date.now()};
+    if(j.teacher) u.clubs.wod.roleRequest='teacher';
+  }
+  const ok=await saveUsers();
+  authState.loading=false;
+  if(ok===false){ authState.err='No se pudo guardar. Revisá la conexión.'; render(); return; }
+  if(j.needsRequest) showToast('¡Solicitud enviada! Esperá que el profe te habilite.');
+  await wodEnter(u);
+}
+async function wodDoRegister(){
+  if(!authState.name.trim()){ authState.err='Ingresá tu nombre.'; render(); return; }
+  if(!authState.email.includes('@')){ authState.err='Email inválido.'; render(); return; }
+  if(authState.pw.length<6){ authState.err='La contraseña debe tener al menos 6 caracteres.'; render(); return; }
+  if(authState.pw!==authState.pw2){ authState.err='Las contraseñas no coinciden.'; render(); return; }
+  if(!authState.sex){ authState.err='Elegí Mujer u Hombre.'; render(); return; }
+  authState.loading=true; authState.err=''; render();
+  await loadUsers();
+  const email=authState.email.toLowerCase().trim();
+  authState.loading=false;
+  if(Object.values(users).some(u=>u.email===email)){ authState.err='Ya tenés una cuenta de Fusion con este email. Tocá "Iniciá sesión" y entrá con ese email y tu contraseña: ahí pedís acceso al Club WOD.'; render(); return; }
+  const id='u_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+  const teacher=!!authState.teacher;
+  users[id]={ id, name:authState.name.trim(), email, hash:hashStr(authState.pw), status:STATUS.PENDING, club:'wod', sex:authState.sex, clubs:{wod:{status:STATUS.PENDING, requestedAt:Date.now()}} };
+  if(teacher) users[id].clubs.wod.roleRequest='teacher';
+  await saveUsers();
+  authState.err=''; authState.mode='login'; authState.teacher=false; authState.sex='';
+  showToast(teacher?'¡Cuenta creada! Esperá que el Admin te habilite como profesor.':'¡Cuenta creada! Esperá la aprobación del profe.');
+  render();
+}
+async function wodRecheckApproval(){
+  await loadUsers();
+  const em=String((session&&session.email)||authState.email||'').toLowerCase().trim();
+  const u=Object.values(users).find(x=>x.email===em && wodStatusOf(x));
+  if(u && wodStatusOf(u)===STATUS.ACTIVE){ await wodEnter(u); showToast('¡Acceso aprobado!'); }
+  else showToast('Todavía pendiente de aprobación.');
+}
+
+// ---------- piezas visuales compartidas ----------
+function wodLevelDot(level,size){ size=size||10; return `<span class="wod-dot" style="width:${size}px;height:${size}px;background:${WOD_LEVEL_COLOR[level]||'transparent'}"></span>`; }
+function wodTableHTML(tb,opts){
+  opts=opts||{};
+  if(tb.kind==='level'){
+    const lv=opts.level;
+    return `<div class="wod-tbl-wrap"><table class="wod-tbl"><thead><tr><th></th>${tb.levels.map((l,i)=>`<th class="${l===lv?'pick':''}">${escH(tb.head[i])}</th>`).join('')}</tr></thead>
+      <tbody>${tb.rows.map(r=>`<tr><th>${escH(r.label)}</th>${r.cells.map((c,i)=>`<td class="${tb.levels[i]===lv?'pick':''}">${escH(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  }
+  const head=tb.head&&tb.head.length?`<thead><tr><th></th>${tb.head.map(h=>`<th>${escH(h)}</th>`).join('')}</tr></thead>`:'';
+  return `<div class="wod-tbl-wrap"><table class="wod-tbl">${head}<tbody>${tb.rows.map(r=>{
+    const me=opts.sex && r.sex===opts.sex, pick=me && opts.level && r.level===opts.level;
+    return `<tr class="${pick?'pick':me?'me':''}"><th>${escH(r.label)}</th>${r.cells.map(c=>`<td>${escH(c)}</td>`).join('')}</tr>`;
+  }).join('')}</tbody></table></div>`;
+}
+// Contenido principal de un WOD (lo que ven los alumnos)
+function wodContentHTML(w,opts){
+  return (w.contentLines||[]).map(l=>{
+    if(l.t==='blank') return '<div class="wod-gap"></div>';
+    if(l.t==='mov') return `<div class="wod-mov">${escH(l.s)}</div>`;
+    if(l.t==='text') return `<div class="wod-txt">${escH(l.s)}</div>`;
+    if(l.t==='cols') return `<div class="wod-cols" style="grid-template-columns:repeat(${Math.min(l.cells.length,4)},minmax(0,1fr))">${l.cells.map(c=>`<div class="${c.mov?'wod-mov':'wod-txt'}">${escH(c.s)}</div>`).join('')}</div>`;
+    if(l.t==='table'){ const tb=w.weightTables[l.i]; return tb?wodTableHTML(tb,opts):''; }
+    return '';
+  }).join('');
+}
+function wodBadgesHTML(w,staff){
+  const b=[];
+  if(w.partner) b.push(`<span class="wod-badge">${hcIcon('users',11)} Partner</span>`);
+  if(w.sector) b.push(`<span class="wod-badge">Sector ${escH(w.sector)}</span>`);
+  if(w.timeCap) b.push(`<span class="wod-badge">TC ${escH(w.timeCap)}</span>`);
+  if(staff) b.push(`<span class="wod-badge ${w.scoreHow==='ambiguous'?'warn':''}">Registro: ${WOD_SCORE_LABEL[w.scoreType]}${w.scoreHow==='ambiguous'?' (no se reconoció el formato)':w.scoreHow==='tc'?' (por el TC)':w.scoreHow==='explicit'?' (REGISTRO:)':''}</span>`);
+  return b.length?`<div class="wod-badges">${b.join('')}</div>`:'';
+}
+function wodTitleHTML(w){ return `${escH(w.title)}${w.titleExtra?` <span style="color:var(--text3);font-weight:500">· ${escH(w.titleExtra)}</span>`:''}`; }
+// Texto del warm up (solo Admin y Profesor)
+function wodWarmHTML(text){
+  return wodCleanRaw(text).split('\n').map(raw=>{
+    const t=raw.trim(); if(!t) return '<div class="wod-gap"></div>';
+    if(wodSectionOf(t)) return '';
+    const body=wodIsBullet(raw)?wodStripBullet(raw):t, cs=wodCells(body);
+    if(cs.length>=2) return `<div class="wod-cols" style="grid-template-columns:repeat(${Math.min(cs.length,4)},minmax(0,1fr))">${cs.map(c=>`<div class="${/^-\s/.test(c)||wodIsBullet(raw)?'wod-mov':'wod-txt'}">${escH(c.replace(/^-\s*/,''))}</div>`).join('')}</div>`;
+    return `<div class="${wodIsBullet(raw)?'wod-mov':'wod-txt'}">${escH(body)}</div>`;
+  }).join('').replace(/(<div class="wod-gap"><\/div>)+/g,'<div class="wod-gap"></div>');
+}
+// Un día completo para staff (warm up + WODs). opts: {flags, edit:'fn'}
+function wodStaffDayHTML(d,opts){
+  opts=opts||{};
+  const flags=d.flags||[];
+  const warn=flags.includes('nowod')?`<div class="wod-unk">No encontré "B) WOD": este día los alumnos no ven nada.</div>`:flags.includes('emptywod')?`<div class="wod-unk">"B) WOD" está vacío.</div>`:'';
+  const warm=d.warmupText?`<details class="wod-warm" ${opts.closedWarm?'':'open'}><summary>${hcIcon('activity',13)} Warm Up y activación <span style="color:var(--text3);font-weight:500">· solo staff</span></summary><div style="margin-top:8px" class="${flags.includes('pre')?'wod-unk-soft':''}">${wodWarmHTML(d.warmupText)}</div></details>`:'';
+  return `<div class="wod-day">
+    <div class="wod-day-head"><div><span class="wod-day-date">${wodDayTxt(d.date)}</span>${d.label?` <span class="wod-label">${escH(d.label)}</span>`:''}</div>${opts.right||''}</div>
+    ${warn}${warm}
+    ${(d.wods||[]).map(w=>`<div class="wod-card"><div class="wod-card-title">${wodTitleHTML(w)}</div>${wodBadgesHTML(w,true)}${wodContentHTML(w,{})}</div>`).join('')}
+    ${!d.warmupText&&!(d.wods||[]).length?`<div style="font-size:12px;color:var(--text3);padding:4px 0 8px">Sin clase.</div>`:''}
+    ${d.editedAt?`<div style="font-size:10px;color:var(--text3);margin-top:4px">Corregido por ${escH(d.editedBy||'Admin')} · ${new Date(d.editedAt).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>`:''}
+  </div>`;
+}
+
+// ---------- registro de un WOD (formulario) ----------
+function wodFormFor(key,date,w,log){
+  if(!wodForms[key]){
+    const f={date,wodId:w.id,scoreType:w.scoreType,partner:!!w.partner,level:'',min:'',sec:'',capped:false,reps:'',rounds:'',extraReps:'',completed:'',kgText:'',feeling:'',notes:'',partnerName:''};
+    if(log){ Object.assign(f,{level:log.level||'',capped:!!log.capped,reps:log.reps!=null?String(log.reps):'',rounds:log.rounds!=null?String(log.rounds):'',extraReps:log.extraReps?String(log.extraReps):'',completed:log.completed||'',kgText:log.kgText||'',feeling:log.feeling||'',notes:log.notes||'',partnerName:log.partnerName||''});
+      if(log.timeSec!=null){ f.min=String(Math.floor(log.timeSec/60)); f.sec=String(log.timeSec%60).padStart(2,'0'); } }
+    wodForms[key]=f;
+  }
+  return wodForms[key];
+}
+function wodF(key,field,val){ const f=wodForms[key]; if(!f) return; f[field]=(f[field]===val && (field==='feeling'))?'':val; wodRerender(); }
+function wodFI(key,field,val){ const f=wodForms[key]; if(f) f[field]=val; }
+function wodFormHTML(key,date,w){
+  const f=wodForms[key];
+  const chips=(field,list)=>`<div class="wod-chips">${list.map(([k,l,extra])=>`<button type="button" class="wod-chip ${f[field]===k?'on':''}" ${extra||''} onclick="wodF('${key}','${field}','${k}')">${l}</button>`).join('')}</div>`;
+  const inp=(field,ph,mode,w2)=>`<input class="adm-inp wod-inp" style="${w2?'width:'+w2+'px;':''}" inputmode="${mode||'numeric'}" placeholder="${ph}" value="${escH(f[field])}" oninput="wodFI('${key}','${field}',this.value)">`;
+  let res='';
+  if(f.scoreType==='time'){
+    res=f.capped
+      ? `<div class="wod-row">${inp('reps','Reps completadas','numeric')}</div>`
+      : `<div class="wod-row">${inp('min','min','numeric',80)}<span style="color:var(--text3);font-weight:700">:</span>${inp('sec','seg','numeric',80)}</div>`;
+    res+=`<label class="wod-check"><input type="checkbox" ${f.capped?'checked':''} onchange="wodF('${key}','capped',this.checked)"> No terminé dentro del TC${w.timeCap?' ('+escH(w.timeCap)+')':''}</label>`;
+  } else if(f.scoreType==='reps') res=`<div class="wod-row">${inp('reps','Reps totales')}</div>`;
+  else if(f.scoreType==='rounds') res=`<div class="wod-row">${inp('rounds','Rondas',null,110)}<span style="color:var(--text3)">+</span>${inp('extraReps','Reps extra',null,120)}</div>`;
+  else res=chips('completed',[['full','Completo'],['partial','Parcial']]);
+  return `<div class="wod-form">
+    <div class="wod-flabel">Categoría en la que lo hiciste <span style="color:var(--red)">*</span></div>
+    ${chips('level',WOD_LEVELS.map(l=>[l,`${wodLevelDot(l,9)} ${WOD_LEVEL_LABEL[l]}`]))}
+    <div class="wod-flabel">Resultado · ${WOD_SCORE_LABEL[f.scoreType]}</div>${res}
+    <div class="wod-flabel">Kilos usados <span style="color:var(--text3)">(opcional)</span></div>
+    <input class="adm-inp wod-inp" maxlength="120" placeholder="Ej: PC 40, Thruster 35" value="${escH(f.kgText)}" oninput="wodFI('${key}','kgText',this.value)">
+    <div class="wod-flabel">Sensación</div>${chips('feeling',WOD_FEELINGS)}
+    ${f.partner?`<div class="wod-flabel">Compañero/a <span style="color:var(--text3)">(opcional)</span></div><input class="adm-inp wod-inp" maxlength="80" value="${escH(f.partnerName)}" oninput="wodFI('${key}','partnerName',this.value)">`:''}
+    <div class="wod-flabel">Notas</div>
+    <textarea class="adm-inp wod-inp" style="height:auto;min-height:70px;padding:10px;resize:vertical" placeholder="Sensaciones, adaptaciones..." oninput="wodFI('${key}','notes',this.value)">${escH(f.notes)}</textarea>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      ${wodLogs&&wodLogs[key]?`<button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;min-height:46px" onclick="wodCancelEdit('${key}')">Cancelar</button>`:''}
+      <button class="adm-btn adm-btn-orange" style="flex:2;justify-content:center;min-height:46px;font-size:14px" onclick="wodSubmit('${key}')">${hcIcon('save',15)} Guardar registro</button>
+    </div>
+  </div>`;
+}
+function wodCancelEdit(key){ delete wodForms[key]; wodRerender(); }
+function wodEditLog(key,date,id){ const w=wodOf(date,id); if(!w) return; delete wodForms[key]; wodFormFor(key,date,w,wodLogs&&wodLogs[key]); wodRerender(); }
+async function wodSubmit(key){
+  const f=wodForms[key]; if(!f || !session) return;
+  if(f.date>wodToday()){ showToast('Ese día todavía no llegó'); return; }
+  const v=wodValidateLog(f);
+  if(!v.ok){ showToast(v.err); return; }
+  const prev=wodLogs&&wodLogs[key];
+  const now=Date.now();
+  const log=Object.assign({uid:session.uid,date:f.date,weekId:wodMonday(f.date),wodId:f.wodId},v.log,{createdAt:prev&&prev.createdAt||now,updatedAt:now});
+  const res=await wodPutLog(session.uid,key,log);
+  if(!res){ showToast('No se pudo guardar. Revisá la conexión.'); return; }
+  wodLogs=res; delete wodForms[key];
+  showToast(prev?'Registro actualizado':'¡WOD registrado!');
+  wodRerender();
+}
+function wodLogSummaryHTML(l,key,canEdit,date,id){
+  const fl=WOD_FEELINGS.find(x=>x[0]===l.feeling);
+  return `<div class="wod-res">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div><div class="wod-flabel" style="margin:0 0 2px">Tu resultado</div><div class="wod-res-val">${escH(wodFmtResult(l))}</div></div>
+      <span class="wod-lvl" style="background:${WOD_LEVEL_COLOR[l.level]};color:${l.level==='rx'?'#000':'#fff'}">${WOD_LEVEL_LABEL[l.level]||''}</span>
+    </div>
+    <div class="wod-res-meta">
+      ${l.kgText?`<div><b>Kilos:</b> ${escH(l.kgText)}</div>`:''}
+      ${fl?`<div><b>Sensación:</b> ${fl[1]}</div>`:''}
+      ${l.partnerName?`<div><b>Compañero/a:</b> ${escH(l.partnerName)}</div>`:''}
+      ${l.notes?`<div style="white-space:pre-line"><b>Notas:</b> ${escH(l.notes)}</div>`:''}
+    </div>
+    ${canEdit?`<button class="adm-btn adm-btn-ghost" style="width:100%;justify-content:center;min-height:42px;margin-top:10px" onclick="wodEditLog('${key}','${date}','${id}')">${hcIcon('pencil',14)} Editar registro</button>`:''}
+  </div>`;
+}
+// Un WOD para el alumno: contenido + tablas (resaltando su sexo y la categoría elegida) + registro
+function wodStudentWodHTML(date,w,opts){
+  opts=opts||{};
+  const key=wodLogKey(date,w.id);
+  const logs=opts.logs||wodLogs||{};
+  const log=logs[key];
+  const f=wodForms[key];
+  const me=session&&getUserById(session.uid);
+  const sex=opts.sex!==undefined?opts.sex:(me&&me.sex)||'';
+  const level=f?f.level:(log?log.level:'');
+  let bottom='';
+  if(f && !opts.readOnly) bottom=wodFormHTML(key,date,w);
+  else if(log) bottom=wodLogSummaryHTML(log,key,!opts.readOnly,date,w.id);
+  else if(!opts.readOnly && date<=wodToday()) bottom=`<button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;min-height:48px;font-size:14px;margin-top:12px" onclick="wodStartLog('${key}','${date}','${w.id}')">${hcIcon('pencil',15)} Registrar ${escH(w.title)}</button>`;
+  else if(opts.readOnly) bottom=`<div style="font-size:12px;color:var(--text3);margin-top:10px">Sin registro.</div>`;
+  return `<div class="wod-card">
+    <div class="wod-card-title">${wodTitleHTML(w)}</div>${wodBadgesHTML(w,false)}
+    ${wodContentHTML(w,{sex,level})}
+    ${bottom}
+  </div>`;
+}
+function wodStartLog(key,date,id){ const w=wodOf(date,id); if(!w) return; wodFormFor(key,date,w,null); wodRerender(); }
+
+// ---------- alumno: pestañas ----------
+function wodTabBarHTML(){
+  const item=(tab,icon,label)=>{ const on=wodState.tab===tab; return `<div class="tab-bar-item ${on?'active':''}" onclick="wodTab('${tab}')"><div class="tab-bar-icon">${hcIcon(icon,20,on?'#7C86FF':'#5a5a5f')}</div>${label}</div>`; };
+  return `<div class="tab-bar">${item('home','home','Inicio')}${item('wod','zap','WOD')}${item('reg','calendar','Registros')}</div>`;
+}
+async function wodTab(t){
+  wodState.tab=t; wodSheet=null; wodRenderSheet();
+  render();
+  if(t==='home'||t==='wod'){ await Promise.all([wodLoadIndex(),wodLoadAnn()]); await wodGetWeek(wodMonday(wodToday()),true); render(); }
+  if(t==='reg'){ await wodPrepareRegistros(session.uid,wodLogs||{}); render(); }
+}
+function wodRenderApp(){
+  if(wodIsTeacherSession()) return wodRenderTeacher();
+  const body=wodState.tab==='wod'?wodRenderToday():wodState.tab==='reg'?wodRegistrosHTML(session.uid,wodLogs||{},{}):wodRenderHome();
+  return `${navBarHTML()}<div class="page-tabbed" style="min-height:calc(100vh - 115px)">${body}</div>${wodTabBarHTML()}`;
+}
+function wodStreakCardHTML(logs){
+  const dates=Object.values(logs||{}).map(l=>l.date), t=wodToday();
+  const s=wodStreak(dates,t), wk=wodWeekCount(dates,t);
+  return `<div class="wod-streak">
+    <div class="wod-streak-ic">${hcIcon('flame',22,'#fff')}</div>
+    <div style="flex:1;min-width:0">
+      <div class="wod-kicker">Racha</div>
+      <div class="wod-streak-val">${s} <span>${s===1?'semana':'semanas'}</span></div>
+      <div style="font-size:11px;color:var(--text3);margin-top:3px">Esta semana: <b style="color:var(--text)">${wk} WOD${wk===1?'':'s'}</b>${wk<2?` · registrá ${2-wk} más para sumar`:''}</div>
+    </div>
+  </div>`;
+}
+function wodAnnHTML(){
+  if(!wodAnnActive()) return '';
+  return `<div class="wod-card" style="border-color:rgba(124,134,255,.45)">
+    <div class="wod-kicker" style="display:flex;align-items:center;gap:6px">${hcIcon('megaphone',13,'#7C86FF')} Anuncio del coach</div>
+    <div style="font-size:14px;line-height:1.5;white-space:pre-line;margin-top:6px">${escH(wodAnn.text)}</div>
+  </div>`;
+}
+function wodRenderHome(){
+  const t=wodToday(), idx=wodIdxDay(t), day=wodDay(t);
+  let today='';
+  if(idx && idx.n>0){
+    const wods=(day&&day.wods)||[];
+    const res=wods.map(w=>{ const l=(wodLogs||{})[wodLogKey(t,w.id)]; return l?`<div class="wod-today-res"><span>${escH(w.title)}</span><b>${escH(wodFmtResult(l))}</b>${wodLevelDot(l.level,9)}</div>`:''; }).join('');
+    const done=wods.length && wods.every(w=>(wodLogs||{})[wodLogKey(t,w.id)]);
+    const sectors=(idx.sectors||[]).filter(Boolean);
+    today=`<div class="wod-card wod-today">
+      <div class="wod-kicker">WOD de hoy</div>
+      <div class="wod-today-date">${wodDayTxt(t)}${idx.label?` <span class="wod-label">${escH(idx.label)}</span>`:''}</div>
+      <div style="font-size:13px;color:var(--text2);margin:6px 0 12px">${idx.n} WOD${idx.n===1?'':'s'}${idx.partner?' · Partner':''}${sectors.length?' · Sector '+sectors.map(escH).join(' / '):''}</div>
+      ${res}
+      <button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;min-height:48px;font-size:14px;margin-top:${res?'10px':'0'}" onclick="wodTab('wod')">${done?'Ver WOD':'Ver y registrar'} ${hcIcon('arrowRight',15)}</button>
+    </div>`;
+  } else {
+    const nx=wodNextDate(t);
+    today=`<div class="wod-card wod-today">
+      <div class="wod-kicker">${nx?'Próximo WOD':'WOD'}</div>
+      <div class="wod-today-date">${nx?wodDayTxt(nx):'Todavía no hay WODs publicados'}</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:6px">${nx?'Hoy no hay clase programada.':'Cuando el coach publique la semana, lo vas a ver acá.'}</div>
+    </div>`;
+  }
+  return `<div class="wod-hello">Hola, ${escH(wodFirstName(session.name))}</div>
+    ${wodStreakCardHTML(wodLogs)}${wodAnnHTML()}${today}`;
+}
+function wodRenderToday(){
+  const t=wodToday(), day=wodDay(t);
+  if(!day || !(day.wods||[]).length){
+    const nx=wodNextDate(t);
+    return `<div class="wod-page-title">WOD</div><div class="wod-card" style="text-align:center;padding:28px 16px">
+      <div style="display:flex;justify-content:center;margin-bottom:10px;opacity:.7">${hcIcon('calendar',30,'#7C86FF')}</div>
+      <div style="font-family:var(--font-display);font-size:15px;letter-spacing:1px">Hoy no hay WOD</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:6px">${nx?'Próximo WOD: '+wodDayTxt(nx):'Todavía no hay WODs publicados.'}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:10px">Los días anteriores los ves en Registros.</div>
+    </div>`;
+  }
+  return `<div class="wod-page-title">WOD · ${wodDayTxt(t)}${day.label?` <span class="wod-label">${escH(day.label)}</span>`:''}</div>
+    <div style="font-size:12px;color:var(--text3);margin:-6px 0 12px">Registrá cada WOD al terminarlo.${(day.wods||[]).some(w=>w.weightTables&&w.weightTables.length)?' En las tablas se resaltan las filas de tu sexo; al elegir tu categoría se marca tu fila.':''}</div>
+    ${day.wods.map(w=>wodStudentWodHTML(t,w)).join('')}`;
+}
+
+// ---------- registros: calendario, resumen, progresión, lista + popup ----------
+async function wodPrepareRegistros(uid,logs){
+  if(!wodIndex) await wodLoadIndex();
+  const t=wodToday(), from=calAddDays(t,-200);
+  const ids=Object.values(logs||{}).filter(l=>l.date>=from).map(l=>wodMonday(l.date));
+  await wodEnsureWeeks(ids);
+}
+function wodSetMonth(ym){ wodState.month=ym; wodRerender(); }
+function wodMonthShift(n){ const cur=wodState.month||wodToday().slice(0,7); let y=+cur.slice(0,4), m=+cur.slice(5,7)+n; while(m<1){m+=12;y--;} while(m>12){m-=12;y++;} const ym=y+'-'+String(m).padStart(2,'0'); if(ym>wodToday().slice(0,7)) return; wodSetMonth(ym); }
+function wodRegistrosHTML(uid,logs,opts){
+  opts=opts||{};
+  const t=wodToday(), ym=wodState.month||t.slice(0,7), isCur=ym===t.slice(0,7);
+  const from=ym+'-01', last=calAddDays(calAddDays(from,32).slice(0,7)+'-01',-1), to=last<t?last:t;
+  const all=Object.values(logs||{});
+  const inMonth=all.filter(l=>l.date>=from&&l.date<=last).sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:(a.wodId<b.wodId?-1:1));
+  const byDate={}; inMonth.forEach(l=>{ (byDate[l.date]=byDate[l.date]||[]).push(l); });
+  const sched=new Set(wodScheduled(from,last));
+  // calendario
+  const lead=(calWeekday(from)+6)%7;
+  let cells=''; for(let i=0;i<lead;i++) cells+='<div></div>';
+  for(let d=from; d<=last; d=calAddDays(d,1)){
+    const L=byDate[d], isS=sched.has(d), fut=d>t;
+    let cls='wod-cal-d', st='';
+    if(L){ const top=L.slice().sort((a,b)=>(WOD_LEVEL_RANK[b.level]||0)-(WOD_LEVEL_RANK[a.level]||0))[0]; cls+=' logged'; st=`background:${WOD_LEVEL_COLOR[top.level]};color:${top.level==='rx'?'#000':'#fff'};border-color:${WOD_LEVEL_COLOR[top.level]}`; }
+    else if(isS) cls+=fut?' sched fut':' sched';
+    else cls+=' off';
+    if(d===t) cls+=' today';
+    const can=(L||isS)&&!fut;
+    cells+=`<div class="${cls}" style="${st}" ${can?`onclick="wodOpenDay('${d}','${uid}',${opts.admin?'true':'false'})"`:''}>${+d.slice(8)}${L&&L.length>1?'<i class="wod-dd"></i>':''}</div>`;
+  }
+  const legend=`<div class="wod-legend">${WOD_LEVELS.map(l=>`<span>${wodLevelDot(l,10)} ${WOD_LEVEL_LABEL[l]}</span>`).join('')}<span><span class="wod-dot" style="width:10px;height:10px;border:1.5px solid var(--wod-acc);background:transparent"></span> Sin registrar</span><span><i class="wod-dd" style="position:static;display:inline-block"></i> 2 WODs</span></div>`;
+  // resumen
+  const schedCount=[...sched].filter(d=>d<=to).reduce((n,d)=>n+((wodIdxDay(d)||{}).n||0),0);
+  const freq=(arr)=>{ const c={}; arr.forEach(x=>{ if(x) c[x]=(c[x]||0)+1; }); const b=Object.entries(c).sort((a,b)=>b[1]-a[1])[0]; return b?b[0]:null; };
+  const feel=freq(inMonth.map(l=>l.feeling)), lvl=freq(inMonth.map(l=>l.level));
+  const partners=inMonth.filter(l=>{ const w=wodOf(l.date,l.wodId); return w&&w.partner; }).length;
+  const stat=(lab,val)=>`<div class="wod-stat"><div class="wod-stat-v">${val}</div><div class="wod-stat-l">${lab}</div></div>`;
+  const summary=`<div class="wod-stats">
+    ${stat('WODs registrados',inMonth.length+(schedCount?` <span style="font-size:13px;color:var(--text3)">/ ${schedCount}</span>`:''))}
+    ${stat('Racha actual',wodStreak(all.map(l=>l.date),t)+' sem.')}
+    ${stat('Sensación más frecuente',feel?(WOD_FEELINGS.find(x=>x[0]===feel)||['',''])[1]:'—')}
+    ${stat('Nivel más usado',lvl?WOD_LEVEL_LABEL[lvl]:'—')}
+    ${stat('Partner WODs',partners)}
+  </div>`;
+  // progresión
+  const pairs=wodProgressPairs(all,wodOf,from,last).reverse();
+  const prog=pairs.length?pairs.map(p=>{
+    const col=p.diff&&p.diff.better===true?'var(--green)':p.diff&&p.diff.better===false?'var(--red)':'var(--text2)';
+    const side=(l,lab)=>`<div class="wod-prog-side" onclick="wodOpenDay('${l.date}','${uid}',${opts.admin?'true':'false'})"><div class="wod-flabel" style="margin:0">${lab} · ${wodDayTxt(l.date)}</div><div class="wod-res-val" style="font-size:18px">${escH(wodFmtResult(l))}</div><div style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:5px">${wodLevelDot(l.level,8)} ${WOD_LEVEL_LABEL[l.level]||''}</div></div>`;
+    return `<div class="wod-card" style="padding:12px">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">${escH(p.wod.title)} · formato parecido: <b style="color:var(--text2)">${escH(p.wod.structure)}</b></div>
+      <div class="wod-prog">${side(p.prev,'Antes')}${side(p.cur,'Ahora')}</div>
+      ${p.diff?`<div style="text-align:center;font-weight:700;color:${col};margin-top:8px;font-size:13px">${escH(p.diff.txt)}</div>`:`<div style="text-align:center;font-size:11px;color:var(--text3);margin-top:8px">Se registró distinto, no se compara</div>`}
+    </div>`;
+  }).join(''):`<div class="cc-empty" style="padding:16px 10px">Cuando repitas un formato parecido a uno anterior, vas a ver acá los dos resultados lado a lado.</div>`;
+  // lista
+  const list=inMonth.length?inMonth.map(l=>{ const w=wodOf(l.date,l.wodId); const lab=w?(w.partner&&w.id==='U'?'Partner WOD':w.title+(w.partner?' · Partner':'')):(l.wodId==='U'?'WOD':'WOD '+l.wodId);
+    return `<div class="wod-list-row" onclick="wodOpenDay('${l.date}','${uid}',${opts.admin?'true':'false'})">${wodLevelDot(l.level,10)}<div style="flex:1;min-width:0"><b>${wodDayTxt(l.date)}</b> · ${escH(lab)}</div><div class="wod-list-res">${escH(wodFmtResult(l))}</div></div>`; }).join('')
+    :`<div class="cc-empty" style="padding:16px 10px">No hay registros en ${wodMonthTxt(ym).toLowerCase()}.</div>`;
+  const nav=`<div class="wod-month">
+    <button class="wod-mbtn" onclick="wodMonthShift(-1)" aria-label="Mes anterior">‹</button>
+    <div style="text-align:center;flex:1"><div style="font-family:var(--font-display);font-size:15px;letter-spacing:1px">${wodMonthTxt(ym)}</div>${isCur?'':`<div style="font-size:11px;color:var(--wod-acc);cursor:pointer;margin-top:2px" onclick="wodSetMonth(null)">Volver al mes actual</div>`}</div>
+    <button class="wod-mbtn" onclick="wodMonthShift(1)" ${isCur?'disabled':''} aria-label="Mes siguiente">›</button>
+  </div>`;
+  return `${opts.admin?'':'<div class="wod-page-title">Registros</div>'}${nav}
+    <div class="wod-card" style="padding:12px"><div class="wod-cal">${['L','M','M','J','V','S','D'].map(x=>`<div class="wod-cal-h">${x}</div>`).join('')}${cells}</div>${legend}</div>
+    <div class="wod-sec">Resumen del mes</div>${summary}
+    <div class="wod-sec">Progresión</div>${prog}
+    <div class="wod-sec">Registros</div><div class="wod-card" style="padding:4px 12px">${list}</div>`;
+}
+// Popup de un día: el WOD (solo trabajo principal) y su registro
+async function wodOpenDay(date,uid,admin){
+  if(!admin && date>wodToday()) return;
+  wodSheet={date,uid,admin:!!admin,loading:true};
+  wodRenderSheet();
+  await wodGetWeek(wodMonday(date));
+  if(wodSheet && wodSheet.date===date){ wodSheet.loading=false; wodRenderSheet(); }
+}
+function wodCloseSheet(){ if(wodSheet){ Object.keys(wodForms).forEach(k=>{ if(k.indexOf(wodSheet.date+'_')===0 && wodState.tab!=='wod') delete wodForms[k]; }); } wodSheet=null; wodRenderSheet(); if(session&&session.club==='wod') render(); }
+function wodRenderSheet(){
+  let root=document.getElementById('wod-sheet-root');
+  if(!wodSheet){ if(root) root.remove(); return; }
+  if(!root){ root=document.createElement('div'); root.id='wod-sheet-root'; document.body.appendChild(root); }
+  const old=root.querySelector('.summary-sheet'), keep=old?old.scrollTop:0;
+  root.innerHTML=wodSheetHTML();
+  const nw=root.querySelector('.summary-sheet'); if(nw&&old) nw.scrollTop=keep;
+}
+function wodSheetHTML(){
+  const s=wodSheet, day=wodDay(s.date);
+  const logs=s.admin?(wodAdmLogs[s.uid]||{}):(wodLogs||{});
+  const u=getUserById(s.uid);
+  let body;
+  if(s.loading) body=`<div class="cc-empty">Cargando...</div>`;
+  else if(!day||!(day.wods||[]).length){
+    const own=Object.values(logs).filter(l=>l.date===s.date);
+    body=`<div class="cc-empty">No encontré el WOD publicado de este día.</div>${own.map(l=>wodLogSummaryHTML(l,'',false)).join('')}`;
+  } else body=day.wods.map(w=>wodStudentWodHTML(s.date,w,{logs,readOnly:s.admin,sex:s.admin?(u&&u.sex)||'':undefined})).join('');
+  return `<div class="summary-overlay" onclick="wodCloseSheet()"><div class="summary-sheet" onclick="event.stopPropagation()" style="padding:0 0 28px">
+    <div class="summary-handle"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px 6px">
+      <div><div class="wod-kicker">${s.admin&&u?escH(u.name):'WOD'}</div><div style="font-family:var(--font-display);font-size:17px;letter-spacing:1px">${wodDayTxt(s.date)}${day&&day.label?` <span class="wod-label">${escH(day.label)}</span>`:''}</div></div>
+      <button class="modal-close" onclick="wodCloseSheet()">✕</button>
+    </div>
+    <div style="padding:6px 16px 0">${body}</div>
+  </div></div>`;
+}
+
+// ---------- profesor: solo lectura de la planificación completa ----------
+function wodRenderTeacher(){
+  return `${navBarHTML()}<div class="page-tabbed" style="padding-bottom:40px">
+    <div class="wod-hello">Hola, ${escH(wodFirstName(session.name))}</div>
+    <div style="font-size:12px;color:var(--text3);margin:-8px 0 14px">Planificación completa de cada día (solo lectura).</div>
+    ${wodPlanHTML(false)}
+  </div>`;
+}
+
+// ---------- Planificación (Admin y Profesor) ----------
+function wodPubWeeks(){ return Object.keys((wodIndex&&wodIndex.weeks)||{}).sort(); }
+function wodPlanCurWeek(){
+  const ids=wodPubWeeks(); if(!ids.length) return null;
+  if(wodPlanView.week && ids.includes(wodPlanView.week)) return wodPlanView.week;
+  const m=wodMonday(wodToday());
+  return ids.includes(m)?m:(ids.filter(x=>x<=m).pop()||ids[0]);
+}
+async function wodPlanGo(id){ wodPlanView.week=id; wodPlanView.editDate=null; wodRerender(); await wodGetWeek(id,true); wodRerender(); }
+function wodPlanShift(n){ const ids=wodPubWeeks(), cur=wodPlanCurWeek(), i=ids.indexOf(cur); const j=i+n; if(j>=0&&j<ids.length) wodPlanGo(ids[j]); }
+function wodPlanDate(v){ if(!calIsDate(v)) return; const m=wodMonday(v); if(wodIndex&&wodIndex.weeks[m]) wodPlanGo(m); else showToast('No hay semana publicada que incluya el '+calDM(v)); }
+function wodWeekRangeTxt(id){ return calDM(id)+' – '+calDM(calAddDays(id,6)); }
+function wodPlanHTML(isAdm){
+  if(!wodIndex){ wodLoadIndex().then(()=>wodRerender()); return `<div class="cc-empty">Cargando planificación...</div>`; }
+  const id=wodPlanCurWeek();
+  if(!id) return `<div class="cc-empty">Todavía no hay semanas publicadas.${isAdm?' Escribilas en Borrador y publicalas de a una.':''}</div>`;
+  if(!Object.prototype.hasOwnProperty.call(wodWeeks,id)){ wodGetWeek(id).then(()=>wodRerender()); return `<div class="cc-empty">Cargando semana...</div>`; }
+  const w=wodWeeks[id], ids=wodPubWeeks(), i=ids.indexOf(id), info=wodIndex.weeks[id]||{};
+  const nav=`<div class="wod-month">
+    <button class="wod-mbtn" onclick="wodPlanShift(-1)" ${i<=0?'disabled':''}>‹</button>
+    <div style="text-align:center;flex:1;min-width:0"><div style="font-family:var(--font-display);font-size:14px;letter-spacing:1px">${escH(info.label||'Semana')}</div><div style="font-size:11px;color:var(--text3)">${wodWeekRangeTxt(id)}</div></div>
+    <button class="wod-mbtn" onclick="wodPlanShift(1)" ${i>=ids.length-1?'disabled':''}>›</button>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;margin:-4px 0 12px"><span style="font-size:11px;color:var(--text3)">Ir a la fecha</span><input type="date" class="adm-inp" style="margin:0;flex:1;height:38px" onchange="wodPlanDate(this.value)"></div>`;
+  if(!w) return nav+`<div class="cc-empty">Esta semana ya no está publicada.</div>`;
+  const days=(w.days||[]).map(d=>{
+    if(isAdm && wodPlanView.editDate===d.date) return wodPlanEditorHTML(d);
+    const right=isAdm?`<button class="adm-btn adm-btn-ghost" style="padding:7px 10px;font-size:12px;min-height:36px" onclick="wodPlanEdit('${d.date}')">${hcIcon('pencil',13)} Corregir</button>`:'';
+    return wodStaffDayHTML(d,{right});
+  }).join('');
+  const meta=`<div style="font-size:10px;color:var(--text3);margin:4px 0 12px">Publicada ${w.publishedAt?new Date(w.publishedAt).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''}${w.updatedBy?' · última edición: '+escH(w.updatedBy)+' '+new Date(w.updatedAt).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''}</div>`;
+  const hist=isAdm&&(w.history||[]).length?`<details class="cc-item" style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;color:var(--text2)">Historial de cambios (${w.history.length})</summary>${w.history.slice(0,20).map(h=>`<div style="font-size:11px;color:var(--text3);padding:5px 0;border-bottom:1px solid var(--border)">${new Date(h.at).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})} · <b style="color:var(--text2)">${escH(h.by||'Admin')}</b> · ${escH(h.what||'')}</div>`).join('')}</details>`:'';
+  const actions=isAdm?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px">
+      <button class="adm-btn adm-btn-ghost" style="justify-content:center;min-height:44px;font-size:12px" onclick="wodWeekToDraft('${id}')">${hcIcon('copy',14)} Llevar al borrador</button>
+      <button class="adm-btn adm-btn-red" style="justify-content:center;min-height:44px;font-size:12px" onclick="wodUnpublish('${id}')">${hcIcon('ban',14)} Despublicar</button>
+    </div>`:'';
+  return nav+meta+days+hist+actions;
+}
+function wodPlanEdit(date){ const d=wodDay(date); if(!d) return; wodPlanView.editDate=date; wodPlanView.editText=d.raw||''; renderModal(); }
+function wodPlanEditInput(v){ wodPlanView.editText=v; clearTimeout(window._wodPlanEdT); window._wodPlanEdT=setTimeout(()=>{ const el=document.getElementById('wod-dayedit-prev'); if(el) el.innerHTML=wodPlanEditPreview(); },250); }
+function wodPlanEditParse(){ const P=parseWodText(wodPlanView.editText,{ref:wodPlanView.editDate}); const days=[].concat(...P.weeks.map(w=>w.days)); return {P,days}; }
+function wodPlanEditPreview(){
+  const {P,days}=wodPlanEditParse();
+  const errs=P.errors.slice();
+  if(days.length!==1 || days[0].date!==wodPlanView.editDate) errs.unshift({line:1,msg:'Dejá una sola fecha arriba y que sea '+calDM(wodPlanView.editDate)+' (para mover un día, usá el borrador)'});
+  return btIssuesHTML(errs,P.warnings,'wod-dayedit')+(days[0]?wodStaffDayHTML(days[0]):'');
+}
+function wodPlanEditorHTML(d){
+  return `<div class="wod-day" style="border-color:var(--wod-blue)">
+    <div class="wod-day-head"><span class="wod-day-date">Corregir ${wodDayTxt(d.date)}</span></div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px;line-height:1.5">Editá el texto del día y guardá. Queda registrado quién lo corrigió y cuándo. Los registros de los alumnos no se borran.</div>
+    ${btEditorHTML('wod-dayedit',wodPlanView.editText,'wodPlanEditInput').replace('min-height:55vh','min-height:40vh')}
+    <div style="display:flex;gap:8px;margin:10px 0">
+      <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;min-height:44px" onclick="wodPlanView.editDate=null;renderModal()">Cancelar</button>
+      <button class="adm-btn adm-btn-orange" style="flex:2;justify-content:center;min-height:44px" onclick="wodPlanSaveDay()" ${wodPlanView.busy?'disabled':''}>${hcIcon('save',14)} Guardar corrección</button>
+    </div>
+    <div class="wod-sec" style="margin-top:6px">Vista previa</div>
+    <div id="wod-dayedit-prev">${wodPlanEditPreview()}</div>
+  </div>`;
+}
+async function wodPlanSaveDay(){
+  const date=wodPlanView.editDate; if(!date) return;
+  const {P,days}=wodPlanEditParse();
+  if(P.errors.length || days.length!==1 || days[0].date!==date){ showToast('Revisá los errores antes de guardar'); return; }
+  wodPlanView.busy=true; renderModal();
+  const id=wodMonday(date);
+  const doc=await sharedGet(K.WOD_WEEK(id));
+  if(!doc || doc.status!=='published'){ wodPlanView.busy=false; showToast('La semana ya no está publicada'); renderModal(); return; }
+  const at=Date.now(), by=wodWho();
+  const nd=Object.assign({},days[0],{editedBy:by,editedAt:at});
+  const i=(doc.days||[]).findIndex(x=>x.date===date);
+  if(i<0) doc.days.push(nd); else doc.days[i]=nd;
+  doc.days.sort((a,b)=>a.date<b.date?-1:1);
+  doc.rawText=(doc.label?doc.label+'\n\n':'')+doc.days.map(x=>x.raw).join('\n\n');
+  doc.sig=wodWeekSig(doc.days); doc.updatedBy=by; doc.updatedAt=at;
+  doc.history=[{by,at,what:'Corrección del '+calDM(date)}].concat(doc.history||[]).slice(0,50);
+  const ok=await sharedSet(K.WOD_WEEK(id),doc);
+  if(ok) await wodIndexPut(doc);
+  wodPlanView.busy=false;
+  if(!ok){ showToast('No se pudo guardar. Revisá la conexión.'); renderModal(); return; }
+  wodWeeks[id]=doc; wodPlanView.editDate=null;
+  showToast('Día corregido'); renderModal();
+}
+function wodIndexEntry(doc){
+  const days={};
+  (doc.days||[]).forEach(d=>{ days[d.date]={label:d.label||'',n:(d.wods||[]).length,sectors:(d.wods||[]).map(w=>w.sector).filter(Boolean),partner:(d.wods||[]).some(w=>w.partner)}; });
+  return {label:doc.label||'',dates:(doc.days||[]).map(d=>d.date),days,publishedAt:doc.publishedAt,updatedAt:doc.updatedAt};
+}
+async function wodIndexPut(doc,remove){
+  const cur=await sharedGet(K.WOD_INDEX);
+  const idx=(cur&&cur.weeks)?cur:{weeks:{}};
+  if(remove) delete idx.weeks[doc.id]; else idx.weeks[doc.id]=wodIndexEntry(doc);
+  const ok=await sharedSet(K.WOD_INDEX,idx);
+  if(ok) wodIndex=idx;
+  return ok;
+}
+async function wodUnpublish(id){
+  if(!confirm('¿Despublicar la semana del '+wodWeekRangeTxt(id)+'? Los alumnos y profesores dejan de verla. Los registros de los alumnos no se borran y la podés volver a publicar desde el borrador.')) return;
+  const doc=await sharedGet(K.WOD_WEEK(id));
+  if(!doc) return;
+  const at=Date.now(), by=wodWho();
+  doc.status='draft'; doc.updatedBy=by; doc.updatedAt=at;
+  doc.history=[{by,at,what:'Despublicada'}].concat(doc.history||[]).slice(0,50);
+  const ok=await sharedSet(K.WOD_WEEK(id),doc) && await wodIndexPut(doc,true);
+  if(!ok){ showToast('No se pudo despublicar. Revisá la conexión.'); return; }
+  wodWeeks[id]=null; wodPlanView.week=null;
+  showToast('Semana despublicada'); renderModal();
+}
+async function wodWeekToDraft(id){
+  const doc=wodWeeks[id]; if(!doc) return;
+  await wodEnsureDraft();
+  const txt=doc.rawText||'';
+  if(wodDraft.text.includes(txt.trim())){ showToast('Esa semana ya está en el borrador'); setAdminTab('borrador'); return; }
+  wodDraft.text=(wodDraft.text.trim()?wodDraft.text.replace(/\s+$/,'')+'\n\n':'')+txt;
+  await wodDraftSaveNow();
+  showToast('Semana copiada al borrador'); setAdminTab('borrador');
+}
+
+// ---------- Borrador semanal (Admin) ----------
+async function wodEnsureDraft(){ if(!wodDraft){ const r=await sharedGet(K.WOD_DRAFT); wodDraft=(r&&typeof r.text==='string')?r:{text:'',updatedAt:0}; } return wodDraft; }
+function wodDraftParse(){ return parseWodText(wodDraft?wodDraft.text:'',{ref:wodToday()}); }
+async function wodDraftSaveNow(){
+  clearTimeout(window._wodDraftT);
+  if(!wodDraft) return false;
+  wodDraft.updatedAt=Date.now(); wodDraft.updatedBy=wodWho();
+  wodDraftSave='saving'; wodDraftStatus();
+  const ok=await sharedSet(K.WOD_DRAFT,wodDraft);
+  wodDraftSave=ok?'saved':'error'; wodDraftStatus();
+  return ok;
+}
+function wodDraftStatusText(){
+  if(wodDraftSave==='saving') return 'Guardando…';
+  if(wodDraftSave==='error') return '<span style="color:var(--red)">No se pudo guardar. Revisá la conexión (el texto sigue acá).</span>';
+  if(wodDraft && wodDraft.updatedAt) return 'Guardado · '+new Date(wodDraft.updatedAt).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  return 'Se guarda solo mientras escribís.';
+}
+function wodDraftStatus(){ const el=document.getElementById('wod-draft-status'); if(el) el.innerHTML=wodDraftStatusText(); }
+function wodDraftInput(v){
+  wodDraft.text=v; wodDraftSave='saving'; wodDraftStatus();
+  clearTimeout(window._wodDraftT); window._wodDraftT=setTimeout(wodDraftSaveNow,800);
+  clearTimeout(window._wodDraftP); window._wodDraftP=setTimeout(wodDraftRefresh,250);
+}
+function wodDraftCaretSave(el){ try{ wodDraftCaret=el.selectionStart; }catch(e){} }
+function wodDraftRefresh(){ const el=document.getElementById('wod-draft-prev'); if(el) el.innerHTML=wodDraftPreviewHTML(); }
+function wodSetDraftView(v){ wodDraftView=v; const el=document.getElementById('wod-split'); if(el) el.setAttribute('data-view',v); document.querySelectorAll('.wod-viewtgl .wod-chip').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); if(v==='prev') wodDraftRefresh(); }
+// Estado de cada semana del borrador frente a lo publicado
+function wodDraftWeekState(w){
+  const info=wodIndex&&wodIndex.weeks[w.id];
+  if(!info) return {k:'new',txt:'Sin publicar',cls:'warn'};
+  const pub=wodWeeks[w.id];
+  if(pub && pub.sig===wodWeekSig(w.days)) return {k:'same',txt:'Publicada · sin cambios',cls:'ok'};
+  if(!pub && !Object.prototype.hasOwnProperty.call(wodWeeks,w.id)){ wodGetWeek(w.id).then(wodDraftRefresh); return {k:'pub',txt:'Publicada',cls:'ok'}; }
+  return {k:'changed',txt:'Publicada · con cambios sin publicar',cls:'warn'};
+}
+function wodWeekErrors(P,w){ return P.errors.filter(e=>e.line>=w.lineFrom && e.line<=w.lineTo); }
+function wodDraftPreviewHTML(){
+  const P=wodDraftParse();
+  if(!wodDraft.text.trim()) return `<div class="cc-empty">Pegá la planificación a la izquierda (o arriba, en el celular). La vista previa aparece acá.</div>`;
+  const orphans=P.orphans.length?`<div class="wod-unk"><b>Sin interpretar</b> (falta la fecha arriba, no se guarda):${P.orphans.slice(0,8).map(o=>`<div style="font-size:11px;margin-top:3px;cursor:pointer" onclick="btJumpToLine('wod-draft',${o.line})">Línea ${o.line}: ${escH(o.text.slice(0,80))}</div>`).join('')}${P.orphans.length>8?`<div style="font-size:11px">y ${P.orphans.length-8} más…</div>`:''}</div>`:'';
+  const weeks=P.weeks.map(w=>{
+    const st=wodDraftWeekState(w), errs=wodWeekErrors(P,w);
+    const btn=st.k==='same'?'':`<button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;min-height:46px;margin-top:10px;${errs.length?'opacity:.45':''}" onclick="wodPublishWeek('${w.id}')">${hcIcon('send',15)} ${st.k==='new'?'Publicar':'Volver a publicar'} ${escH(w.label||'semana')} (${wodWeekRangeTxt(w.id)})</button>${errs.length?`<div style="font-size:11px;color:var(--red);text-align:center;margin-top:4px">Corregí los errores de esta semana para poder publicarla.</div>`:''}`;
+    return `<div class="wod-week">
+      <div class="wod-week-head"><div><div style="font-family:var(--font-display);font-size:14px;letter-spacing:1px">${escH(w.label||'Semana')}</div><div style="font-size:11px;color:var(--text3)">${wodWeekRangeTxt(w.id)} · ${w.days.length} día${w.days.length===1?'':'s'}</div></div><span class="wod-badge ${st.cls}">${st.txt}</span></div>
+      ${w.days.map(d=>wodStaffDayHTML(d,{closedWarm:true})).join('')}
+      ${btn}
+    </div>`;
+  }).join('');
+  return btIssuesHTML(P.errors,P.warnings,'wod-draft')+orphans+(weeks||`<div class="cc-empty">No encontré ninguna fecha (ej: "23/11").</div>`);
+}
+const WOD_FORMAT_HELP=`SEMANA 4
+
+23/11 - FERIADO
+A) WARM UP
+MOVILIDAD - 2 RONDAS
+- 10 Activaciones de muñeca
+
+B) WODs
+WOD A – SECTOR ESCALERA
+8 RONDAS - TC: 16'
+- Power Clean*
+- 8 / 10 / 12 Step Burpee
+                     RONDA 1 - 2   RONDA 3 - 4
+Mujeres principiante 30            35
+Hombres Rx           60            70
+
+WOD B – SECTOR JAULA
+2' Work x 1' Rest (x6)
+- 5 Pull Ups / T2B`;
+function wodFormatHelpHTML(){
+  return `<details class="cc-item" style="margin-bottom:12px">
+    <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--text2);min-height:28px;display:flex;align-items:center;gap:6px">${hcIcon('bookOpen',14)} Cómo lo lee la app</summary>
+    <pre style="margin:10px 0 8px;white-space:pre-wrap;overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px">${escH(WOD_FORMAT_HELP)}</pre>
+    <div style="font-size:11px;color:var(--text3);line-height:1.6">
+      • Pegá tal cual desde Word. Cada <b>fecha</b> (23/11) abre un día; <b>SEMANA N</b> solo agrupa. Si pegás un mes entero, se separa en semanas (lunes a domingo).<br>
+      • Lo que va entre <b>WARM UP</b> y <b>WOD</b> lo ven solo vos y los profes. Se lee por la palabra, aunque la letra esté mal.<br>
+      • <b>WOD A / WOD B</b> separan WODs (cada uno se registra aparte). <b>PARTNER WOD</b> y <b>TC: 16'</b> se detectan solos.<br>
+      • Registro: FOR TIME = tiempo · AMRAP / MAX / Work x Rest = reps · X RONDAS = rondas · OTM / EMOM = completado. Para forzarlo: <b>REGISTRO: tiempo</b> (o reps, rondas, completado).<br>
+      • Tablas: filas "Mujeres principiante ... Hombres Rx" separadas por tabs, espacios o |, con encabezado opcional arriba.
+    </div>
+  </details>`;
+}
+function wodRenderDraftTab(){
+  if(!wodDraft){ wodEnsureDraft().then(()=>{ if(!wodIndex) return wodLoadIndex().then(()=>renderModal()); renderModal(); }); return `<div class="cc-empty">Cargando borrador...</div>`; }
+  if(!wodIndex){ wodLoadIndex().then(()=>renderModal()); }
+  const btn='justify-content:center;text-align:center;padding:10px 8px;font-size:12px;line-height:1.3;min-height:44px';
+  return `<div>
+    <div class="admin-section-title">${hcSecTitle('pencil','Borrador semanal')}</div>
+    <div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:12px">Pegá una semana o un mes entero. Cada semana se publica por separado desde la vista previa; lo que no publicás no lo ve nadie.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <button class="adm-btn adm-btn-ghost" style="${btn}" onclick="wodTplPickerOpen()">${hcIcon('template',14)} Insertar plantilla</button>
+      <button class="adm-btn adm-btn-ghost" style="${btn}" onclick="wodDraftCleanPublished()">${hcIcon('checkCircle',14)} Quitar semanas ya publicadas</button>
+      <button class="adm-btn adm-btn-ghost" style="${btn}" onclick="wodTplFromSelection()">${hcIcon('bookmark',14)} Guardar selección como plantilla</button>
+      <button class="adm-btn adm-btn-red" style="${btn}" onclick="wodDraftClear()">${IC.trash} Vaciar borrador</button>
+    </div>
+    ${wodFormatHelpHTML()}
+    <div class="wod-viewtgl wod-chips" style="margin-bottom:10px"><button class="wod-chip ${wodDraftView==='edit'?'on':''}" data-v="edit" style="flex:1" onclick="wodSetDraftView('edit')">Editor</button><button class="wod-chip ${wodDraftView==='prev'?'on':''}" data-v="prev" style="flex:1" onclick="wodSetDraftView('prev')">Vista previa</button></div>
+    <div class="wod-split" id="wod-split" data-view="${wodDraftView}">
+      <div class="wod-split-ed">
+        ${btEditorHTML('wod-draft',wodDraft.text,'wodDraftInput').replace('oninput=','onkeyup="wodDraftCaretSave(this)" onclick="wodDraftCaretSave(this)" onblur="wodDraftCaretSave(this)" oninput=')}
+        <div id="wod-draft-status" style="font-size:10px;color:var(--text3);margin:5px 0 12px">${wodDraftStatusText()}</div>
+      </div>
+      <div class="wod-split-prev" id="wod-draft-prev">${wodDraftPreviewHTML()}</div>
+    </div>
+    ${wodTplPickerHTML()}
+  </div>`;
+}
+async function wodPublishWeek(id){
+  await wodDraftSaveNow();
+  const P=wodDraftParse(), w=P.weeks.find(x=>x.id===id);
+  if(!w){ showToast('No encontré esa semana en el borrador'); return; }
+  if(wodWeekErrors(P,w).length){ showToast('Corregí los errores de esta semana'); return; }
+  const prev=await sharedGet(K.WOD_WEEK(id));
+  const wasPub=prev && prev.status==='published';
+  const lost=wasPub?(prev.days||[]).map(d=>d.date).filter(d=>!w.days.some(x=>x.date===d)):[];
+  const nWods=w.days.reduce((n,d)=>n+d.wods.length,0);
+  const msg=(wasPub?'Vas a reemplazar lo publicado de ':'Vas a publicar ')+(w.label||'la semana')+' ('+wodWeekRangeTxt(id)+'): '+w.days.length+' día(s), '+nWods+' WOD(s).'
+    +(lost.length?'\n\nOjo: estos días estaban publicados y ya no están: '+lost.map(calDM).join(', ')+'. Si alguien los registró, el registro queda pero sin el WOD.':'')
+    +'\n\nLos alumnos lo ven en el día de cada fecha.';
+  if(!confirm(msg)) return;
+  const at=Date.now(), by=wodWho();
+  const doc={id,status:'published',label:w.label||'',rawText:(w.label?w.label+'\n\n':'')+w.days.map(d=>d.raw).join('\n\n'),days:w.days,sig:wodWeekSig(w.days),
+    updatedBy:by,updatedAt:at,publishedAt:wasPub&&prev.publishedAt?prev.publishedAt:at,
+    history:[{by,at,what:wasPub?'Publicada de nuevo desde el borrador':'Publicada'}].concat((prev&&prev.history)||[]).slice(0,50)};
+  const ok=await sharedSet(K.WOD_WEEK(id),doc) && await wodIndexPut(doc);
+  if(!ok){ showToast('No se pudo publicar. Revisá la conexión.'); return; }
+  wodWeeks[id]=doc;
+  showToast((w.label||'Semana')+' publicada');
+  renderModal();
+}
+async function wodDraftCleanPublished(){
+  const P=wodDraftParse();
+  await wodEnsureWeeks(P.weeks.map(w=>w.id));
+  const done=P.weeks.filter(w=>wodDraftWeekState(w).k==='same');
+  if(!done.length){ showToast('No hay semanas publicadas sin cambios para quitar'); return; }
+  if(!confirm('¿Quitar del borrador '+done.length+' semana(s) que ya están publicadas sin cambios? Lo publicado no se toca.')) return;
+  const lines=wodDraft.text.split('\n');
+  const drop=new Set();
+  done.forEach(w=>{ for(let l=w.lineFrom;l<=w.lineTo;l++) drop.add(l); });
+  // también el "SEMANA N" de arriba si queda solo
+  let out=lines.filter((_,i)=>!drop.has(i+1)).join('\n');
+  out=out.replace(/(^|\n)\s*SEMANA\s*\d+\s*(?=\n\s*(?:SEMANA\s*\d+|$))/gi,'$1').replace(/\n{3,}/g,'\n\n').trim();
+  wodDraft.text=out; await wodDraftSaveNow(); renderModal();
+}
+async function wodDraftClear(){
+  if(!wodDraft || !wodDraft.text.trim()) return;
+  if(!confirm('¿Vaciar el borrador? Lo publicado no se toca.')) return;
+  wodDraft.text=''; await wodDraftSaveNow(); renderModal();
+}
+function wodDraftInsert(text){
+  const ta=document.getElementById('wod-draft');
+  const pos=(wodDraftCaret!=null&&wodDraftCaret<=wodDraft.text.length)?wodDraftCaret:wodDraft.text.length;
+  const before=wodDraft.text.slice(0,pos), after=wodDraft.text.slice(pos);
+  const ins=(before&&!before.endsWith('\n')?'\n':'')+text.replace(/\s+$/,'')+'\n';
+  wodDraft.text=before+ins+after; wodDraftCaret=(before+ins).length;
+  if(ta){ ta.value=wodDraft.text; try{ ta.focus(); ta.setSelectionRange(wodDraftCaret,wodDraftCaret); }catch(e){} }
+  wodDraftSaveNow(); wodDraftRefresh();
+}
+
+// ---------- Plantillas (Admin) ----------
+let wodTplPicker=false;
+async function wodLoadTpls(){ const r=await sharedGet(K.WOD_TPL); wodTpls=Array.isArray(r)?r:[]; return wodTpls; }
+async function wodTplMutate(fn){ const r=await sharedGet(K.WOD_TPL); const list=Array.isArray(r)?r:[]; fn(list); const ok=await sharedSet(K.WOD_TPL,list); if(ok) wodTpls=list; return ok; }
+function wodTplPickerOpen(){ wodTplPicker=true; if(!wodTpls) wodLoadTpls().then(()=>renderModal()); renderModal(); }
+function wodTplPickerHTML(){
+  if(!wodTplPicker) return '';
+  const list=wodTpls||[];
+  return `<div class="summary-overlay" onclick="wodTplPicker=false;renderModal()"><div class="summary-sheet" onclick="event.stopPropagation()" style="padding:0 0 24px">
+    <div class="summary-handle"></div>
+    <div style="padding:14px 16px 4px;font-family:var(--font-display);font-size:16px;letter-spacing:1px">Insertar plantilla</div>
+    <div style="font-size:11px;color:var(--text3);padding:0 16px 10px">Se inserta donde estaba el cursor en el borrador.</div>
+    <div style="padding:0 16px">${!wodTpls?'<div class="cc-empty">Cargando...</div>':list.length?WOD_TPL_CATS.map(c=>{ const it=list.filter(t=>(t.category||'Otro')===c); return it.length?`<div class="wod-sec">${c}</div>`+it.map(t=>`<div class="wod-list-row" onclick="wodTplInsert('${t.id}')"><div style="flex:1;min-width:0"><b>${escH(t.name)}</b><div style="font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH((t.text||'').split('\n')[0])}</div></div>${hcIcon('plus',14)}</div>`).join(''):''; }).join(''):'<div class="cc-empty">Todavía no hay plantillas. Creálas en la pestaña Plantillas.</div>'}</div>
+  </div></div>`;
+}
+function wodTplInsert(id){ const t=(wodTpls||[]).find(x=>x.id===id); wodTplPicker=false; renderModal(); if(t) setTimeout(()=>{ wodDraftInsert(t.text||''); showToast('Plantilla insertada'); },30); }
+function wodTplFromSelection(){
+  const ta=document.getElementById('wod-draft'); let txt='';
+  if(ta){ try{ txt=ta.value.slice(ta.selectionStart,ta.selectionEnd); }catch(e){} }
+  if(!txt.trim()){ showToast('Seleccioná en el editor el texto que querés guardar'); return; }
+  wodTplEdit={id:null,name:'',category:'Warm up',text:txt}; setAdminTab('plantillas');
+}
+function wodRenderTplTab(){
+  if(!wodTpls){ wodLoadTpls().then(()=>renderModal()); return `<div class="cc-empty">Cargando plantillas...</div>`; }
+  if(wodTplEdit){
+    const e=wodTplEdit;
+    return `<div class="admin-section-title">${hcSecTitle('template',e.id?'Editar plantilla':'Nueva plantilla')}</div>
+      <input class="adm-inp" placeholder="Nombre (ej: Movilidad tren superior)" value="${escH(e.name)}" oninput="wodTplEdit.name=this.value">
+      <div class="wod-chips" style="margin-bottom:10px">${WOD_TPL_CATS.map(c=>`<button class="wod-chip ${e.category===c?'on':''}" onclick="wodTplEdit.category='${c}';renderModal()">${c}</button>`).join('')}</div>
+      ${btEditorHTML('wod-tpl-text',e.text,'wodTplEditInput').replace('min-height:55vh','min-height:35vh')}
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;min-height:44px" onclick="wodTplEdit=null;renderModal()">Cancelar</button>
+        <button class="adm-btn adm-btn-orange" style="flex:2;justify-content:center;min-height:44px" onclick="wodTplSave()">${hcIcon('save',14)} Guardar</button>
+      </div>`;
+  }
+  const cats=['Todas'].concat(WOD_TPL_CATS);
+  const list=wodTpls.filter(t=>wodTplCat==='Todas'||(t.category||'Otro')===wodTplCat).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  return `<div class="admin-section-title">${hcSecTitle('template','Plantillas')}</div>
+    <div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:12px">Bloques de texto reutilizables (warm ups, formatos de WOD, tablas de pesos). Se insertan en el borrador con "Insertar plantilla".</div>
+    <button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;min-height:46px;margin-bottom:12px" onclick="wodTplEdit={id:null,name:'',category:'Warm up',text:''};renderModal()">${hcIcon('plus',14)} Nueva plantilla</button>
+    <div class="wod-chips" style="margin-bottom:12px">${cats.map(c=>`<button class="wod-chip ${wodTplCat===c?'on':''}" onclick="wodTplCat='${c}';renderModal()">${c}</button>`).join('')}</div>
+    ${list.length?list.map(t=>`<div class="cc-item">
+      <div class="cc-item-top"><div style="min-width:0"><div style="font-weight:600;font-size:14px">${escH(t.name)}</div><div style="font-size:11px;color:var(--text3)">${escH(t.category||'Otro')}</div></div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="adm-btn adm-btn-ghost" style="padding:8px 10px;min-height:38px" onclick="wodTplOpen('${t.id}')" title="Editar">${hcIcon('pencil',14)}</button>
+        <button class="adm-btn adm-btn-ghost" style="padding:8px 10px;min-height:38px" onclick="wodTplToDraft('${t.id}')" title="Insertar en el borrador">${hcIcon('copy',14)}</button>
+        <button class="adm-btn adm-btn-red" style="padding:8px 10px;min-height:38px" onclick="wodTplDelete('${t.id}')" title="Borrar">${IC.trash}</button>
+      </div></div>
+      <pre style="margin-top:8px;white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--text2);max-height:120px;overflow:hidden">${escH(t.text||'')}</pre>
+    </div>`).join(''):`<div class="cc-empty">No hay plantillas${wodTplCat!=='Todas'?' en '+wodTplCat:''}.</div>`}`;
+}
+function wodTplEditInput(v){ if(wodTplEdit) wodTplEdit.text=v; }
+function wodTplOpen(id){ const t=(wodTpls||[]).find(x=>x.id===id); if(t){ wodTplEdit=Object.assign({},t); renderModal(); } }
+async function wodTplSave(){
+  const e=wodTplEdit; if(!e) return;
+  if(!e.name.trim()){ showToast('Poné un nombre'); return; }
+  if(!e.text.trim()){ showToast('La plantilla está vacía'); return; }
+  const id=e.id||('wtpl_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
+  const ok=await wodTplMutate(list=>{ const i=list.findIndex(x=>x.id===id); const t={id,name:e.name.trim(),category:e.category||'Otro',text:e.text,updatedAt:Date.now(),updatedBy:wodWho()}; if(i<0) list.push(t); else list[i]=t; });
+  if(!ok){ showToast('No se pudo guardar'); return; }
+  wodTplEdit=null; showToast('Plantilla guardada'); renderModal();
+}
+async function wodTplDelete(id){
+  const t=(wodTpls||[]).find(x=>x.id===id);
+  if(!t || !confirm('¿Borrar la plantilla "'+t.name+'"?')) return;
+  await wodTplMutate(list=>{ const i=list.findIndex(x=>x.id===id); if(i>=0) list.splice(i,1); });
+  renderModal();
+}
+async function wodTplToDraft(id){
+  const t=(wodTpls||[]).find(x=>x.id===id); if(!t) return;
+  await wodEnsureDraft();
+  wodDraftCaret=null;
+  wodDraft.text=(wodDraft.text.trim()?wodDraft.text.replace(/\s+$/,'')+'\n':'')+t.text.replace(/\s+$/,'')+'\n';
+  await wodDraftSaveNow();
+  showToast('Insertada al final del borrador'); setAdminTab('borrador');
+}
+
+// ---------- Anuncio (Admin) ----------
+let wodAnnDraft=null;
+function wodRenderAnnTab(){
+  if(wodAnnDraft===null){ wodLoadAnn().then(a=>{ wodAnnDraft={text:(a&&a.text)||'',expiresAt:(a&&a.expiresAt)||''}; renderModal(); }); return `<div class="cc-empty">Cargando...</div>`; }
+  const live=wodAnnActive(), expired=wodAnn&&wodAnn.text&&!live;
+  return `<div class="admin-section-title">${hcSecTitle('megaphone','Anuncio para el Inicio de los alumnos')}</div>
+    <div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:12px">Un mensaje corto. Si le ponés fecha de vencimiento, deja de verse después de ese día. Sin anuncio vigente, no se muestra nada.</div>
+    <div style="font-size:12px;margin-bottom:10px">Estado: ${live?`<span style="color:var(--green);font-weight:700">Publicado</span>${wodAnn.expiresAt?' · vence el '+calDM(wodAnn.expiresAt):''}`:expired?'<span style="color:var(--yellow);font-weight:700">Vencido</span>':'<span style="color:var(--text3)">Sin anuncio</span>'}</div>
+    <textarea class="adm-inp" style="height:auto;min-height:110px;padding:10px;resize:vertical;line-height:1.5" maxlength="400" placeholder="Ej: El viernes 4/12 no hay clase." oninput="wodAnnDraft.text=this.value">${escH(wodAnnDraft.text)}</textarea>
+    <label style="font-size:11px;color:var(--text3);display:block;margin:4px 0 6px">Vence (opcional)</label>
+    <input class="adm-inp" type="date" value="${escH(wodAnnDraft.expiresAt)}" onchange="wodAnnDraft.expiresAt=this.value">
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="adm-btn adm-btn-red" style="flex:1;justify-content:center;min-height:46px" onclick="wodAnnClear()">Quitar</button>
+      <button class="adm-btn adm-btn-orange" style="flex:2;justify-content:center;min-height:46px" onclick="wodAnnPublish()">${hcIcon('send',14)} Publicar</button>
+    </div>`;
+}
+async function wodAnnPublish(){
+  const t=(wodAnnDraft.text||'').trim();
+  if(!t){ showToast('Escribí el anuncio'); return; }
+  if(wodAnnDraft.expiresAt && wodAnnDraft.expiresAt<wodToday()){ showToast('La fecha de vencimiento ya pasó'); return; }
+  const a={text:t,expiresAt:calIsDate(wodAnnDraft.expiresAt)?wodAnnDraft.expiresAt:null,updatedBy:wodWho(),updatedAt:Date.now()};
+  if(!await sharedSet(K.WOD_ANN,a)){ showToast('No se pudo publicar'); return; }
+  wodAnn=a; showToast('Anuncio publicado'); renderModal();
+}
+async function wodAnnClear(){
+  if(!confirm('¿Quitar el anuncio?')) return;
+  await sharedSet(K.WOD_ANN,null); wodAnn=null; wodAnnDraft={text:'',expiresAt:''}; showToast('Anuncio quitado'); renderModal();
+}
+
+// ---------- Admin: alumnos, profesores, dashboard ----------
+const WOD_ADM_TABS=[
+  {k:'dash',label:'Dashboard',ic:'grid'},{k:'alumnos',label:'Alumnos',ic:'users'},{k:'profes',label:'Profesores',ic:'clipboardList'},
+  {k:'plan',label:'Planificación',ic:'calendar'},{k:'borrador',label:'Borrador',ic:'pencil'},{k:'plantillas',label:'Plantillas',ic:'template'},
+  {k:'anuncio',label:'Anuncio',ic:'megaphone'},{k:'pw',label:'Contraseña',ic:'key'}
+];
+function wodMembers(){ return Object.values(users).filter(u=>wodStatusOf(u)); }
+function wodStudents(){ return wodMembers().filter(u=>!wodTeacherListed(u)); }
+function wodRenderAdminBody(){
+  if(!WOD_ADM_TABS.some(t=>t.k===adminState.tab)) adminState.tab='dash';
+  const nav=WOD_ADM_TABS.map(t=>`<div class="admin-tab ${adminState.tab===t.k?'active':''}" onclick="setAdminTab('${t.k}')"><span class="adm-tab-ic">${hcIcon(t.ic,16)}${t.label}</span></div>`).join('');
+  let body='';
+  const k=adminState.tab;
+  if(adminState.wodViewUid && (k==='dash'||k==='alumnos')) body=wodAdmUserView();
+  else if(k==='dash') body=wodAdmDash();
+  else if(k==='alumnos') body=wodAdmStudents();
+  else if(k==='profes') body=wodAdmTeachers();
+  else if(k==='plan') body=`<div class="admin-section-title">${hcSecTitle('calendar','Planificación publicada')}</div>`+wodPlanHTML(true);
+  else if(k==='borrador') body=wodRenderDraftTab();
+  else if(k==='plantillas') body=wodRenderTplTab();
+  else if(k==='anuncio') body=wodRenderAnnTab();
+  else body=renderTabPw();
+  return `<div class="adm-layout"><div class="admin-nav">${nav}</div><div class="adm-main">${body}</div></div>`;
+}
+async function wodSetAdminTab(k){
+  if(typeof k!=='string') k='dash';
+  adminState.tab=k; adminState.wodViewUid=null; wodTplPicker=false;
+  if(k==='anuncio') wodAnnDraft=null;
+  if(k==='plantillas') wodTpls=null;
+  if(k==='borrador' && wodDraftSave!=='saving') wodDraft=null;
+  if(k==='plan'){ wodPlanView.editDate=null; wodIndex=null; wodWeeks={}; }
+  renderModal();
+  if(k==='dash'||k==='alumnos'||k==='profes'){ await loadUsers(); renderModal(); }
+  if(k==='borrador'||k==='plan'){ await wodLoadIndex(); renderModal(); }
+}
+function wodSetStatus(u,st){ u.clubs=u.clubs&&typeof u.clubs==='object'?u.clubs:{}; u.clubs.wod=Object.assign({},u.clubs.wod||{},{status:st}); if(u.club==='wod') u.status=st; }
+async function wodUpdateUser(id,fn,msg){
+  await loadUsers();
+  const u=users[id]; if(!u){ showToast('Usuario no encontrado'); return; }
+  fn(u);
+  const ok=await saveUsers();
+  if(ok===false){ showToast('No se pudo guardar'); return; }
+  renderModal(); if(msg) showToast(msg);
+}
+function wodApprove(id){ return wodUpdateUser(id,u=>{ wodSetStatus(u,STATUS.ACTIVE); u.clubs.wod.approvedAt=Date.now(); },'Acceso aprobado'); }
+function wodReject(id){ const u=getUserById(id); if(!u||!confirm('¿Rechazar la solicitud de '+u.name+'? No va a poder entrar al Club WOD (lo podés reactivar después). Su cuenta en otros clubes no cambia.')) return; return wodUpdateUser(id,x=>wodSetStatus(x,STATUS.BLOCKED),'Solicitud rechazada'); }
+function wodBlock(id){ const u=getUserById(id); if(!u||!confirm('¿Bloquear el acceso de '+u.name+' al Club WOD? Sus registros no se borran.')) return; return wodUpdateUser(id,x=>wodSetStatus(x,STATUS.BLOCKED),'Acceso bloqueado'); }
+function wodUnblock(id){ return wodUpdateUser(id,u=>wodSetStatus(u,wodIsTeacherUser(u)||!(u.clubs.wod.roleRequest)?STATUS.ACTIVE:STATUS.PENDING),'Reactivado'); }
+function wodSetSex(id,s){ return wodUpdateUser(id,u=>{ u.sex=s; },'Sexo actualizado'); }
+function wodEnableTeacher(id){ return wodUpdateUser(id,u=>{ wodSetStatus(u,STATUS.ACTIVE); u.clubs.wod.role='teacher'; delete u.clubs.wod.roleRequest; },'Profesor habilitado'); }
+function wodRemoveTeacher(id){ const u=getUserById(id); if(!u||!confirm('¿Quitarle el rol de profesor a '+u.name+'? Pasa a ser alumno del Club WOD.')) return; return wodUpdateUser(id,x=>{ delete x.clubs.wod.role; delete x.clubs.wod.roleRequest; },'Ahora es alumno'); }
+let wodConvertSel='';
+function wodConvertTeacher(id){ const u=getUserById(id); if(!u){ showToast('Elegí un alumno'); return; } if(!confirm('¿Convertir a '+u.name+' en profesor del Club WOD? Va a ver la planificación completa y deja de aparecer como alumno (sus registros no se borran).')) return; wodConvertSel=''; return wodUpdateUser(id,x=>{ wodSetStatus(x,STATUS.ACTIVE); x.clubs.wod.role='teacher'; delete x.clubs.wod.roleRequest; },'Ahora es profesor'); }
+function wodUserRowHTML(u,opts){
+  opts=opts||{};
+  const st=wodStatusOf(u), ini=hcInitials(u.name);
+  const b='padding:9px 10px;min-height:40px';
+  const other=u.club&&u.club!=='wod'?`<span class="badge" style="background:var(--surface3);color:var(--text3);border:1px solid var(--border)">También en ${u.club==='hybrid'?'Hybrid Club':'Fuerza'}</span>`:'';
+  const sexSel=`<div class="wod-seg">${['F','M'].map(s=>`<button class="${u.sex===s?'on':''}" onclick="wodSetSex('${u.id}','${s}')">${s==='F'?'Mujer':'Hombre'}</button>`).join('')}</div>`;
+  const actions=st===STATUS.PENDING
+    ? `<button class="adm-btn adm-btn-green" style="${b};font-weight:700" onclick="wodApprove('${u.id}')">✓ Aprobar</button><button class="adm-btn adm-btn-red" style="${b}" onclick="wodReject('${u.id}')">Rechazar</button>`
+    : `${st===STATUS.BLOCKED?`<button class="adm-btn adm-btn-blue" style="${b}" onclick="wodUnblock('${u.id}')" title="Reactivar">↩ Reactivar</button>`:`<button class="adm-btn adm-btn-orange" style="${b}" onclick="wodAdmOpenUser('${u.id}')">${hcIcon('calendar',14)} Registros</button><button class="adm-btn adm-btn-red" style="${b}" onclick="wodBlock('${u.id}')" title="Bloquear">✕</button>`}
+       <button class="adm-btn adm-btn-ghost" style="${b}" onclick="adminResetPassword('${u.id}')" title="Restablecer contraseña">${hcIcon('key',14)}</button>`;
+  return `<div class="user-row" style="flex-wrap:wrap">
+    <div class="user-row-avatar">${ini}</div>
+    <div class="user-row-info">
+      <div class="user-row-name">${escH(u.name)}</div>
+      <div class="user-row-email">${escH(u.email)}</div>
+      <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap">${st===STATUS.BLOCKED?'<span class="badge badge-blocked">BLOQUEADO</span>':''}${st===STATUS.PENDING?'<span class="badge badge-pending">PENDIENTE</span>':''}${(wodMember(u)||{}).roleRequest==='teacher'?'<span class="badge badge-pending">PIDE SER PROFESOR</span>':''}${other}</div>
+    </div>
+    <div class="user-row-actions" style="flex-basis:100%;flex-wrap:wrap;justify-content:flex-end;align-items:center">${opts.noSex?'':sexSel}${actions}</div>
+  </div>`;
+}
+function wodAdmDash(){
+  const st=wodStudents(), active=st.filter(u=>wodStatusOf(u)===STATUS.ACTIVE), pending=wodMembers().filter(u=>wodStatusOf(u)===STATUS.PENDING);
+  const box=(lab,val,col)=>`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;text-align:center"><div style="font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">${lab}</div><div style="font-family:var(--font-display);font-size:30px;font-weight:700;color:${col||'var(--text)'}">${val}</div></div>`;
+  const q=(adminState.userSearch||'').toLowerCase().trim();
+  const list=active.filter(u=>!q||u.name.toLowerCase().includes(q)).sort((a,b)=>a.name.localeCompare(b.name));
+  return `<div class="adm-stat-grid adm-stat-2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">${box('Alumnos activos',active.length)}${box('Solicitudes',pending.length,pending.length?'var(--yellow)':'')}</div>
+    ${pending.length?`<div class="admin-section-title">Solicitudes pendientes (${pending.length})</div>${pending.map(u=>wodUserRowHTML(u,{noSex:true})).join('')}`:''}
+    <div class="admin-section-title" style="margin-top:14px">Alumnos · registros de WODs</div>
+    <input class="adm-inp" placeholder="Buscar por nombre..." value="${escH(adminState.userSearch||'')}" oninput="adminState.userSearch=this.value;clearTimeout(window._wodSrch);window._wodSrch=setTimeout(()=>{renderModal();const i=document.querySelector('.adm-main input.adm-inp');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}},300)">
+    ${list.length?list.map(u=>`<div class="wod-list-row" onclick="wodAdmOpenUser('${u.id}')"><div class="user-row-avatar" style="width:32px;height:32px;font-size:12px">${hcInitials(u.name)}</div><div style="flex:1;min-width:0"><b>${escH(u.name)}</b><div style="font-size:11px;color:var(--text3)">${u.sex?WOD_SEX_LABEL[u.sex]:'Sin sexo cargado'}</div></div>${hcIcon('arrowRight',15)}</div>`).join(''):`<div class="cc-empty">${active.length?'Sin resultados':'Todavía no hay alumnos activos.'}</div>`}`;
+}
+function wodAdmStudents(){
+  const all=wodStudents();
+  const pending=all.filter(u=>wodStatusOf(u)===STATUS.PENDING), active=all.filter(u=>wodStatusOf(u)!==STATUS.PENDING).sort((a,b)=>a.name.localeCompare(b.name));
+  const sub=adminState.userSubTab==='pending'?'pending':'active';
+  const tabs=`<div style="display:flex;gap:8px;margin-bottom:12px">
+    <div class="admin-tab ${sub==='active'?'active':''}" onclick="adminState.userSubTab='active';renderModal()">Activos (${active.length})</div>
+    <div class="admin-tab ${sub==='pending'?'active':''}" style="${pending.length&&sub!=='pending'?'border-color:var(--yellow);color:var(--yellow)':''}" onclick="adminState.userSubTab='pending';renderModal()">Pendientes (${pending.length})</div>
+  </div>`;
+  const list=sub==='pending'?pending:active;
+  return `<div class="admin-section-title">${hcSecTitle('users','Alumnos del Club WOD')}</div>
+    <div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:12px">Sin ficha: solo usuario y sexo (lo podés corregir acá). El sexo sirve para resaltar sus filas en las tablas de pesos.</div>
+    ${tabs}${list.length?list.map(u=>wodUserRowHTML(u)).join(''):`<div class="cc-empty">${sub==='pending'?'No hay solicitudes pendientes':'Todavía no hay alumnos'}</div>`}`;
+}
+function wodAdmTeachers(){
+  const all=wodMembers().filter(wodTeacherListed).sort((a,b)=>a.name.localeCompare(b.name));
+  const b='padding:9px 10px;min-height:40px';
+  const rows=all.map(u=>{
+    const m=wodMember(u), isT=m.role==='teacher', st=m.status;
+    const badge=st===STATUS.BLOCKED?'<span class="badge badge-blocked">BLOQUEADO</span>':(isT&&st===STATUS.ACTIVE)?'<span class="badge badge-active">HABILITADO</span>':'<span class="badge badge-pending">PENDIENTE</span>';
+    return `<div class="user-row" style="flex-wrap:wrap"><div class="user-row-avatar">${hcInitials(u.name)}</div>
+      <div class="user-row-info"><div class="user-row-name">${escH(u.name)}</div><div class="user-row-email">${escH(u.email)}</div><div style="margin-top:4px">${badge}</div></div>
+      <div class="user-row-actions" style="flex-basis:100%;flex-wrap:wrap;justify-content:flex-end">
+        ${st!==STATUS.BLOCKED&&!(isT&&st===STATUS.ACTIVE)?`<button class="adm-btn adm-btn-green" style="${b};font-weight:700" onclick="wodEnableTeacher('${u.id}')">✓ Habilitar</button>`:''}
+        ${st!==STATUS.BLOCKED?`<button class="adm-btn adm-btn-red" style="${b}" onclick="wodBlock('${u.id}')">✕</button>`:`<button class="adm-btn adm-btn-blue" style="${b}" onclick="wodEnableTeacher('${u.id}')">↩</button>`}
+        <button class="adm-btn adm-btn-ghost" style="${b}" onclick="adminResetPassword('${u.id}')">${hcIcon('key',14)}</button>
+        <button class="adm-btn adm-btn-ghost" style="${b};font-size:12px" onclick="wodRemoveTeacher('${u.id}')">Quitar rol</button>
+      </div></div>`;
+  }).join('');
+  const cands=wodStudents().filter(u=>wodStatusOf(u)===STATUS.ACTIVE).sort((a,b)=>a.name.localeCompare(b.name));
+  return `<div class="admin-section-title">${hcSecTitle('clipboardList','Profesores del Club WOD')}</div>
+    <div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:12px">Los profesores ven la planificación completa de cada día (Warm Up, activación y WODs). No editan nada y no ven registros de alumnos.</div>
+    ${rows||`<div class="cc-empty">Todavía no hay profesores. Pueden pedirlo con "Soy profesor" al registrarse o podés convertir a un alumno activo.</div>`}
+    ${cands.length?`<div class="admin-section-title" style="margin-top:20px">${hcSecTitle('userPlus','Convertir en profesor')}</div>
+      <select class="adm-inp" style="margin-bottom:10px" onchange="wodConvertSel=this.value"><option value="">Elegí un alumno activo...</option>${cands.map(u=>`<option value="${u.id}" ${wodConvertSel===u.id?'selected':''}>${escH(u.name)}</option>`).join('')}</select>
+      <button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;min-height:44px" onclick="wodConvertTeacher(wodConvertSel)">${hcIcon('userPlus',15)} Convertir en profesor</button>`:''}`;
+}
+async function wodAdmOpenUser(uid){
+  adminState.wodViewUid=uid; wodState.month=null; renderModal();
+  wodAdmLogs[uid]=await wodLoadLogs(uid);
+  await wodPrepareRegistros(uid,wodAdmLogs[uid]);
+  renderModal();
+}
+function wodAdmUserView(){
+  const uid=adminState.wodViewUid, u=getUserById(uid);
+  const head=`<button class="adm-btn adm-btn-ghost" style="margin-bottom:12px;min-height:40px" onclick="adminState.wodViewUid=null;wodState.month=null;renderModal()">← Volver</button>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px"><div class="user-row-avatar">${hcInitials(u?u.name:'?')}</div><div><div style="font-weight:700;font-size:16px">${escH(u?u.name:'')}</div><div style="font-size:11px;color:var(--text3)">${u&&u.sex?WOD_SEX_LABEL[u.sex]:'Sin sexo cargado'} · como lo ve en su pestaña Registros</div></div></div>`;
+  if(!wodAdmLogs[uid]) return head+`<div class="cc-empty">Cargando registros...</div>`;
+  return head+wodRegistrosHTML(uid,wodAdmLogs[uid],{admin:true});
+}
+
+// ============================================================
 // INIT
 // ============================================================
 let __fsInitDone=false;
@@ -9636,6 +11201,7 @@ window.__fsAppInit = async function(){
   if(session && session.uid!=='__pending__'){ loadActiveWeek(); loadExpressMode(); }
   if(session && session.uid!=='__pending__') await loadProgress();
   if(session && session.club==='hybrid' && session.uid!=='__pending__') await hcEnsureGoalData();
+  if(session && session.club==='wod' && session.uid!=='__pending__') await wodLoadStudentData();
   render();
 };
 
