@@ -659,6 +659,26 @@ body.wod-theme .user-row-avatar{background:#000000;border:1px solid #2B35E0;colo
 .wod-seg2 button{flex:1;min-height:40px;padding:6px 4px;background:transparent;border:none;border-right:1px solid #2f3470;color:#9a9db8;font-size:12px;font-weight:600;cursor:pointer;}
 .wod-seg2 button:last-child{border-right:none;}
 .wod-seg2 button.on{background:#2B35E0;color:#fff;}
+
+/* Club WOD — tablas completas, grilla genérica y spinner */
+.wt-wrap{overflow-x:auto;margin-top:10px;border:1px solid #23264a;border-radius:10px;-webkit-overflow-scrolling:touch;}
+.wt{border-collapse:separate;border-spacing:0;width:100%;}
+.wt th,.wt td{padding:8px 10px;border-bottom:1px solid #1a1c33;text-align:center;white-space:nowrap;}
+.wt thead th{font-size:10px;font-weight:600;color:#8a8fb8;background:#0c0d18;letter-spacing:.3px;}
+.wt td{font-family:'Orbitron','Oswald',sans-serif;font-size:13px;color:#fff;}
+.wt tbody th{position:sticky;left:0;z-index:1;background:#0c0d18;text-align:left;font-size:12px;font-weight:600;color:#d6d8f0;}
+.wt thead th:first-child{position:sticky;left:0;z-index:2;}
+.wt tr:last-child th,.wt tr:last-child td{border-bottom:none;}
+.wt tr.pick th,.wt tr.pick td,.wt .pick{background:#2B35E0;color:#fff;}
+.wt-more{font-size:12px;color:#7C86FF;font-weight:600;cursor:pointer;padding:8px 2px;}
+.wb-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:10px 0;}
+@media(min-width:700px){.wb-grid{grid-template-columns:repeat(var(--n),minmax(0,1fr));}}
+.wb-gcell{background:#12142a;border:1px solid #23264a;border-radius:10px;padding:10px;min-width:0;}
+.wb-gtitle{font-family:'Orbitron','Oswald',sans-serif;font-size:10px;font-weight:700;letter-spacing:.5px;color:#7C86FF;margin-bottom:6px;}
+.wb-gline{font-size:13px;line-height:1.4;padding:3px 0;color:#fff;overflow-wrap:anywhere;}
+.wb-gline b{font-family:'Orbitron','Oswald',sans-serif;color:#7C86FF;font-size:12px;}
+.wod-spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:wodspin .8s linear infinite;}
+@keyframes wodspin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -737,7 +757,9 @@ const K = {
   WOD_DRAFT: 'wod_draft_v1',  // shared (solo Admin): borrador semanal
   WOD_LOGS: (uid) => `wod_logs_${uid}_v1`,  // personal: registros de WODs del alumno
   WOD_ANN: 'wod_announcement_v1',  // shared: anuncio del Inicio
-  WOD_TPL: 'wod_templates_v1',  // shared: plantillas de texto
+  WOD_TPL: 'wod_templates_v1',  // shared: plantillas de texto (ya no se usan desde la app; se conservan)
+  WOD_DRIVE_CFG: 'wod_settings_drive_v1',  // solo Admin: {url, token} de la aplicación web de Apps Script
+  WOD_DRIVE_CACHE: 'wod_drive_cache_v1',  // solo Admin: lo último que se trajo de Drive {fetchedAt, docs:[{id,name,url,updated,text}]}
 };
 const DEFAULT_ADMIN_PW = 'fusion2025';
 const DEFAULT_ADMIN_PW_HYBRID = 'hybrid2025';
@@ -2366,6 +2388,34 @@ function finishDay(d,warnings){
   if(!d.wods.length && hasContent){ warnings.push({line:d.wodHeaderLine||d.line,msg:calDM(d.date)+': "B) WOD" está vacío'}); flags.push('emptywod'); }
   d.flags=flags;
 }
+// ---- Tablas internas (las genera la sincronización con Drive; nunca se escriben a mano) ----
+//   TABLA | Bloque 1 | Bloque 2        tabla de pesos (filas Mujeres/Hombres + nivel)
+//   SUBENCABEZADO | 4 REPS | 3 REPS     segundo encabezado opcional
+//   TABLA NIVELES | Rx | Avanzados ...  filas = movimientos
+//   TABLA GRILLA | col | col            grilla genérica (estaciones de un Partner WOD, etc.)
+//   FIN TABLA
+const WOD_TABLA_RE=/^TABLA(?:\s+(NIVELES|GRILLA))?\s*(?:\||$)/;
+function wodTablaKind(t){ const m=WOD_TABLA_RE.exec(wodFold(t)); return m?(m[1]==='NIVELES'?'level':m[1]==='GRILLA'?'grid':'sex'):null; }
+function wodPipeCells(t){ return wodCleanRaw(t).split('|').map(x=>x.trim()); }
+// Arma una tabla a partir de sus líneas internas (sin TABLA/FIN TABLA). Devuelve {tb, bad:[filas no reconocidas]}
+function wodTablaBuild(kind,headLine,lines){
+  const head=wodPipeCells(headLine).slice(1);
+  const bad=[];
+  if(kind==='grid') return {tb:{kind:'grid',head,rows:lines.map(wodPipeCells)},bad};
+  if(kind==='level'){
+    const levels=head.map(wodLevelOf);
+    return {tb:{kind:'level',levels,head,rows:lines.map(l=>{ const c=wodPipeCells(l); return {label:c[0],cells:c.slice(1)}; })},bad};
+  }
+  const tb={kind:'sex',head:head.filter((h,i)=>h||head.slice(i).some(Boolean)),rows:[]};
+  lines.forEach(l=>{
+    const c=wodPipeCells(l);
+    if(/^SUBENCABEZADO$/.test(wodFold(c[0]))){ tb.sub=c.slice(1); return; }
+    const sr=wodSexRow(c[0]);
+    if(sr && sr.level) tb.rows.push({sex:sr.sex,level:sr.level,label:sr.label,cells:c.slice(1)});
+    else bad.push(l);
+  });
+  return {tb,bad};
+}
 function buildWod(g,d,warnings){
   const content=[], tables=[], textLines=[], movLines=[];
   let partner=!!(g.header&&g.header.partner), sector='', titleExtra='';
@@ -2377,11 +2427,23 @@ function buildWod(g,d,warnings){
   let table=null; // tabla abierta {kind,...}
   let pendingRow=null;
   const lastNonBlank=()=>{ for(let i=content.length-1;i>=0;i--) if(content[i].t!=='blank') return {it:content[i],i}; return null; };
+  let coll=null; // tabla interna que se está leyendo {kind, head, lines, ln}
   const items=g.items.slice();
   while(items.length && !items[items.length-1].raw.trim()) items.pop();
   while(items.length && !items[0].raw.trim()) items.shift();
   items.forEach(it=>{
     const raw=it.raw, t=raw.trim(), f=wodFold(t);
+    if(coll){
+      if(/^FIN\s+TABLA$/.test(f)){
+        const {tb,bad}=wodTablaBuild(coll.kind,coll.head,coll.lines);
+        if(bad.length) warnings.push({line:coll.ln,msg:calDM(d.date)+': en una tabla de pesos hay filas que no son Mujeres/Hombres + nivel ('+bad.length+')'});
+        tables.push(tb); content.push({t:'table',i:tables.length-1}); coll=null; return;
+      }
+      if(t) coll.lines.push(t);
+      return;
+    }
+    const tk=wodTablaKind(t);
+    if(tk){ coll={kind:tk,head:t,lines:[],ln:it.ln}; table=null; return; }
     if(!t){ if(content.length && content[content.length-1].t!=='blank') content.push({t:'blank'}); if(table&&table.kind==='level') table=null; return; }
     if(/^REGISTRO\s*:/.test(f)) return; // línea vieja de tipo de registro: se ignora
     if(/^(?:\.{2,}|…)$/.test(t)){ const L=lastNonBlank(); if(L && L.it.t==='table') return; }
@@ -2524,6 +2586,112 @@ function wodMember(u){ return u && u.clubs && u.clubs.wod ? u.clubs.wod : null; 
 function wodStatusOf(u){ const m=wodMember(u); return m ? m.status : (u && u.club==='wod' ? u.status : null); }
 function wodIsTeacherUser(u){ const m=wodMember(u); return !!(m && m.role==='teacher'); }
 function wodTeacherListed(u){ const m=wodMember(u); return !!m && (m.role==='teacher' || (m.roleRequest==='teacher' && m.status!=='active')); }
+// ---- Sincronización con Google Docs: bloques del Apps Script -> texto interno que entiende parseWodText ----
+const WOD_MONTHS=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+// Fecha de referencia para el año: el mes y año del nombre del documento ("Noviembre 2026") o, si no, hoy
+function wodDocRef(name,today){
+  const f=calNorm(name).replace('setiembre','septiembre');
+  for(let i=0;i<12;i++){ const m=new RegExp('\\b'+WOD_MONTHS[i]+'\\s+(\\d{4})\\b').exec(f); if(m) return m[1]+'-'+String(i+1).padStart(2,'0')+'-15'; }
+  return today;
+}
+function wodCellLines(c){ return wodCleanRaw(c).replace(/\u000b/g,'\n').split('\n').map(x=>x.trim()).filter(Boolean); }
+function wodCellJoin(c){ return wodCellLines(c).join(' / ').replace(/\|/g,'/'); }
+function wodIsSexLabel(c){ const sr=wodSexRow(c); return !!(sr && sr.level && !sr.cells.length); }
+// Una celda aplanada: una sola línea = título/indicación; varias líneas = movimientos
+function wodFlatCell(c,out){
+  const L=wodCellLines(c);
+  if(L.length===1 && (wodIsSubtitle(wodFold(L[0])) || !/^\d/.test(L[0]))){ out.push(L[0]); return; }
+  L.forEach(l=>out.push(/^\(/.test(l)?l:'- '+l));
+}
+// Tabla del documento -> líneas internas
+function wodTableToLines(rows){
+  let R=(rows||[]).map(r=>(r||[]).map(c=>wodCleanRaw(c).replace(/\u000b/g,'\n').trim()));
+  R=R.filter(r=>r.some(Boolean));
+  if(!R.length) return [];
+  const n=Math.max(...R.map(r=>r.length));
+  R=R.map(r=>{ r=r.slice(); while(r.length<n) r.push(''); return r; });
+  const keep=[]; for(let ci=0;ci<n;ci++) if(R.some(r=>r[ci])) keep.push(ci);
+  R=R.map(r=>keep.map(ci=>r[ci]));
+  const nc=keep.length, out=[];
+  // 1) pesos: filas "Mujeres/Hombres + nivel"
+  const di=R.findIndex(r=>wodIsSexLabel(r[0]));
+  if(di>=0){
+    const heads=R.slice(0,di).filter(h=>h.slice(1).some(Boolean));
+    out.push('TABLA'+(heads[0]?' | '+heads[0].slice(1).map(wodCellJoin).join(' | '):''));
+    if(heads[1]) out.push('SUBENCABEZADO | '+heads[1].slice(1).map(wodCellJoin).join(' | '));
+    R.slice(di).forEach(r=>{ if(wodIsSexLabel(r[0])) out.push(r.map(wodCellJoin).join(' | ')); });
+    out.push('FIN TABLA'); return out;
+  }
+  // 2) por nivel: encabezado Rx / Avanzado / Intermedio / Principiante, filas = movimientos
+  const h0=R[0], hs=h0[0]?h0:h0.slice(1);
+  if(R.length>1 && hs.length>=2 && hs.every(c=>wodLevelOf(c))){
+    out.push('TABLA NIVELES | '+hs.map(wodCellJoin).join(' | '));
+    R.slice(1).forEach(r=>out.push((h0[0]?['']:[]).concat(r).map(wodCellJoin).join(' | ')));
+    out.push('FIN TABLA'); return out;
+  }
+  // 3) una celda o una columna: texto normal (título + ítems)
+  if(nc===1){ R.forEach(r=>wodFlatCell(r[0],out)); return out; }
+  // 4) "WOD A / WOD B" (activación del warm up): una columna detrás de la otra
+  if(h0.every(c=>/^WOD\s+[A-H]$/.test(wodFold(c)))){
+    h0.forEach((h,ci)=>{ if(ci) out.push(''); out.push('Activación '+h.trim()); R.slice(1).forEach(r=>{ if(r[ci]) wodFlatCell(r[ci],out); }); });
+    return out;
+  }
+  // 5) grilla genérica (estaciones, partes en columnas...)
+  let body=R;
+  while(body.length && body[0][0] && body[0].slice(1).every(c=>!c)){ const L=wodCellLines(body[0][0]); L.forEach(l=>out.push(/^\d/.test(l)?'- '+l:l)); body=body.slice(1); }
+  if(!body.length) return out;
+  out.push('TABLA GRILLA | '+body[0].map(wodCellJoin).join(' | '));
+  body.slice(1).forEach(r=>out.push(r.map(wodCellJoin).join(' | ')));
+  out.push('FIN TABLA');
+  return out;
+}
+// Bloques de un documento -> texto interno (párrafos como líneas, ítems de lista como "- texto")
+function wodBlocksToText(blocks){
+  const out=[]; let prevLi=false;
+  (blocks||[]).forEach(b=>{
+    if(b.t==='table'){ if(out.length && out[out.length-1]!=='') out.push(''); out.push(...wodTableToLines(b.rows)); out.push(''); prevLi=false; return; }
+    // en un documento los espacios dobles o tabs no son columnas: se colapsan
+    const lines=wodCleanRaw(b.text||'').replace(/\u000b/g,'\n').split('\n').map(x=>x.replace(/[ \t]+/g,' ').trim()).filter(Boolean);
+    lines.forEach((x,k)=>{
+      const f=wodFold(x);
+      if(b.t==='li'){
+        if(k===0 && /^WARM\s*-?\s*UPS?$/.test(f)){ out.push('A) WARM UP'); prevLi=false; return; }
+        if(k===0 && /^WODS?$/.test(f)){ out.push('B) WODs'); prevLi=false; return; }
+        out.push('- '+x); prevLi=true; return;
+      }
+      if(prevLi && k===0) out.push('');
+      out.push(x); prevLi=false;
+    });
+  });
+  return out.join('\n').replace(/\n{3,}/g,'\n\n').trim();
+}
+// Respuesta del script -> semanas {id,label,days,docs,warnings,text,textSig}, ordenadas por fecha
+function wodDriveWeeks(resp,today){
+  const map={}, global=[];
+  const docs=((resp&&resp.docs)||[]).slice().sort((a,b)=>String(a.updated||'')<String(b.updated||'')?-1:1);
+  docs.forEach(doc=>{
+    const text=doc.text!=null?doc.text:wodBlocksToText(doc.blocks);
+    const P=parseWodText(text,{ref:wodDocRef(doc.name||'',today)});
+    const meta={id:doc.id,name:doc.name||'',url:doc.url||''};
+    const inWeek=(w,x)=>x.line>=w.lineFrom&&x.line<=w.lineTo;
+    P.weeks.forEach(w=>{
+      const W=map[w.id]||(map[w.id]={id:w.id,label:'',days:[],docs:[],warnings:[],errors:[]});
+      if(!W.label) W.label=w.label;
+      w.days.forEach(d=>{ const i=W.days.findIndex(x=>x.date===d.date); if(i>=0) W.days[i]=d; else W.days.push(d); }); // el documento más nuevo gana
+      if(!W.docs.some(x=>x.id===meta.id)) W.docs.push(meta);
+      P.errors.filter(e=>inWeek(w,e)).forEach(e=>W.errors.push(e.msg));
+      P.warnings.filter(e=>inWeek(w,e)).forEach(e=>W.warnings.push(e.msg));
+    });
+    P.errors.filter(e=>!P.weeks.some(w=>inWeek(w,e))).forEach(e=>global.push((meta.name?meta.name+': ':'')+e.msg));
+  });
+  const weeks=Object.values(map).sort((a,b)=>a.id<b.id?-1:1).map(W=>{
+    W.days.sort((a,b)=>a.date<b.date?-1:1);
+    W.text=(W.label?W.label+'\n\n':'')+W.days.map(d=>d.raw).join('\n\n');
+    W.textSig=hashStr(W.text);
+    return W;
+  });
+  return {weeks,errors:global};
+}
 // ---- Presentación del WOD (solo visual: el texto del borrador no cambia) ----
 // Mayúsculas -> formato oración, respetando siglas. Texto que ya viene en minúsculas/Title Case no se toca.
 const WOD_ACR={wods:'WODs',wod:'WOD',tc:'TC',rx:'Rx',t2b:'T2B',k2c:'K2C',bmu:'BMU',hspu:'HSPU',kbs:'KBs',kb:'KB',dbs:'DBs',db:'DB',otm:'OTM',emom:'EMOM',amrap:'AMRAP',oh:'OH',hr:'HR'};
@@ -2593,7 +2761,7 @@ function wodFormatInfo(line){
   return out;
 }
 function wodIsSubtitle(f){
-  return /^(BLOQUE|PARTE|RONDAS?|MIN(UTO)?)\s*\d+\b/.test(f) || /^\d+\s*(RONDAS?|PARTES)\b/.test(f) || /^WOD\s+[A-H]$/.test(f)
+  return /^ACTIVACION\b/.test(f) || /^(BLOQUE|PARTE|RONDAS?|MIN(UTO)?)\s*\d+\b/.test(f) || /^\d+\s*(RONDAS?|PARTES)\b/.test(f) || /^WOD\s+[A-H]$/.test(f)
     || /^[\d'"\s]+X[\d'"\s()X,]+$/.test(f) || (/\b\d+\s*RONDAS?\b/.test(f) && f.split(' ').length<=5);
 }
 function wodIsNote(f){
@@ -2602,9 +2770,11 @@ function wodIsNote(f){
 function wodLooksCapsText(s){ const up=(s.match(/[A-ZÁÉÍÓÚÑ]/g)||[]).length, low=(s.match(/[a-záéíóúñ]/g)||[]).length; return up>=6 && low<=Math.max(2,up*0.15) && s.trim().split(/\s+/).length>=3; }
 // Líneas de texto (warm up) -> mismo formato que contentLines
 function wodLinesFromText(text){
-  const out=[];
+  const out=[]; let coll=null;
   wodCleanRaw(text).split('\n').forEach(raw=>{
     const t=raw.trim();
+    if(coll){ if(/^FIN\s+TABLA$/.test(wodFold(t))){ out.push({t:'tablex',tb:wodTablaBuild(coll.kind,coll.head,coll.lines).tb}); coll=null; } else if(t) coll.lines.push(t); return; }
+    const tk=wodTablaKind(t); if(tk){ coll={kind:tk,head:t,lines:[]}; return; }
     if(!t){ if(out.length && out[out.length-1].t!=='blank') out.push({t:'blank'}); return; }
     if(wodSectionOf(t)) return;
     if(wodIsBullet(raw)){ const cs=wodCells(wodStripBullet(raw)); if(cs.length>=2) out.push({t:'cols',cells:cs.map(c=>({s:c.replace(/^-\s*/,''),mov:true}))}); else out.push({t:'mov',s:wodStripBullet(raw)}); return; }
@@ -2645,7 +2815,8 @@ function wodSubText(raw,tcDup){
 // Arma la vista de un WOD: {name, badge, chips, items}. items: sub | row | note | gap. Los pesos se agregan con wodApplyWeights.
 function wodPresent(w,opts){
   opts=opts||{};
-  const lines=wodFlatten(opts.lines||(w&&w.contentLines)||[]).filter(l=>l.t!=='table');
+  // las tablas de pesos/niveles se muestran como chips y en "Ver tabla completa"; las grillas, en su lugar
+  const lines=wodFlatten((opts.lines||(w&&w.contentLines)||[]).map(l=>{ if(l.t!=='table') return l; const tb=w&&w.weightTables&&w.weightTables[l.i]; return tb&&tb.kind==='grid'?{t:'tablex',tb}:null; }).filter(Boolean));
   const chips=[]; let badge=null;
   const addChip=c=>{ if(!chips.some(x=>x.txt===c.txt)) chips.push(c); };
   if(!opts.warm){
@@ -2654,11 +2825,15 @@ function wodPresent(w,opts){
     if(w.sector) addChip({k:'sector',txt:'Sector '+wodTitleCase(w.sector)});
   }
   const tcTxt=w&&w.timeCap?'TC '+w.timeCap:'';
-  const items=[]; let header=!opts.warm, cur=null;
+  const items=[]; let header=!opts.warm, cur=null, lastRow=null;
   const pushRow=(s)=>{
     const mv=wodParseMove(s);
     if(mv.pre) pushSub(mv.pre,mv.pre);
     const row={k:'row',reps:mv.reps,name:mv.name,tags:mv.tags,star:mv.star,iw:mv.iw,chips:[],sub:[]};
+    // una aclaración suelta ("(DIVIDEN)") se pega al movimiento anterior, nunca queda sola
+    if(!row.name && !row.reps && row.tags.length){ const prev=lastRow; if(prev){ row.tags.forEach(t=>{ if(!prev.tags.includes(t)) prev.tags.push(t); }); return; } }
+    if(!row.name && !row.reps && !row.tags.length) return;
+    lastRow=row;
     if(cur && cur.k==='note' && cur.absorb){ cur.rows.push(row); return; }
     items.push(row); cur=row;
   };
@@ -2668,6 +2843,7 @@ function wodPresent(w,opts){
     const it={k:'sub',txt,raw,chips:[]}; items.push(it); cur=it;
   };
   lines.forEach(L=>{
+    if(L.t==='tablex'){ if(L.tb && L.tb.kind==='grid'){ items.push({k:'grid',tb:L.tb}); cur=null; header=false; } return; }
     if(L.t==='blank'){ if(cur && ((cur.k==='note' && cur.absorb && !cur.rows.length) || cur.k==='sub')) return; if(items.length && items[items.length-1].k!=='gap') items.push({k:'gap'}); cur=null; return; }
     if(L.t==='mov'){ pushRow(L.s); return; }
     const t=L.s.trim(), f=wodFold(t);
@@ -2729,6 +2905,7 @@ function wodApplyWeights(P,w,view){
   const subs=P.items.filter(it=>it.k==='sub');
   rows.forEach(r=>{ if(r.iw){ const v=wodInlinePick(r.iw[sex],level); if(v) r.chips.push({txt:wodKg(v)||v,kg:true}); } });
   (w&&w.weightTables||[]).forEach((tb,ti)=>{
+    if(tb.kind==='grid') return;
     if(tb.kind==='level'){
       const col=tb.levels.indexOf(level); let any=false;
       const hits=tb.rows.map(tr=>({tr,targets:rows.filter(r=>wodNameMatch(r.name,tr.label)||tr.label.split('/').some(p=>wodNameMatch(r.name,p)))}));
@@ -10416,7 +10593,6 @@ function render(){
 // ============================================================
 const LOGO_WOD_URL=(()=>{ const base=window.location.href.replace(/\/[^\/]*$/,'/'); return base+'assets/logo-wod.png'; })();
 const DEFAULT_ADMIN_PW_WOD='wod2026';
-const WOD_TPL_CATS=['Warm up','Formato de WOD','Tabla de pesos','Otro'];
 let wodIndex=null;          // índice de semanas publicadas
 let wodWeeks={};            // caché {[lunes]: doc | null}
 let wodLogs=null;           // registros propios {[clave]: log}
@@ -10425,12 +10601,10 @@ let wodState={tab:'home', month:null, loading:false};
 let wodForms={};            // formularios abiertos {[clave]: {...}}
 let wodSheet=null;          // popup de un día {date, uid, admin}
 let wodJoin=null;           // pantalla "sumate al Club WOD" {uid, sex, teacher, needsRequest, name}
-let wodPlanView={week:null, editDate:null, editText:'', busy:false}; // Planificación (Admin y Profesor)
-let wodDraft=null, wodDraftSave='', wodDraftView='edit', wodDraftCaret=null;
-let wodTpls=null, wodTplEdit=null, wodTplCat='Todas';
+let wodPlanView={week:null}; // Planificación (Admin y Profesor, solo lectura)
 let wodAdmLogs={};          // {[uid]: logs} — registros de cada alumno (Admin)
 
-function wodResetState(){ wodViews={}; wodTblOpen={}; wodDayPick='today'; wodIndex=null; wodWeeks={}; wodLogs=null; wodAnn=null; wodState={tab:'home',month:null,loading:false}; wodForms={}; wodSheet=null; wodJoin=null; wodPlanView={week:null,editDate:null,editText:'',busy:false}; wodAdmLogs={}; wodRenderSheet(); }
+function wodResetState(){ wodViews={}; wodTblOpen={}; wodDayPick='today'; wodIndex=null; wodWeeks={}; wodLogs=null; wodAnn=null; wodState={tab:'home',month:null,loading:false}; wodForms={}; wodSheet=null; wodJoin=null; wodPlanView={week:null}; wodDrive.loaded=false; wodDrive.synced=false; wodDrive.sel=null; wodAdmLogs={}; wodRenderSheet(); }
 function wodToday(){ return calToday(); }
 function wodWho(){ return (session && session.uid && session.uid!=='__pending__' && session.name) ? session.name : 'Admin'; }
 function wodFirstName(n){ return String(n||'').trim().split(/\s+/)[0]||''; }
@@ -10448,7 +10622,7 @@ async function wodGetWeek(id,force){
 }
 async function wodEnsureWeeks(ids){ await Promise.all([...new Set(ids)].filter(id=>!Object.prototype.hasOwnProperty.call(wodWeeks,id)).map(id=>wodGetWeek(id))); }
 function wodDay(date){ const w=wodWeeks[wodMonday(date)]; return w ? (w.days||[]).find(d=>d.date===date)||null : null; }
-function wodOf(date,id){ const d=wodDay(date); return d ? (d.wods||[]).find(w=>w.id===id)||null : null; }
+function wodOf(date,id){ const d=wodDay(date); const w=d?(d.wods||[]).find(x=>x.id===id):null; if(w) return w; const wk=wodWeeks[wodMonday(date)]; const r=wk&&(wk.removedWods||[]).find(x=>x.date===date&&x.wod&&x.wod.id===id); return r?r.wod:null; }
 function wodIdxDay(date){ const w=wodIndex && wodIndex.weeks[wodMonday(date)]; return w && w.days ? w.days[date]||null : null; }
 function wodScheduled(from,to){ const out=[]; Object.values((wodIndex&&wodIndex.weeks)||{}).forEach(w=>Object.entries(w.days||{}).forEach(([d,v])=>{ if(v.n>0 && d>=from && d<=to) out.push(d); })); return out.sort(); }
 function wodNextDate(after){ const all=wodScheduled(calAddDays(after,1),'9999-12-31'); return all[0]||null; }
@@ -10584,19 +10758,6 @@ async function wodRecheckApproval(){
 
 // ---------- piezas visuales compartidas ----------
 function wodLevelDot(level,size){ size=size||10; return `<span class="wod-dot" style="width:${size}px;height:${size}px;background:${WOD_LEVEL_COLOR[level]||'transparent'}"></span>`; }
-function wodTableHTML(tb,opts){
-  opts=opts||{};
-  if(tb.kind==='level'){
-    const lv=opts.level;
-    return `<div class="wod-tbl-wrap"><table class="wod-tbl"><thead><tr><th></th>${tb.levels.map((l,i)=>`<th class="${l===lv?'pick':''}">${escH(tb.head[i])}</th>`).join('')}</tr></thead>
-      <tbody>${tb.rows.map(r=>`<tr><th>${escH(r.label)}</th>${r.cells.map((c,i)=>`<td class="${tb.levels[i]===lv?'pick':''}">${escH(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
-  }
-  const head=tb.head&&tb.head.length?`<thead><tr><th></th>${tb.head.map(h=>`<th>${escH(h)}</th>`).join('')}</tr></thead>`:'';
-  return `<div class="wod-tbl-wrap"><table class="wod-tbl">${head}<tbody>${tb.rows.map(r=>{
-    const me=opts.sex && r.sex===opts.sex, pick=me && opts.level && r.level===opts.level;
-    return `<tr class="${pick?'pick':me?'me':''}"><th>${escH(r.label)}</th>${r.cells.map(c=>`<td>${escH(c)}</td>`).join('')}</tr>`;
-  }).join('')}</tbody></table></div>`;
-}
 // ---------- tarjetas del WOD (presentación: el texto del borrador no cambia) ----------
 let wodViews={};             // "Ver pesos de" por persona {[uid]: {sex, level}} — solo para ver, no precarga el registro
 let wodTblOpen={};           // tablas completas desplegadas {[fecha_id]: true}
@@ -10640,6 +10801,7 @@ function wodItemsHTML(items){
     if(it.k==='gap') return '<div class="wb-gap"></div>';
     if(it.k==='sub') return `<div class="wb-sub"><span>${escH(it.txt)}</span>${it.chips.map(wodKgHTML).join('')}</div>`;
     if(it.k==='row') return wodRowHTML(it);
+    if(it.k==='grid') return wodGridHTML(it.tb);
     if(it.k==='note') return `<div class="wb-note"><div class="wb-note-ic">${it.icon==='rest'?WOD_SVG.clock:WOD_SVG.info}</div><div style="min-width:0;flex:1"><div>${escH(it.txt)}</div>${it.rows.length?`<div class="wb-note-rows">${it.rows.map(wodRowHTML).join('')}</div>`:''}</div></div>`;
     return '';
   }).join('');
@@ -10649,19 +10811,40 @@ function wodCardHTML(w,opts){
   opts=opts||{};
   const view=opts.view||{sex:'F',level:'intermedio'};
   const P=wodApplyWeights(wodPresent(w),w,view);
-  const tables=w.weightTables||[];
-  const open=opts.key&&wodTblOpen[opts.key];
+  const tables=(w.weightTables||[]).map((tb,i)=>({tb,i})).filter(x=>x.tb.kind!=='grid');
+  // una sola vez y en un solo lugar: si alguna tabla no se pudo asociar, arranca desplegada
+  const open=opts.key&&wodTblOpen[opts.key]!==undefined?wodTblOpen[opts.key]:P.fallback.length>0;
   const top=P.top.map(t=>`<div class="wb-top">${escH(t.label)}: ${t.txt?wodKgHTML({txt:t.txt}):''}${t.compact?t.compact.map(x=>`<span class="wb-kg sm"><b>${escH(x.ab)}</b> ${escH(x.v)}</span>`).join(''):''}</div>`).join('');
-  const fallback=P.fallback.filter(i=>!open).map(i=>wodTableHTML(tables[i],{sex:view.sex,level:view.level})).join('');
-  const full=tables.length?`<button class="wb-tblbtn" onclick="wodToggleTbl('${opts.key}')">${hcIcon('list',14)} ${open?'Ocultar tabla de pesos':'Ver tabla completa de pesos'}</button>${open?tables.map(tb=>wodTableHTML(tb,{sex:view.sex,level:view.level})).join(''):''}`:'';
+  const full=tables.length?`<button class="wb-tblbtn" onclick="wodToggleTbl('${opts.key}',${open?'true':'false'})">${hcIcon('list',14)} ${open?'Ocultar tabla de pesos':'Ver tabla completa de pesos'}</button>${open?tables.map(x=>wodFullTableHTML(x.tb,view,(opts.key||'')+'_'+x.i)).join(''):''}`:'';
   return `<div class="wb-card">
     <div class="wb-head"><div class="wb-name-t">${escH(P.name)}</div>${P.badge?`<span class="wb-badge">${escH(P.badge)}</span>`:''}</div>
     ${P.chips.length?`<div class="wb-chips">${P.chips.map(wodChipHTML).join('')}</div>`:''}
     ${top}<div class="wb-body">${wodItemsHTML(P.items)}</div>
-    ${fallback}${full}${opts.bottom||''}
+    ${full}${opts.bottom||''}
   </div>`;
 }
-function wodToggleTbl(k){ if(!k) return; wodTblOpen[k]=!wodTblOpen[k]; wodRerender(); }
+function wodToggleTbl(k,wasOpen){ if(!k) return; wodTblOpen[k]=!wasOpen; wodRerender(); }
+// Tabla completa bien formateada. Pesos: las 4 filas del sexo elegido (+ "Ver también"), fila del nivel resaltada.
+let wodTblBoth={};
+function wodFullTableHTML(tb,view,k){
+  const num=v=>{ v=String(v==null?'':v).trim(); return /^x$/i.test(v)||!v?'—':escH(v); };
+  if(tb.kind==='level'){
+    const lv=view.level;
+    return `<div class="wt-wrap"><table class="wt"><thead><tr><th></th>${tb.levels.map((l,i)=>`<th class="${l===lv?'pick':''}">${escH(tb.head[i]||'')}</th>`).join('')}</tr></thead>
+      <tbody>${tb.rows.map(r=>`<tr><th>${escH(wodCase(r.label))}</th>${r.cells.map((c,i)=>`<td class="${tb.levels[i]===lv?'pick':''}">${num(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  }
+  const both=!!wodTblBoth[k], other=view.sex==='M'?'F':'M';
+  const rows=tb.rows.filter(r=>r.sex===view.sex).concat(both?tb.rows.filter(r=>r.sex===other):[]);
+  const head=(tb.head||[]).length?`<thead><tr><th></th>${tb.head.map(h=>`<th>${escH(wodCase(h))}</th>`).join('')}</tr>${tb.sub&&tb.sub.length?`<tr><th></th>${tb.sub.map(h=>`<th>${escH(wodCase(h))}</th>`).join('')}</tr>`:''}</thead>`:'';
+  return `<div class="wt-wrap"><table class="wt">${head}<tbody>${rows.map(r=>`<tr class="${r.sex===view.sex&&r.level===view.level?'pick':''}"><th>${escH(r.label)}</th>${r.cells.map(c=>`<td>${num(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    ${tb.rows.some(r=>r.sex===other)?`<div class="wt-more" onclick="wodTblBoth['${k}']=${both?'false':'true'};wodRerender()">${both?'Ocultar '+(other==='M'?'Hombres':'Mujeres'):'Ver también '+(other==='M'?'Hombres':'Mujeres')}</div>`:''}`;
+}
+// Grilla genérica (estaciones de un Partner WOD, etc.): cada columna es una tarjetita
+function wodGridHTML(tb){
+  const n=Math.max((tb.head||[]).length,...(tb.rows||[]).map(r=>r.length),1);
+  const cols=[]; for(let c=0;c<n;c++) cols.push({title:(tb.head||[])[c]||'',lines:(tb.rows||[]).map(r=>r[c]).filter(Boolean)});
+  return `<div class="wb-grid" style="--n:${Math.min(n,4)}">${cols.filter(c=>c.title||c.lines.length).map(c=>`<div class="wb-gcell">${c.title?`<div class="wb-gtitle">${escH(wodSubText(c.title))}</div>`:''}${c.lines.map(l=>{ const mv=wodParseMove(l); return `<div class="wb-gline">${mv.reps?`<b>${escH(mv.reps)}</b> `:''}${escH(mv.name)}${mv.tags.map(t=>` <span class="wb-tag">${escH(t)}</span>`).join('')}</div>`; }).join('')}</div>`).join('')}</div>`;
+}
 // Warm Up (solo Admin y Profesor) con el mismo estilo de tarjeta
 function wodWarmCardHTML(text,flagPre){
   const P=wodPresent({},{warm:true,lines:wodLinesFromText(text)});
@@ -10943,18 +11126,25 @@ function wodRenderSheet(){
   root.innerHTML=wodSheetHTML();
   const nw=root.querySelector('.summary-sheet'); if(nw&&old) nw.scrollTop=keep;
 }
+// WODs del día + los que se quitaron al republicar pero tienen registro (se ven como estaban publicados)
+function wodSheetWods(date,day,logs){
+  const out=((day&&day.wods)||[]).slice(), wk=wodWeeks[wodMonday(date)];
+  ((wk&&wk.removedWods)||[]).forEach(r=>{ if(r.date===date && logs[wodLogKey(date,r.wod.id)] && !out.some(x=>x.id===r.wod.id)) out.push(r.wod); });
+  return out;
+}
 function wodSheetHTML(){
   const s=wodSheet, day=wodDay(s.date);
   const logs=s.admin?(wodAdmLogs[s.uid]||{}):(wodLogs||{});
   const u=getUserById(s.uid);
   let body;
   if(s.loading) body=`<div class="cc-empty">Cargando...</div>`;
-  else if(!day||!(day.wods||[]).length){
+  else if(!day||!wodSheetWods(s.date,day,logs).length){
     const own=Object.values(logs).filter(l=>l.date===s.date);
     body=`<div class="cc-empty">No encontré el WOD publicado de este día.</div>${own.map(l=>wodLogSummaryHTML(l,'',false)).join('')}`;
   } else {
     const view=wodViewFor(s.uid,logs);
-    body=(wodHasWeights(day.wods)?wodViewPickerHTML(s.uid,view):'')+day.wods.map(w=>wodStudentWodHTML(s.date,w,{logs,readOnly:s.admin,view})).join('');
+    const ws=wodSheetWods(s.date,day,logs);
+    body=(wodHasWeights(ws)?wodViewPickerHTML(s.uid,view):'')+ws.map(w=>wodStudentWodHTML(s.date,w,{logs,readOnly:s.admin,view})).join('');
   }
   return `<div class="summary-overlay" onclick="wodCloseSheet()"><div class="summary-sheet" onclick="event.stopPropagation()" style="padding:0 0 28px">
     <div class="summary-handle"></div>
@@ -10983,14 +11173,14 @@ function wodPlanCurWeek(){
   const m=wodMonday(wodToday());
   return ids.includes(m)?m:(ids.filter(x=>x<=m).pop()||ids[0]);
 }
-async function wodPlanGo(id){ wodPlanView.week=id; wodPlanView.editDate=null; wodRerender(); await wodGetWeek(id,true); wodRerender(); }
+async function wodPlanGo(id){ wodPlanView.week=id; wodRerender(); await wodGetWeek(id,true); wodRerender(); }
 function wodPlanShift(n){ const ids=wodPubWeeks(), cur=wodPlanCurWeek(), i=ids.indexOf(cur); const j=i+n; if(j>=0&&j<ids.length) wodPlanGo(ids[j]); }
 function wodPlanDate(v){ if(!calIsDate(v)) return; const m=wodMonday(v); if(wodIndex&&wodIndex.weeks[m]) wodPlanGo(m); else showToast('No hay semana publicada que incluya el '+calDM(v)); }
 function wodWeekRangeTxt(id){ return calDM(id)+' – '+calDM(calAddDays(id,6)); }
 function wodPlanHTML(isAdm){
   if(!wodIndex){ wodLoadIndex().then(()=>wodRerender()); return `<div class="cc-empty">Cargando planificación...</div>`; }
   const id=wodPlanCurWeek();
-  if(!id) return `<div class="cc-empty">Todavía no hay semanas publicadas.${isAdm?' Escribilas en Borrador y publicalas de a una.':''}</div>`;
+  if(!id) return `<div class="cc-empty">Todavía no hay semanas publicadas.${isAdm?' Traelas desde Drive en Borrador y publicalas de a una.':''}</div>`;
   if(!Object.prototype.hasOwnProperty.call(wodWeeks,id)){ wodGetWeek(id).then(()=>wodRerender()); return `<div class="cc-empty">Cargando semana...</div>`; }
   const w=wodWeeks[id], ids=wodPubWeeks(), i=ids.indexOf(id), info=wodIndex.weeks[id]||{};
   const nav=`<div class="wod-month">
@@ -11000,63 +11190,12 @@ function wodPlanHTML(isAdm){
   </div>
   <div style="display:flex;gap:8px;align-items:center;margin:-4px 0 12px"><span style="font-size:11px;color:var(--text3)">Ir a la fecha</span><input type="date" class="adm-inp" style="margin:0;flex:1;height:38px" onchange="wodPlanDate(this.value)"></div>`;
   if(!w) return nav+`<div class="cc-empty">Esta semana ya no está publicada.</div>`;
-  const days=(w.days||[]).map(d=>{
-    if(isAdm && wodPlanView.editDate===d.date) return wodPlanEditorHTML(d);
-    const right=isAdm?`<button class="adm-btn adm-btn-ghost" style="padding:7px 10px;font-size:12px;min-height:36px" onclick="wodPlanEdit('${d.date}')">${hcIcon('pencil',13)} Corregir</button>`:'';
-    return wodStaffDayHTML(d,{right});
-  }).join('');
+  const days=(w.days||[]).map(d=>wodStaffDayHTML(d)).join('');
   const meta=`<div style="font-size:10px;color:var(--text3);margin:4px 0 12px">Publicada ${w.publishedAt?new Date(w.publishedAt).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''}${w.updatedBy?' · última edición: '+escH(w.updatedBy)+' '+new Date(w.updatedAt).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''}</div>`;
   const hist=isAdm&&(w.history||[]).length?`<details class="cc-item" style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;color:var(--text2)">Historial de cambios (${w.history.length})</summary>${w.history.slice(0,20).map(h=>`<div style="font-size:11px;color:var(--text3);padding:5px 0;border-bottom:1px solid var(--border)">${new Date(h.at).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})} · <b style="color:var(--text2)">${escH(h.by||'Admin')}</b> · ${escH(h.what||'')}</div>`).join('')}</details>`:'';
-  const actions=isAdm?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px">
-      <button class="adm-btn adm-btn-ghost" style="justify-content:center;min-height:44px;font-size:12px" onclick="wodWeekToDraft('${id}')">${hcIcon('copy',14)} Llevar al borrador</button>
-      <button class="adm-btn adm-btn-red" style="justify-content:center;min-height:44px;font-size:12px" onclick="wodUnpublish('${id}')">${hcIcon('ban',14)} Despublicar</button>
-    </div>`:'';
-  return nav+meta+((w.days||[]).some(d=>wodHasWeights(d.wods))?wodStaffPickerHTML():'')+days+hist+actions;
-}
-function wodPlanEdit(date){ const d=wodDay(date); if(!d) return; wodPlanView.editDate=date; wodPlanView.editText=d.raw||''; renderModal(); }
-function wodPlanEditInput(v){ wodPlanView.editText=v; clearTimeout(window._wodPlanEdT); window._wodPlanEdT=setTimeout(()=>{ const el=document.getElementById('wod-dayedit-prev'); if(el) el.innerHTML=wodPlanEditPreview(); },250); }
-function wodPlanEditParse(){ const P=parseWodText(wodPlanView.editText,{ref:wodPlanView.editDate}); const days=[].concat(...P.weeks.map(w=>w.days)); return {P,days}; }
-function wodPlanEditPreview(){
-  const {P,days}=wodPlanEditParse();
-  const errs=P.errors.slice();
-  if(days.length!==1 || days[0].date!==wodPlanView.editDate) errs.unshift({line:1,msg:'Dejá una sola fecha arriba y que sea '+calDM(wodPlanView.editDate)+' (para mover un día, usá el borrador)'});
-  return btIssuesHTML(errs,P.warnings,'wod-dayedit')+(days[0]?wodStaffDayHTML(days[0]):'');
-}
-function wodPlanEditorHTML(d){
-  return `<div class="wod-day" style="border-color:var(--wod-blue)">
-    <div class="wod-day-head"><span class="wod-day-date">Corregir ${wodDayTxt(d.date)}</span></div>
-    <div style="font-size:11px;color:var(--text3);margin-bottom:8px;line-height:1.5">Editá el texto del día y guardá. Queda registrado quién lo corrigió y cuándo. Los registros de los alumnos no se borran.</div>
-    ${btEditorHTML('wod-dayedit',wodPlanView.editText,'wodPlanEditInput').replace('min-height:55vh','min-height:40vh')}
-    <div style="display:flex;gap:8px;margin:10px 0">
-      <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;min-height:44px" onclick="wodPlanView.editDate=null;renderModal()">Cancelar</button>
-      <button class="adm-btn adm-btn-orange" style="flex:2;justify-content:center;min-height:44px" onclick="wodPlanSaveDay()" ${wodPlanView.busy?'disabled':''}>${hcIcon('save',14)} Guardar corrección</button>
-    </div>
-    <div class="wod-sec" style="margin-top:6px">Vista previa</div>
-    <div id="wod-dayedit-prev">${wodPlanEditPreview()}</div>
-  </div>`;
-}
-async function wodPlanSaveDay(){
-  const date=wodPlanView.editDate; if(!date) return;
-  const {P,days}=wodPlanEditParse();
-  if(P.errors.length || days.length!==1 || days[0].date!==date){ showToast('Revisá los errores antes de guardar'); return; }
-  wodPlanView.busy=true; renderModal();
-  const id=wodMonday(date);
-  const doc=await sharedGet(K.WOD_WEEK(id));
-  if(!doc || doc.status!=='published'){ wodPlanView.busy=false; showToast('La semana ya no está publicada'); renderModal(); return; }
-  const at=Date.now(), by=wodWho();
-  const nd=Object.assign({},days[0],{editedBy:by,editedAt:at});
-  const i=(doc.days||[]).findIndex(x=>x.date===date);
-  if(i<0) doc.days.push(nd); else doc.days[i]=nd;
-  doc.days.sort((a,b)=>a.date<b.date?-1:1);
-  doc.rawText=(doc.label?doc.label+'\n\n':'')+doc.days.map(x=>x.raw).join('\n\n');
-  doc.sig=wodWeekSig(doc.days); doc.updatedBy=by; doc.updatedAt=at;
-  doc.history=[{by,at,what:'Corrección del '+calDM(date)}].concat(doc.history||[]).slice(0,50);
-  const ok=await sharedSet(K.WOD_WEEK(id),doc);
-  if(ok) await wodIndexPut(doc);
-  wodPlanView.busy=false;
-  if(!ok){ showToast('No se pudo guardar. Revisá la conexión.'); renderModal(); return; }
-  wodWeeks[id]=doc; wodPlanView.editDate=null;
-  showToast('Día corregido'); renderModal();
+  const docs=w.docs||(w.docUrl?[{url:w.docUrl,name:w.docName||''}]:[]);
+  const actions=(isAdm?`<button class="adm-btn adm-btn-red" style="width:100%;justify-content:center;min-height:44px;font-size:12px;margin-top:14px" onclick="wodUnpublish('${id}')">${hcIcon('ban',14)} Despublicar</button>`:'');
+  return nav+meta+(isAdm?wodDocLinksHTML(docs):'')+((w.days||[]).some(d=>wodHasWeights(d.wods))?wodStaffPickerHTML():'')+days+hist+actions;
 }
 function wodIndexEntry(doc){
   const days={};
@@ -11083,252 +11222,173 @@ async function wodUnpublish(id){
   wodWeeks[id]=null; wodPlanView.week=null;
   showToast('Semana despublicada'); renderModal();
 }
-async function wodWeekToDraft(id){
-  const doc=wodWeeks[id]; if(!doc) return;
-  await wodEnsureDraft();
-  const txt=doc.rawText||'';
-  if(wodDraft.text.includes(txt.trim())){ showToast('Esa semana ya está en el borrador'); setAdminTab('borrador'); return; }
-  wodDraft.text=(wodDraft.text.trim()?wodDraft.text.replace(/\s+$/,'')+'\n\n':'')+txt;
-  await wodDraftSaveNow();
-  showToast('Semana copiada al borrador'); setAdminTab('borrador');
+// ---------- Borrador = sincronizar desde Google Docs → vista previa → publicar ----------
+// La planificación se escribe solo en Documentos de Google (una carpeta, un documento por mes).
+// El Apps Script (apps-script/Code.gs) devuelve los bloques; acá se convierten al texto interno y se arman las semanas.
+let wodDrive={cfg:null,cache:null,loaded:false,loading:false,err:'',synced:false,sel:null,tab:'alumnos',showOld:false,cfgOpen:false,test:''};
+async function wodDriveLoad(){
+  const [cfg,cache]=await Promise.all([sharedGet(K.WOD_DRIVE_CFG),sharedGet(K.WOD_DRIVE_CACHE)]);
+  wodDrive.cfg=cfg&&cfg.url?cfg:null;
+  wodDrive.cache=cache&&Array.isArray(cache.docs)?cache:null;
+  wodDrive.loaded=true;
 }
-
-// ---------- Borrador semanal (Admin) ----------
-async function wodEnsureDraft(){ if(!wodDraft){ const r=await sharedGet(K.WOD_DRAFT); wodDraft=(r&&typeof r.text==='string')?r:{text:'',updatedAt:0}; } return wodDraft; }
-function wodDraftParse(){ return parseWodText(wodDraft?wodDraft.text:'',{ref:wodToday()}); }
-async function wodDraftSaveNow(){
-  clearTimeout(window._wodDraftT);
-  if(!wodDraft) return false;
-  wodDraft.updatedAt=Date.now(); wodDraft.updatedBy=wodWho();
-  wodDraftSave='saving'; wodDraftStatus();
-  const ok=await sharedSet(K.WOD_DRAFT,wodDraft);
-  wodDraftSave=ok?'saved':'error'; wodDraftStatus();
-  return ok;
+// Mensajes de error en lenguaje simple
+function wodDriveErrTxt(e){
+  const m=String(e&&e.message||e||'');
+  if(m==='token') return 'La clave no coincide con la del script. Revisá que sea exactamente la misma (TOKEN).';
+  if(m==='nourl') return 'Falta configurar la conexión: tocá el engranaje y pegá la URL y la clave.';
+  if(m==='json') return 'La URL respondió, pero no con los datos del script. Revisá que sea la URL de la aplicación web y que termine en /exec.';
+  if(m==='http') return 'El script respondió con un error. Probá volver a implementarlo (Implementar → Nueva implementación).';
+  if(/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return 'No se pudo conectar. Revisá tu internet, que la URL termine en /exec y que la aplicación web esté publicada con acceso "Cualquier persona".';
+  return 'El script devolvió un error: '+m;
 }
-function wodDraftStatusText(){
-  if(wodDraftSave==='saving') return 'Guardando…';
-  if(wodDraftSave==='error') return '<span style="color:var(--red)">No se pudo guardar. Revisá la conexión (el texto sigue acá).</span>';
-  if(wodDraft && wodDraft.updatedAt) return 'Guardado · '+new Date(wodDraft.updatedAt).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
-  return 'Se guarda solo mientras escribís.';
+// GET simple sin headers (evita problemas de CORS con Apps Script; el redirect se sigue solo)
+async function wodDriveFetch(url,token){
+  if(!url) throw new Error('nourl');
+  const res=await fetch(url+(url.includes('?')?'&':'?')+'token='+encodeURIComponent(token||''),{redirect:'follow'});
+  if(!res.ok) throw new Error('http');
+  let j; try{ j=await res.json(); }catch(e){ throw new Error('json'); }
+  if(!j || typeof j!=='object') throw new Error('json');
+  if(!j.ok) throw new Error(j.error||'json');
+  if(!Array.isArray(j.docs)) throw new Error('json');
+  return j;
 }
-function wodDraftStatus(){ const el=document.getElementById('wod-draft-status'); if(el) el.innerHTML=wodDraftStatusText(); }
-function wodDraftInput(v){
-  wodDraft.text=v; wodDraftSave='saving'; wodDraftStatus();
-  clearTimeout(window._wodDraftT); window._wodDraftT=setTimeout(wodDraftSaveNow,800);
-  clearTimeout(window._wodDraftP); window._wodDraftP=setTimeout(wodDraftRefresh,250);
+// Trae todo de Drive y guarda lo convertido (si falla, queda lo último que se trajo)
+async function wodDriveSync(){
+  if(wodDrive.loading) return;
+  if(!wodDrive.cfg){ wodDrive.err=wodDriveErrTxt('nourl'); renderModal(); return; }
+  wodDrive.loading=true; wodDrive.err=''; renderModal();
+  try{
+    const j=await wodDriveFetch(wodDrive.cfg.url,wodDrive.cfg.token);
+    const cache={fetchedAt:Date.now(),generatedAt:j.generatedAt||'',docs:j.docs.map(d=>({id:d.id,name:d.name||'',url:d.url||'',updated:d.updated||'',text:wodBlocksToText(d.blocks)}))};
+    wodDrive.cache=cache;
+    sharedSet(K.WOD_DRIVE_CACHE,cache);
+  }catch(e){ wodDrive.err=wodDriveErrTxt(e); }
+  wodDrive.loading=false; wodDrive.synced=true;
+  if(!wodIndex) await wodLoadIndex();
+  await wodEnsureWeeks(wodDriveCur().weeks.map(w=>w.id));
+  renderModal();
 }
-function wodDraftCaretSave(el){ try{ wodDraftCaret=el.selectionStart; }catch(e){} }
-function wodDraftRefresh(){ const el=document.getElementById('wod-draft-prev'); if(el) el.innerHTML=wodDraftPreviewHTML(); }
-function wodSetDraftView(v){ wodDraftView=v; const el=document.getElementById('wod-split'); if(el) el.setAttribute('data-view',v); document.querySelectorAll('.wod-viewtgl .wod-chip').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); if(v==='prev') wodDraftRefresh(); }
-// Estado de cada semana del borrador frente a lo publicado
-function wodDraftWeekState(w){
-  const info=wodIndex&&wodIndex.weeks[w.id];
-  if(!info) return {k:'new',txt:'Sin publicar',cls:'warn'};
+function wodDriveCur(){ return wodDrive.cache?wodDriveWeeks(wodDrive.cache,wodToday()):{weeks:[],errors:[]}; }
+function wodAgo(ts){ if(!ts) return 'nunca'; const m=Math.round((Date.now()-ts)/60000); if(m<1) return 'recién'; if(m<60) return 'hace '+m+' min'; const h=Math.round(m/60); if(h<24) return 'hace '+h+' h'; return new Date(ts).toLocaleString('es-AR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); }
+// Estado frente a lo publicado: se compara el hash del texto interno de la semana
+function wodDriveState(w){
+  if(!(wodIndex&&wodIndex.weeks[w.id])) return {k:'new',txt:'Nueva',cls:'warn'};
   const pub=wodWeeks[w.id];
-  if(pub && pub.sig===wodWeekSig(w.days)) return {k:'same',txt:'Publicada · sin cambios',cls:'ok'};
-  if(!pub && !Object.prototype.hasOwnProperty.call(wodWeeks,w.id)){ wodGetWeek(w.id).then(wodDraftRefresh); return {k:'pub',txt:'Publicada',cls:'ok'}; }
-  return {k:'changed',txt:'Publicada · con cambios sin publicar',cls:'warn'};
+  if(!pub) return {k:'changed',txt:'Publicada con cambios en Drive',cls:'warn'};
+  const same=pub.textSig?pub.textSig===w.textSig:pub.sig===wodWeekSig(w.days);
+  return same?{k:'same',txt:'Publicada',cls:'ok'}:{k:'changed',txt:'Publicada con cambios en Drive',cls:'warn'};
 }
-function wodWeekErrors(P,w){ return P.errors.filter(e=>e.line>=w.lineFrom && e.line<=w.lineTo); }
-function wodDraftPreviewHTML(){
-  const P=wodDraftParse();
-  if(!wodDraft.text.trim()) return `<div class="cc-empty">Pegá la planificación a la izquierda (o arriba, en el celular). La vista previa aparece acá.</div>`;
-  const orphans=P.orphans.length?`<div class="wod-unk"><b>Sin interpretar</b> (falta la fecha arriba, no se guarda):${P.orphans.slice(0,8).map(o=>`<div style="font-size:11px;margin-top:3px;cursor:pointer" onclick="btJumpToLine('wod-draft',${o.line})">Línea ${o.line}: ${escH(o.text.slice(0,80))}</div>`).join('')}${P.orphans.length>8?`<div style="font-size:11px">y ${P.orphans.length-8} más…</div>`:''}</div>`:'';
-  const weeks=P.weeks.map(w=>{
-    const st=wodDraftWeekState(w), errs=wodWeekErrors(P,w);
-    const btn=st.k==='same'?'':`<button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;min-height:46px;margin-top:10px;${errs.length?'opacity:.45':''}" onclick="wodPublishWeek('${w.id}')">${hcIcon('send',15)} ${st.k==='new'?'Publicar':'Volver a publicar'} ${escH(w.label||'semana')} (${wodWeekRangeTxt(w.id)})</button>${errs.length?`<div style="font-size:11px;color:var(--red);text-align:center;margin-top:4px">Corregí los errores de esta semana para poder publicarla.</div>`:''}`;
-    return `<div class="wod-week">
-      <div class="wod-week-head"><div><div style="font-family:var(--font-display);font-size:14px;letter-spacing:1px">${escH(w.label||'Semana')}</div><div style="font-size:11px;color:var(--text3)">${wodWeekRangeTxt(w.id)} · ${w.days.length} día${w.days.length===1?'':'s'}</div></div><span class="wod-badge ${st.cls}">${st.txt}</span></div>
-      ${w.days.map(d=>wodStaffDayHTML(d,{closedWarm:true})).join('')}
-      ${btn}
-    </div>`;
-  }).join('');
-  return btIssuesHTML(P.errors,P.warnings,'wod-draft')+orphans+(weeks?wodStaffPickerHTML():'')+(weeks||`<div class="cc-empty">No encontré ninguna fecha (ej: "23/11").</div>`);
+// Advertencias de la semana: las del parser + tablas que no se pudieron asociar a un movimiento o bloque
+function wodDriveWarnings(w){
+  const out=w.errors.map(m=>({err:true,m})).concat(w.warnings.map(m=>({err:false,m})));
+  w.days.forEach(d=>(d.wods||[]).forEach(x=>{ const P=wodApplyWeights(wodPresent(x),x,{sex:'F',level:'intermedio'}); if(P.fallback.length) out.push({err:false,m:calDM(d.date)+' · '+x.title+': no encontré a qué movimiento corresponde la tabla (se muestra completa en "Ver tabla completa de pesos")'}); }));
+  return out;
 }
-const WOD_FORMAT_HELP=`SEMANA 4
-
-23/11 - FERIADO
-A) WARM UP
-MOVILIDAD - 2 RONDAS
-- 10 Activaciones de muñeca
-
-B) WODs
-WOD A – SECTOR ESCALERA
-8 RONDAS - TC: 16'
-- Power Clean*
-- 8 / 10 / 12 Step Burpee
-                     RONDA 1 - 2   RONDA 3 - 4
-Mujeres principiante 30            35
-Hombres Rx           60            70
-
-WOD B – SECTOR JAULA
-2' Work x 1' Rest (x6)
-- 5 Pull Ups / T2B`;
-function wodFormatHelpHTML(){
-  return `<details class="cc-item" style="margin-bottom:12px">
-    <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--text2);min-height:28px;display:flex;align-items:center;gap:6px">${hcIcon('bookOpen',14)} Cómo lo lee la app</summary>
-    <pre style="margin:10px 0 8px;white-space:pre-wrap;overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;color:var(--text2);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px">${escH(WOD_FORMAT_HELP)}</pre>
-    <div style="font-size:11px;color:var(--text3);line-height:1.6">
-      • Pegá tal cual desde Word. Cada <b>fecha</b> (23/11) abre un día; <b>SEMANA N</b> solo agrupa. Si pegás un mes entero, se separa en semanas (lunes a domingo).<br>
-      • Lo que va entre <b>WARM UP</b> y <b>WOD</b> lo ven solo vos y los profes. Se lee por la palabra, aunque la letra esté mal.<br>
-      • <b>WOD A / WOD B</b> separan WODs (cada uno se registra aparte). <b>PARTNER WOD</b> y <b>TC: 16'</b> se detectan solos.<br>
-      • El formato (FOR TIME, AMRAP, Work x Rest, OTM, EMOM, escalera, rondas) se muestra como etiqueta en la tarjeta. Los alumnos anotan el resultado como texto libre.<br>
-      • Tablas: filas "Mujeres principiante ... Hombres Rx" separadas por tabs, espacios o |, con encabezado opcional arriba.
-    </div>
-  </details>`;
+function wodDocLinksHTML(docs){ return (docs||[]).filter(d=>d.url).map(d=>`<a class="wb-tblbtn" style="text-decoration:none;margin-top:8px" href="${escH(d.url)}" target="_blank" rel="noopener">${hcIcon('file',14)} Abrir documento${docs.length>1?' · '+escH(d.name):''}</a>`).join(''); }
+function wodRenderDriveTab(){
+  if(!wodDrive.loaded){ wodDriveLoad().then(async()=>{ await wodLoadIndex(); if(wodDrive.cache) await wodEnsureWeeks(wodDriveCur().weeks.map(w=>w.id)); renderModal(); if(!wodDrive.synced && wodDrive.cfg) wodDriveSync(); }); return `<div class="cc-empty">Cargando...</div>`; }
+  const D=wodDrive, cur=wodDriveCur();
+  if(D.sel) return wodDriveWeekHTML(cur.weeks.find(w=>w.id===D.sel));
+  const head=`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px" class="admin-section-title"><span>${hcSecTitle('pencil','Borrador · Google Docs')}</span>
+      <button class="adm-btn adm-btn-ghost" style="padding:7px 10px;min-height:38px" onclick="wodDriveCfgOpen()" title="Conexión con Drive">${hcIcon('settings',15)}</button></div>
+    <div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:12px">La planificación se escribe en los Documentos de Google de la carpeta. Para corregir algo, editá el documento y volvé a tocar Actualizar.</div>
+    <button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;min-height:50px;font-size:15px" onclick="wodDriveSync()" ${D.loading?'disabled':''}>${D.loading?'<span class="wod-spin"></span> Actualizando...':hcIcon('refresh',16)+' Actualizar desde Drive'}</button>
+    <div style="font-size:11px;color:var(--text3);text-align:center;margin:6px 0 12px">Última actualización: ${wodAgo(D.cache&&D.cache.fetchedAt)}${D.cache?' · '+D.cache.docs.length+' documento'+(D.cache.docs.length===1?'':'s'):''}</div>
+    ${D.err?`<div class="wod-unk">${escH(D.err)}${D.cache?'<div style="margin-top:4px;color:var(--text3)">Se muestra lo último que se trajo.</div>':''}</div>`:''}
+    ${!D.cfg?`<div class="wod-card" style="text-align:center">${hcIcon('settings',22,'#7C86FF')}<div style="margin-top:8px;font-size:13px">Primero configurá la conexión con Drive (engranaje de arriba).</div></div>`:''}`;
+  const cut=calAddDays(wodMonday(wodToday()),-7);
+  const recent=cur.weeks.filter(w=>w.id>=cut), old=cur.weeks.filter(w=>w.id<cut);
+  const row=w=>{ const st=wodDriveState(w), warns=wodDriveWarnings(w);
+    return `<div class="wod-list-row" onclick="wodDriveOpen('${w.id}')"><div style="flex:1;min-width:0"><b>${escH(w.label||'Semana')}</b> <span style="color:var(--text3)">· ${wodWeekRangeTxt(w.id)}</span><div style="font-size:11px;color:var(--text3)">${w.days.length} día${w.days.length===1?'':'s'}${warns.length?` · <span style="color:var(--yellow)">${warns.length} aviso${warns.length===1?'':'s'}</span>`:''}</div></div><span class="wod-badge ${st.cls}">${st.txt}</span></div>`; };
+  const list=D.cache?(cur.weeks.length?`<div class="wod-card" style="padding:4px 12px">${recent.length?recent.map(row).join(''):'<div class="cc-empty">No hay semanas desde la semana pasada en adelante.</div>'}</div>
+      ${old.length?`<button class="wb-tblbtn" onclick="wodDrive.showOld=!wodDrive.showOld;renderModal()">${D.showOld?'Ocultar':'Ver'} semanas anteriores (${old.length})</button>${D.showOld?`<div class="wod-card" style="padding:4px 12px;margin-top:8px">${old.slice().reverse().map(row).join('')}</div>`:''}`:''}`
+      :`<div class="cc-empty">No encontré fechas (ej: "23/11") en los documentos de la carpeta.</div>`):'';
+  const gerr=cur.errors.length?`<div class="wod-unk">${cur.errors.map(escH).join('<br>')}</div>`:'';
+  return head+gerr+list+wodDriveCfgHTML();
 }
-function wodRenderDraftTab(){
-  if(!wodDraft){ wodEnsureDraft().then(()=>{ if(!wodIndex) return wodLoadIndex().then(()=>renderModal()); renderModal(); }); return `<div class="cc-empty">Cargando borrador...</div>`; }
-  if(!wodIndex){ wodLoadIndex().then(()=>renderModal()); }
-  const btn='justify-content:center;text-align:center;padding:10px 8px;font-size:12px;line-height:1.3;min-height:44px';
-  return `<div>
-    <div class="admin-section-title">${hcSecTitle('pencil','Borrador semanal')}</div>
-    <div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:12px">Pegá una semana o un mes entero. Cada semana se publica por separado desde la vista previa; lo que no publicás no lo ve nadie.</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-      <button class="adm-btn adm-btn-ghost" style="${btn}" onclick="wodTplPickerOpen()">${hcIcon('template',14)} Insertar plantilla</button>
-      <button class="adm-btn adm-btn-ghost" style="${btn}" onclick="wodDraftCleanPublished()">${hcIcon('checkCircle',14)} Quitar semanas ya publicadas</button>
-      <button class="adm-btn adm-btn-ghost" style="${btn}" onclick="wodTplFromSelection()">${hcIcon('bookmark',14)} Guardar selección como plantilla</button>
-      <button class="adm-btn adm-btn-red" style="${btn}" onclick="wodDraftClear()">${IC.trash} Vaciar borrador</button>
-    </div>
-    ${wodFormatHelpHTML()}
-    <div class="wod-viewtgl wod-chips" style="margin-bottom:10px"><button class="wod-chip ${wodDraftView==='edit'?'on':''}" data-v="edit" style="flex:1" onclick="wodSetDraftView('edit')">Editor</button><button class="wod-chip ${wodDraftView==='prev'?'on':''}" data-v="prev" style="flex:1" onclick="wodSetDraftView('prev')">Vista previa</button></div>
-    <div class="wod-split" id="wod-split" data-view="${wodDraftView}">
-      <div class="wod-split-ed">
-        ${btEditorHTML('wod-draft',wodDraft.text,'wodDraftInput').replace('oninput=','onkeyup="wodDraftCaretSave(this)" onclick="wodDraftCaretSave(this)" onblur="wodDraftCaretSave(this)" oninput=')}
-        <div id="wod-draft-status" style="font-size:10px;color:var(--text3);margin:5px 0 12px">${wodDraftStatusText()}</div>
-      </div>
-      <div class="wod-split-prev" id="wod-draft-prev">${wodDraftPreviewHTML()}</div>
-    </div>
-    ${wodTplPickerHTML()}
-  </div>`;
+async function wodDriveOpen(id){ wodDrive.sel=id; wodDrive.tab='alumnos'; renderModal(); await wodGetWeek(id); renderModal(); }
+function wodDriveWeekHTML(w){
+  if(!w){ wodDrive.sel=null; return wodRenderDriveTab(); }
+  const st=wodDriveState(w), warns=wodDriveWarnings(w), errs=warns.filter(x=>x.err);
+  const tabs=`<div class="wod-seg2" style="margin:12px 0">${[['alumnos','Como lo ven los alumnos'],['staff','Admin y profes']].map(([k,l])=>`<button class="${wodDrive.tab===k?'on':''}" onclick="wodDrive.tab='${k}';renderModal()">${l}</button>`).join('')}</div>`;
+  const view=wodViewFor(null,null);
+  const days=w.days.map(d=>wodDrive.tab==='staff'?wodStaffDayHTML(d,{view}):`<div class="wod-day"><div class="wod-day-head"><div><span class="wod-day-date">${wodDayTxt(d.date)}</span>${d.label?` <span class="wod-label">${escH(d.label)}</span>`:''}</div></div>${(d.wods||[]).length?d.wods.map(x=>wodCardHTML(x,{view,key:'p_'+d.date+'_'+x.id})).join(''):'<div style="font-size:12px;color:var(--text3)">Sin WOD para los alumnos.</div>'}</div>`).join('');
+  const pub=st.k==='same'?`<div style="font-size:12px;color:var(--green);text-align:center;margin-top:10px">${hcIcon('checkCircle',13)} Publicada, sin cambios</div>`
+    :`<button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;min-height:48px;font-size:14px;margin-top:10px;${errs.length?'opacity:.45':''}" onclick="wodDrivePublish('${w.id}')">${hcIcon('send',15)} ${st.k==='new'?'Publicar':'Publicar cambios'}</button>${errs.length?'<div style="font-size:11px;color:var(--red);text-align:center;margin-top:4px">Corregí los errores en el documento y tocá Actualizar.</div>':''}`;
+  return `<button class="adm-btn adm-btn-ghost" style="margin-bottom:12px;min-height:40px" onclick="wodDrive.sel=null;renderModal()">← Semanas</button>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><div><div style="font-family:var(--font-display);font-size:16px;letter-spacing:1px">${escH(w.label||'Semana')}</div><div style="font-size:11px;color:var(--text3)">${wodWeekRangeTxt(w.id)}</div></div><span class="wod-badge ${st.cls}">${st.txt}</span></div>
+    ${warns.length?`<div style="margin-top:12px">${warns.map(x=>`<div class="${x.err?'wod-unk':'wb-note'}" style="margin:6px 0">${x.err?'':`<div class="wb-note-ic">${WOD_SVG.info}</div>`}<div>${escH(x.m)}</div></div>`).join('')}</div>`:''}
+    ${pub}${wodDocLinksHTML(w.docs)}
+    ${tabs}${(w.days.some(d=>wodHasWeights(d.wods)))?wodViewPickerHTML('_staff',view):''}${days}${pub}`;
 }
-async function wodPublishWeek(id){
-  await wodDraftSaveNow();
-  const P=wodDraftParse(), w=P.weeks.find(x=>x.id===id);
-  if(!w){ showToast('No encontré esa semana en el borrador'); return; }
-  if(wodWeekErrors(P,w).length){ showToast('Corregí los errores de esta semana'); return; }
+// Cuántos registros de alumnos hay en una semana (para avisar antes de republicar)
+async function wodWeekLogCount(id){
+  await loadUsers();
+  const all=await Promise.all(wodStudents().map(u=>wodLoadLogs(u.id)));
+  return all.reduce((n,logs)=>n+Object.values(logs||{}).filter(l=>l && (l.weekId===id || wodMonday(l.date)===id)).length,0);
+}
+async function wodDrivePublish(id){
+  const w=wodDriveCur().weeks.find(x=>x.id===id);
+  if(!w){ showToast('No encontré esa semana. Tocá Actualizar.'); return; }
+  if(w.errors.length){ showToast('Corregí los errores en el documento y tocá Actualizar'); return; }
   const prev=await sharedGet(K.WOD_WEEK(id));
   const wasPub=prev && prev.status==='published';
-  const lost=wasPub?(prev.days||[]).map(d=>d.date).filter(d=>!w.days.some(x=>x.date===d)):[];
-  const nWods=w.days.reduce((n,d)=>n+d.wods.length,0);
-  const msg=(wasPub?'Vas a reemplazar lo publicado de ':'Vas a publicar ')+(w.label||'la semana')+' ('+wodWeekRangeTxt(id)+'): '+w.days.length+' día(s), '+nWods+' WOD(s).'
-    +(lost.length?'\n\nOjo: estos días estaban publicados y ya no están: '+lost.map(calDM).join(', ')+'. Si alguien los registró, el registro queda pero sin el WOD.':'')
-    +'\n\nLos alumnos lo ven en el día de cada fecha.';
+  const n=wasPub?await wodWeekLogCount(id):0;
+  const nW=w.days.reduce((k,d)=>k+(d.wods||[]).length,0);
+  const msg=(wasPub?'¿Publicar los cambios de ':'¿Publicar ')+(w.label||'la semana')+' ('+wodWeekRangeTxt(id)+')? '+w.days.length+' día(s), '+nW+' WOD(s).'+(n?'\n\nEsta semana ya tiene '+n+' registro'+(n===1?'':'s')+'. Los registros se mantienen.':'');
   if(!confirm(msg)) return;
   const at=Date.now(), by=wodWho();
-  const doc={id,status:'published',label:w.label||'',rawText:(w.label?w.label+'\n\n':'')+w.days.map(d=>d.raw).join('\n\n'),days:w.days,sig:wodWeekSig(w.days),
+  // WODs que desaparecen: se guardan como estaban, para que sus registros se sigan viendo en Registros
+  const removed=((prev&&prev.removedWods)||[]).filter(r=>!w.days.some(d=>d.date===r.date&&(d.wods||[]).some(x=>x.id===r.wod.id)));
+  ((prev&&prev.days)||[]).forEach(d=>(d.wods||[]).forEach(x=>{ const nd=w.days.find(y=>y.date===d.date); if(!(nd&&(nd.wods||[]).some(y=>y.id===x.id)) && !removed.some(r=>r.date===d.date&&r.wod.id===x.id)) removed.push({date:d.date,wod:x}); }));
+  const doc={id,status:'published',label:w.label||'',rawText:w.text,textSig:w.textSig,days:w.days,sig:wodWeekSig(w.days),
+    docs:w.docs,docUrl:(w.docs[0]||{}).url||'',docName:(w.docs[0]||{}).name||'',removedWods:removed,
     updatedBy:by,updatedAt:at,publishedAt:wasPub&&prev.publishedAt?prev.publishedAt:at,
-    history:[{by,at,what:wasPub?'Publicada de nuevo desde el borrador':'Publicada'}].concat((prev&&prev.history)||[]).slice(0,50)};
+    history:[{by,at,what:wasPub?'Cambios publicados desde Drive':'Publicada desde Drive'}].concat((prev&&prev.history)||[]).slice(0,50)};
   const ok=await sharedSet(K.WOD_WEEK(id),doc) && await wodIndexPut(doc);
   if(!ok){ showToast('No se pudo publicar. Revisá la conexión.'); return; }
   wodWeeks[id]=doc;
   showToast((w.label||'Semana')+' publicada');
   renderModal();
 }
-async function wodDraftCleanPublished(){
-  const P=wodDraftParse();
-  await wodEnsureWeeks(P.weeks.map(w=>w.id));
-  const done=P.weeks.filter(w=>wodDraftWeekState(w).k==='same');
-  if(!done.length){ showToast('No hay semanas publicadas sin cambios para quitar'); return; }
-  if(!confirm('¿Quitar del borrador '+done.length+' semana(s) que ya están publicadas sin cambios? Lo publicado no se toca.')) return;
-  const lines=wodDraft.text.split('\n');
-  const drop=new Set();
-  done.forEach(w=>{ for(let l=w.lineFrom;l<=w.lineTo;l++) drop.add(l); });
-  // también el "SEMANA N" de arriba si queda solo
-  let out=lines.filter((_,i)=>!drop.has(i+1)).join('\n');
-  out=out.replace(/(^|\n)\s*SEMANA\s*\d+\s*(?=\n\s*(?:SEMANA\s*\d+|$))/gi,'$1').replace(/\n{3,}/g,'\n\n').trim();
-  wodDraft.text=out; await wodDraftSaveNow(); renderModal();
-}
-async function wodDraftClear(){
-  if(!wodDraft || !wodDraft.text.trim()) return;
-  if(!confirm('¿Vaciar el borrador? Lo publicado no se toca.')) return;
-  wodDraft.text=''; await wodDraftSaveNow(); renderModal();
-}
-function wodDraftInsert(text){
-  const ta=document.getElementById('wod-draft');
-  const pos=(wodDraftCaret!=null&&wodDraftCaret<=wodDraft.text.length)?wodDraftCaret:wodDraft.text.length;
-  const before=wodDraft.text.slice(0,pos), after=wodDraft.text.slice(pos);
-  const ins=(before&&!before.endsWith('\n')?'\n':'')+text.replace(/\s+$/,'')+'\n';
-  wodDraft.text=before+ins+after; wodDraftCaret=(before+ins).length;
-  if(ta){ ta.value=wodDraft.text; try{ ta.focus(); ta.setSelectionRange(wodDraftCaret,wodDraftCaret); }catch(e){} }
-  wodDraftSaveNow(); wodDraftRefresh();
-}
-
-// ---------- Plantillas (Admin) ----------
-let wodTplPicker=false;
-async function wodLoadTpls(){ const r=await sharedGet(K.WOD_TPL); wodTpls=Array.isArray(r)?r:[]; return wodTpls; }
-async function wodTplMutate(fn){ const r=await sharedGet(K.WOD_TPL); const list=Array.isArray(r)?r:[]; fn(list); const ok=await sharedSet(K.WOD_TPL,list); if(ok) wodTpls=list; return ok; }
-function wodTplPickerOpen(){ wodTplPicker=true; if(!wodTpls) wodLoadTpls().then(()=>renderModal()); renderModal(); }
-function wodTplPickerHTML(){
-  if(!wodTplPicker) return '';
-  const list=wodTpls||[];
-  return `<div class="summary-overlay" onclick="wodTplPicker=false;renderModal()"><div class="summary-sheet" onclick="event.stopPropagation()" style="padding:0 0 24px">
+// Configuración de la conexión (solo Admin)
+function wodDriveCfgOpen(){ wodDrive.cfgOpen=true; wodDrive.test=''; wodDrive.cfgDraft={url:(wodDrive.cfg&&wodDrive.cfg.url)||'',token:(wodDrive.cfg&&wodDrive.cfg.token)||''}; renderModal(); }
+function wodDriveCfgHTML(){
+  if(!wodDrive.cfgOpen) return '';
+  const c=wodDrive.cfgDraft;
+  return `<div class="summary-overlay" onclick="wodDrive.cfgOpen=false;renderModal()"><div class="summary-sheet" onclick="event.stopPropagation()" style="padding:0 0 24px">
     <div class="summary-handle"></div>
-    <div style="padding:14px 16px 4px;font-family:var(--font-display);font-size:16px;letter-spacing:1px">Insertar plantilla</div>
-    <div style="font-size:11px;color:var(--text3);padding:0 16px 10px">Se inserta donde estaba el cursor en el borrador.</div>
-    <div style="padding:0 16px">${!wodTpls?'<div class="cc-empty">Cargando...</div>':list.length?WOD_TPL_CATS.map(c=>{ const it=list.filter(t=>(t.category||'Otro')===c); return it.length?`<div class="wod-sec">${c}</div>`+it.map(t=>`<div class="wod-list-row" onclick="wodTplInsert('${t.id}')"><div style="flex:1;min-width:0"><b>${escH(t.name)}</b><div style="font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escH((t.text||'').split('\n')[0])}</div></div>${hcIcon('plus',14)}</div>`).join(''):''; }).join(''):'<div class="cc-empty">Todavía no hay plantillas. Creálas en la pestaña Plantillas.</div>'}</div>
+    <div style="padding:14px 16px 4px;font-family:var(--font-display);font-size:16px;letter-spacing:1px">Conexión con Drive</div>
+    <div style="padding:0 16px">
+      <div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:12px">Pegá los datos del Apps Script (ver guía). Se guardan para el Admin del Club WOD.</div>
+      <label class="wod-flabel" style="display:block">URL de la aplicación web <span style="color:var(--text3)">(termina en /exec)</span></label>
+      <input class="adm-inp" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://script.google.com/macros/s/.../exec" value="${escH(c.url)}" oninput="wodDrive.cfgDraft.url=this.value.trim()">
+      <label class="wod-flabel" style="display:block">Clave</label>
+      <input class="adm-inp" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="La misma TOKEN del script" value="${escH(c.token)}" oninput="wodDrive.cfgDraft.token=this.value.trim()">
+      ${wodDrive.test?`<div class="${/^Conectado/.test(wodDrive.test)?'wb-note':'wod-unk'}" style="margin:8px 0">${escH(wodDrive.test)}</div>`:''}
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;min-height:46px" onclick="wodDriveTest()">Probar conexión</button>
+        <button class="adm-btn adm-btn-orange" style="flex:1;justify-content:center;min-height:46px" onclick="wodDriveCfgSave()">${hcIcon('save',14)} Guardar</button>
+      </div>
+    </div>
   </div></div>`;
 }
-function wodTplInsert(id){ const t=(wodTpls||[]).find(x=>x.id===id); wodTplPicker=false; renderModal(); if(t) setTimeout(()=>{ wodDraftInsert(t.text||''); showToast('Plantilla insertada'); },30); }
-function wodTplFromSelection(){
-  const ta=document.getElementById('wod-draft'); let txt='';
-  if(ta){ try{ txt=ta.value.slice(ta.selectionStart,ta.selectionEnd); }catch(e){} }
-  if(!txt.trim()){ showToast('Seleccioná en el editor el texto que querés guardar'); return; }
-  wodTplEdit={id:null,name:'',category:'Warm up',text:txt}; setAdminTab('plantillas');
-}
-function wodRenderTplTab(){
-  if(!wodTpls){ wodLoadTpls().then(()=>renderModal()); return `<div class="cc-empty">Cargando plantillas...</div>`; }
-  if(wodTplEdit){
-    const e=wodTplEdit;
-    return `<div class="admin-section-title">${hcSecTitle('template',e.id?'Editar plantilla':'Nueva plantilla')}</div>
-      <input class="adm-inp" placeholder="Nombre (ej: Movilidad tren superior)" value="${escH(e.name)}" oninput="wodTplEdit.name=this.value">
-      <div class="wod-chips" style="margin-bottom:10px">${WOD_TPL_CATS.map(c=>`<button class="wod-chip ${e.category===c?'on':''}" onclick="wodTplEdit.category='${c}';renderModal()">${c}</button>`).join('')}</div>
-      ${btEditorHTML('wod-tpl-text',e.text,'wodTplEditInput').replace('min-height:55vh','min-height:35vh')}
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="adm-btn adm-btn-ghost" style="flex:1;justify-content:center;min-height:44px" onclick="wodTplEdit=null;renderModal()">Cancelar</button>
-        <button class="adm-btn adm-btn-orange" style="flex:2;justify-content:center;min-height:44px" onclick="wodTplSave()">${hcIcon('save',14)} Guardar</button>
-      </div>`;
-  }
-  const cats=['Todas'].concat(WOD_TPL_CATS);
-  const list=wodTpls.filter(t=>wodTplCat==='Todas'||(t.category||'Otro')===wodTplCat).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
-  return `<div class="admin-section-title">${hcSecTitle('template','Plantillas')}</div>
-    <div style="font-size:12px;color:var(--text3);line-height:1.5;margin-bottom:12px">Bloques de texto reutilizables (warm ups, formatos de WOD, tablas de pesos). Se insertan en el borrador con "Insertar plantilla".</div>
-    <button class="adm-btn adm-btn-orange" style="width:100%;justify-content:center;min-height:46px;margin-bottom:12px" onclick="wodTplEdit={id:null,name:'',category:'Warm up',text:''};renderModal()">${hcIcon('plus',14)} Nueva plantilla</button>
-    <div class="wod-chips" style="margin-bottom:12px">${cats.map(c=>`<button class="wod-chip ${wodTplCat===c?'on':''}" onclick="wodTplCat='${c}';renderModal()">${c}</button>`).join('')}</div>
-    ${list.length?list.map(t=>`<div class="cc-item">
-      <div class="cc-item-top"><div style="min-width:0"><div style="font-weight:600;font-size:14px">${escH(t.name)}</div><div style="font-size:11px;color:var(--text3)">${escH(t.category||'Otro')}</div></div>
-      <div style="display:flex;gap:6px;flex-shrink:0">
-        <button class="adm-btn adm-btn-ghost" style="padding:8px 10px;min-height:38px" onclick="wodTplOpen('${t.id}')" title="Editar">${hcIcon('pencil',14)}</button>
-        <button class="adm-btn adm-btn-ghost" style="padding:8px 10px;min-height:38px" onclick="wodTplToDraft('${t.id}')" title="Insertar en el borrador">${hcIcon('copy',14)}</button>
-        <button class="adm-btn adm-btn-red" style="padding:8px 10px;min-height:38px" onclick="wodTplDelete('${t.id}')" title="Borrar">${IC.trash}</button>
-      </div></div>
-      <pre style="margin-top:8px;white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--text2);max-height:120px;overflow:hidden">${escH(t.text||'')}</pre>
-    </div>`).join(''):`<div class="cc-empty">No hay plantillas${wodTplCat!=='Todas'?' en '+wodTplCat:''}.</div>`}`;
-}
-function wodTplEditInput(v){ if(wodTplEdit) wodTplEdit.text=v; }
-function wodTplOpen(id){ const t=(wodTpls||[]).find(x=>x.id===id); if(t){ wodTplEdit=Object.assign({},t); renderModal(); } }
-async function wodTplSave(){
-  const e=wodTplEdit; if(!e) return;
-  if(!e.name.trim()){ showToast('Poné un nombre'); return; }
-  if(!e.text.trim()){ showToast('La plantilla está vacía'); return; }
-  const id=e.id||('wtpl_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
-  const ok=await wodTplMutate(list=>{ const i=list.findIndex(x=>x.id===id); const t={id,name:e.name.trim(),category:e.category||'Otro',text:e.text,updatedAt:Date.now(),updatedBy:wodWho()}; if(i<0) list.push(t); else list[i]=t; });
-  if(!ok){ showToast('No se pudo guardar'); return; }
-  wodTplEdit=null; showToast('Plantilla guardada'); renderModal();
-}
-async function wodTplDelete(id){
-  const t=(wodTpls||[]).find(x=>x.id===id);
-  if(!t || !confirm('¿Borrar la plantilla "'+t.name+'"?')) return;
-  await wodTplMutate(list=>{ const i=list.findIndex(x=>x.id===id); if(i>=0) list.splice(i,1); });
+async function wodDriveTest(){
+  const c=wodDrive.cfgDraft;
+  if(c.url && !/\/exec(\?|$)/.test(c.url)){ wodDrive.test='La URL tiene que terminar en /exec (es la de "Aplicación web", no la del editor).'; renderModal(); return; }
+  wodDrive.test='Probando...'; renderModal();
+  try{ const j=await wodDriveFetch(c.url,c.token); wodDrive.test='Conectado: '+j.docs.length+' documento'+(j.docs.length===1?'':'s')+' encontrado'+(j.docs.length===1?'':'s')+'.'; }
+  catch(e){ wodDrive.test=wodDriveErrTxt(e); }
   renderModal();
 }
-async function wodTplToDraft(id){
-  const t=(wodTpls||[]).find(x=>x.id===id); if(!t) return;
-  await wodEnsureDraft();
-  wodDraftCaret=null;
-  wodDraft.text=(wodDraft.text.trim()?wodDraft.text.replace(/\s+$/,'')+'\n':'')+t.text.replace(/\s+$/,'')+'\n';
-  await wodDraftSaveNow();
-  showToast('Insertada al final del borrador'); setAdminTab('borrador');
+async function wodDriveCfgSave(){
+  const c=wodDrive.cfgDraft;
+  if(!c.url||!c.token){ showToast('Completá la URL y la clave'); return; }
+  const cfg={url:c.url,token:c.token,updatedBy:wodWho(),updatedAt:Date.now()};
+  if(!await sharedSet(K.WOD_DRIVE_CFG,cfg)){ showToast('No se pudo guardar'); return; }
+  wodDrive.cfg=cfg; wodDrive.cfgOpen=false; showToast('Conexión guardada');
+  wodDriveSync();
 }
 
 // ---------- Anuncio (Admin) ----------
@@ -11363,7 +11423,7 @@ async function wodAnnClear(){
 // ---------- Admin: alumnos, profesores, dashboard ----------
 const WOD_ADM_TABS=[
   {k:'dash',label:'Dashboard',ic:'grid'},{k:'alumnos',label:'Alumnos',ic:'users'},{k:'profes',label:'Profesores',ic:'clipboardList'},
-  {k:'plan',label:'Planificación',ic:'calendar'},{k:'borrador',label:'Borrador',ic:'pencil'},{k:'plantillas',label:'Plantillas',ic:'template'},
+  {k:'plan',label:'Planificación',ic:'calendar'},{k:'borrador',label:'Borrador',ic:'pencil'},
   {k:'anuncio',label:'Anuncio',ic:'megaphone'},{k:'pw',label:'Contraseña',ic:'key'}
 ];
 function wodMembers(){ return Object.values(users).filter(u=>wodStatusOf(u)); }
@@ -11378,22 +11438,20 @@ function wodRenderAdminBody(){
   else if(k==='alumnos') body=wodAdmStudents();
   else if(k==='profes') body=wodAdmTeachers();
   else if(k==='plan') body=`<div class="admin-section-title">${hcSecTitle('calendar','Planificación publicada')}</div>`+wodPlanHTML(true);
-  else if(k==='borrador') body=wodRenderDraftTab();
-  else if(k==='plantillas') body=wodRenderTplTab();
+  else if(k==='borrador') body=wodRenderDriveTab();
   else if(k==='anuncio') body=wodRenderAnnTab();
   else body=renderTabPw();
   return `<div class="adm-layout"><div class="admin-nav">${nav}</div><div class="adm-main">${body}</div></div>`;
 }
 async function wodSetAdminTab(k){
   if(typeof k!=='string') k='dash';
-  adminState.tab=k; adminState.wodViewUid=null; wodTplPicker=false;
+  adminState.tab=k; adminState.wodViewUid=null;
   if(k==='anuncio') wodAnnDraft=null;
-  if(k==='plantillas') wodTpls=null;
-  if(k==='borrador' && wodDraftSave!=='saving') wodDraft=null;
-  if(k==='plan'){ wodPlanView.editDate=null; wodIndex=null; wodWeeks={}; }
+  if(k==='borrador'){ wodDrive.sel=null; wodDrive.cfgOpen=false; } // se actualiza sola una vez por sesión
+  if(k==='plan'){ wodIndex=null; wodWeeks={}; }
   renderModal();
   if(k==='dash'||k==='alumnos'||k==='profes'){ await loadUsers(); renderModal(); }
-  if(k==='borrador'||k==='plan'){ await wodLoadIndex(); renderModal(); }
+  if(k==='plan'){ await wodLoadIndex(); renderModal(); }
 }
 function wodSetStatus(u,st){ u.clubs=u.clubs&&typeof u.clubs==='object'?u.clubs:{}; u.clubs.wod=Object.assign({},u.clubs.wod||{},{status:st}); if(u.club==='wod') u.status=st; }
 async function wodUpdateUser(id,fn,msg){

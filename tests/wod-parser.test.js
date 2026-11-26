@@ -7,7 +7,7 @@ const block=(a,b)=>{ const m=html.match(new RegExp('// <'+a+'>[\\s\\S]*?// </'+b
 function grabFn(name){ const s=html.indexOf('function '+name+'('); let i=html.indexOf('{',s),d=0; for(;i<html.length;i++){ if(html[i]==='{')d++; else if(html[i]==='}'){ d--; if(!d) break; } } return html.slice(s,i+1); }
 const ctx={}; vm.createContext(ctx);
 vm.runInContext([grabFn('hashStr'),block('block-calendar','block-calendar').replace(/function getBlockCalInfo[\s\S]*$/,''),block('wod-core','wod-core'),
-  'this.W={parseWodText,wodStreak,wodWeekCount,wodValidateLog,wodFmtResult,wodSimilar,wodDiff,wodProgressPairs,wodPresent,wodApplyWeights,wodLinesFromText,wodCase,wodParseMove,wodCells,wodSexRow,wodDateLine,wodWeekSig,wodStatusOf,wodTeacherListed};'].join('\n'),ctx);
+  'this.W={parseWodText,wodStreak,wodWeekCount,wodValidateLog,wodFmtResult,wodSimilar,wodDiff,wodProgressPairs,wodBlocksToText,wodDriveWeeks,wodTableToLines,wodDocRef,wodPresent,wodApplyWeights,wodLinesFromText,wodCase,wodParseMove,wodCells,wodSexRow,wodDateLine,wodWeekSig,wodStatusOf,wodTeacherListed};'].join('\n'),ctx);
 const W=ctx.W, J=x=>JSON.parse(JSON.stringify(x));
 const fx=n=>fs.readFileSync(path.join(__dirname,'fixtures',n),'utf8');
 let passed=0;
@@ -274,5 +274,86 @@ test('pertenencia al club: cuentas de otro club y cuentas nuevas de WOD',()=>{
   assert.strictEqual(W.wodStatusOf({club:'fuerza',status:'active',clubs:{wod:{status:'pending'}}}),'pending');
   assert.strictEqual(W.wodStatusOf({club:'wod',status:'active'}),'active');
   assert.strictEqual(W.wodTeacherListed({clubs:{wod:{status:'pending',roleRequest:'teacher'}}}),true);
+});
+
+// ---- Sincronización con Google Docs (respuesta del Apps Script simulada desde el .docx de noviembre) ----
+const DRIVE=JSON.parse(fs.readFileSync(path.join(__dirname,'fixtures','wod-noviembre-2026-drive.json'),'utf8'));
+const DR=J(W.wodDriveWeeks(DRIVE,'2026-11-26'));
+const dday=date=>{ for(const w of DR.weeks) for(const d of w.days) if(d.date===date) return d; return null; };
+const dpres=(date,i,view)=>{ const w=dday(date).wods[i]; return J(W.wodApplyWeights(W.wodPresent(w),w,view)); };
+const drows=P=>{ const out=[]; P.items.forEach(it=>{ if(it.k==='row') out.push(it); if(it.k==='note') it.rows.forEach(r=>out.push(r)); }); return out; };
+const drow=(P,n)=>drows(P).find(r=>r.name===n);
+test('drive: 4 semanas, 12 días, sin errores ni avisos; año por el nombre del documento',()=>{
+  assert.deepStrictEqual(DR.errors,[]);
+  assert.deepStrictEqual(DR.weeks.map(w=>[w.id,w.label,w.days.length]),[['2026-11-02','SEMANA 1',3],['2026-11-09','SEMANA 2',3],['2026-11-16','SEMANA 3',3],['2026-11-23','SEMANA 4',3]]);
+  DR.weeks.forEach(w=>{ assert.deepStrictEqual([w.errors,w.warnings],[[],[]],w.id); assert.ok(w.textSig&&w.docs[0].url); });
+  assert.strictEqual(W.wodDocRef('11. Planificación WOD Noviembre 2026','2027-05-01'),'2026-11-15');
+  assert.strictEqual(W.wodDocRef('sin fecha','2027-05-01'),'2027-05-01');
+});
+test('drive: "WARM UP" / "WODs" como ítems de lista numerados (A) B)) abren las secciones',()=>{
+  ['2026-11-09','2026-11-13','2026-11-20','2026-11-23','2026-11-25'].forEach(dt=>{ const d=dday(dt); assert.ok(/MOVILIDAD/.test(d.warmupText),dt); assert.ok(d.wods.length>=1,dt); assert.ok(!JSON.stringify(d.wods).includes('Activaciones'),dt); });
+});
+test('drive 2/11: tabla por nivel (X -> sin chip) y tabla de una columna en el Front Squat*',()=>{
+  const d=dday('2026-11-02'); assert.deepStrictEqual(d.wods[0].weightTables.map(t=>t.kind),['level','sex']);
+  assert.ok(d.warmupText.includes('3 RONDAS') && d.warmupText.includes('- 8 Dominadas Escapulares'),'recuadro de una columna aplanado');
+  const P=dpres('2026-11-02',0,{sex:'F',level:'rx'});
+  assert.deepStrictEqual(drow(P,'BMU/Pull Ups/T2B/K2C').chips.map(c=>c.txt),['T2B/K2C: 4/6','BMU: 2/3']);
+  assert.deepStrictEqual(drow(P,'Front Squat').chips.map(c=>c.txt),['55 kg']);
+  assert.deepStrictEqual(P.fallback,[]);
+});
+test('drive 6/11: estaciones como grilla genérica y PESO 1..4 en cada Parte',()=>{
+  const w=dday('2026-11-06').wods[0];
+  assert.deepStrictEqual(w.weightTables.map(t=>t.kind),['grid','sex']);
+  assert.deepStrictEqual(w.weightTables[0].head,['4 RONDAS (2 c/u)','4 RONDAS (2 c/u)','4 RONDAS (2 c/u)']);
+  const P=dpres('2026-11-06',0,{sex:'M',level:'rx'});
+  assert.strictEqual(P.items.filter(i=>i.k==='grid').length,1);
+  assert.ok(drow(P,'Synchro Run'),'fila combinada "300 Synchro Run" arriba de la grilla');
+  assert.deepStrictEqual(P.items.filter(i=>i.k==='sub'&&/^Parte/.test(i.txt)).map(i=>i.txt+' '+i.chips[0].txt),['Parte 1 60 kg','Parte 2 70 kg','Parte 3 75 kg','Parte 4 80 kg']);
+});
+test('drive 13/11: dos columnas Front Rack Lunges / Thrusters',()=>{
+  const P=dpres('2026-11-13',0,{sex:'F',level:'intermedio'});
+  assert.deepStrictEqual(drow(P,'Synchro Front Rack Lunges').chips.map(c=>c.txt),['30 kg']);
+  assert.deepStrictEqual(drow(P,'Synchro Thrusters').chips.map(c=>c.txt),['25 kg']);
+  assert.ok(P.items.some(i=>i.k==='note'&&/^Al principio de cada intervalo/.test(i.txt)&&i.rows.length===2));
+});
+test('drive 20/11: tabla por movimiento ("Hang Power Clean / Front Squat" aplica a los dos)',()=>{
+  const P=dpres('2026-11-20',0,{sex:'M',level:'avanzado'});
+  assert.deepStrictEqual(['Deadlift','Hang Power Clean','Front Squat','Thrusters'].map(n=>drow(P,n).chips[0].txt),['65 kg','55 kg','55 kg','50 kg']);
+  assert.ok(dday('2026-11-20').warmupText.includes('3 RONDAS c/u – EN FORMATO RELEVO'));
+});
+test('drive 23/11: activación WOD A / WOD B aplanada y tabla por RONDA (con subencabezado) en el Power Clean*',()=>{
+  const d=dday('2026-11-23');
+  assert.ok(/Activación WOD A\n3 RONDAS\n- 2 Deadlift/.test(d.warmupText) && /Activación WOD B\n3 RONDAS\n- 5 Balanceos Amplios/.test(d.warmupText));
+  const tb=d.wods[0].weightTables[0];
+  assert.deepStrictEqual([tb.head,tb.sub],[['RONDA 1 - 2','RONDA 3 - 4','RONDA 5 - 6','RONDA 7 - 8'],['4 REPS','3 REPS','2 REPS','1 REP']]);
+  const P=dpres('2026-11-23',0,{sex:'F',level:'avanzado'});
+  assert.deepStrictEqual(drow(P,'Power Clean').sub.map(x=>x.ab+' '+x.v),['R1-2 40','R3-4 45','R5-6 50','R7-8 55']);
+  const WP=J(W.wodPresent({},{warm:true,lines:W.wodLinesFromText(d.warmupText)}));
+  assert.deepStrictEqual(WP.items.filter(i=>i.k==='sub').map(i=>i.txt),['Movilidad · 2 rondas','Activación WOD A · 3 rondas','Activación WOD B · 3 rondas']);
+});
+test('drive 27/11: columnas vacías (celdas fusionadas) fuera, chips por bloque y recuadro "al principio de cada bloque"',()=>{
+  const tb=dday('2026-11-27').wods[0].weightTables[0];
+  assert.deepStrictEqual(tb.head,['BLOQUE 1','BLOQUE 2','BLOQUE 3','BLOQUE 4']); assert.strictEqual(tb.rows[0].cells.length,4);
+  const P=dpres('2026-11-27',0,{sex:'F',level:'rx'});
+  assert.deepStrictEqual(P.items.filter(i=>i.k==='sub').map(i=>[i.txt,i.chips.map(c=>c.txt)]),[['Bloque 1 · 4 rondas',['50 kg']],['Bloque 2 · 3 rondas',['45 kg']],['Bloque 3 · 2 rondas',['40 kg']],['Bloque 4 · 1 ronda',['35 kg']]]);
+  const note=P.items.find(i=>i.k==='note');
+  assert.strictEqual(note.txt,'Al principio de cada bloque deben completar');
+  assert.deepStrictEqual(note.rows.map(r=>[r.reps,r.name,r.tags]),[['30 / 40','Pull Ups o T2B',['M / H','Dividen']]]);
+});
+test('drive: bugs que no pueden volver (encabezado como subtítulo, números sueltos, "Dividen" suelto, tabla doble)',()=>{
+  DR.weeks.forEach(w=>w.days.forEach(d=>d.wods.forEach(x=>{
+    const P=J(W.wodApplyWeights(W.wodPresent(x),x,{sex:'F',level:'intermedio'}));
+    const tag=d.date+' '+x.id;
+    P.items.filter(i=>i.k==='sub').forEach(i=>assert.ok(!/^(Peso|Ronda) \d/i.test(i.txt)&&!/^(Mujeres|Hombres)/.test(i.txt),tag+' subtítulo: '+i.txt));
+    drows(P).forEach(r=>{ assert.ok(r.name||r.reps,tag+' fila vacía'); assert.ok(!(r.reps&&!r.name&&/^\d+([.,]\d+)?$/.test(r.reps)),tag+' número suelto'); assert.ok(r.name||!r.tags.length,tag+' etiqueta suelta'); });
+    assert.ok(!drows(P).some(r=>/^(Mujeres|Hombres) /.test(r.name)),tag+' fila de tabla como movimiento');
+    assert.strictEqual(x.contentLines.filter(l=>l.t==='table').length,x.weightTables.length,tag+' cada tabla una vez');
+  })));
+});
+test('conversión de tablas: reglas',()=>{
+  assert.deepStrictEqual(J(W.wodTableToLines([['','PESO 1','',''],['Mujeres Rx','40','',''],['','','','']])),['TABLA | PESO 1','Mujeres Rx | 40','FIN TABLA']);
+  assert.deepStrictEqual(J(W.wodTableToLines([['3 RONDAS'],['5 Burpees\n20 Skipping']])),['3 RONDAS','- 5 Burpees','- 20 Skipping']);
+  assert.deepStrictEqual(J(W.wodTableToLines([['Estación 1','Estación 2'],['10 Burpees\n5 Clean','20 Wall Ball']])),['TABLA GRILLA | Estación 1 | Estación 2','10 Burpees / 5 Clean | 20 Wall Ball','FIN TABLA']);
+  assert.deepStrictEqual(J(W.wodTableToLines([['','Rx','Intermedio'],['Pull Ups','X','8']])),['TABLA NIVELES | Rx | Intermedio','Pull Ups | X | 8','FIN TABLA']);
 });
 console.log(passed+' tests del Club WOD');

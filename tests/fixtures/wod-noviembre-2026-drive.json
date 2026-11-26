@@ -1,0 +1,2234 @@
+{
+ "ok": true,
+ "generatedAt": "2026-11-26T12:00:00.000Z",
+ "docs": [
+  {
+   "id": "doc-nov-2026",
+   "name": "11. Planificación WOD Noviembre 2026",
+   "updated": "2026-11-26T12:00:00.000Z",
+   "url": "https://docs.google.com/document/d/doc-nov-2026/edit",
+   "blocks": [
+    {
+     "t": "p",
+     "text": "SEMANA 1",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "2/11",
+     "heading": "NORMAL",
+     "bold": false
+    },
+    {
+     "t": "p",
+     "text": "A) WARM UP",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "MOVILIDAD - 2 RONDAS ",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "10 Activaciones de muñeca",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Rotación de Tronco (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Tabla Cadera (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Abdominales Agrupados",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Sentadillas Laterales (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Buenos Días",
+     "level": 0
+    },
+    {
+     "t": "table",
+     "rows": [
+      [
+       "3 RONDAS"
+      ],
+      [
+       "8 Dominadas Escapulares\n6 Balanceos Amplios\n4 Front Squat (subiendo peso) \n20 Jumping Jacks"
+      ]
+     ]
+    },
+    {
+     "t": "p",
+     "text": "B) WOD",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "OTM x 30’ (ALTERNO)",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "BMU/Pull Ups/T2B/K2C",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "2/3/4 Front Squat (DESDE RACK)*",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "150/200 mts Row o 8/12 Cal Bike (ALTERNO UNA RONDA Y UNA)",
+     "level": 0
+    },
+    {
+     "t": "table",
+     "rows": [
+      [
+       "",
+       "Rx",
+       "Avanzados",
+       "Intermedio",
+       "Principiante"
+      ],
+      [
+       "T2B/K2C",
+       "4/6",
+       "12",
+       "10",
+       "8"
+      ],
+      [
+       "Pull Ups",
+       "X",
+       "12",
+       "10",
+       "8"
+      ],
+      [
+       "BMU ",
+       "2/3",
+       "X",
+       "X",
+       "X"
+      ]
+     ]
+    },
+    {
+     "t": "p",
+     "text": "*TABLA DE PESOS RECOMENDADOS",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "table",
+     "rows": [
+      [
+       "Mujeres principiante",
+       "30/35"
+      ],
+      [
+       "Mujeres intermedio",
+       "40/45"
+      ],
+      [
+       "Mujeres avanzado",
+       "50"
+      ],
+      [
+       "Mujeres Rx",
+       "55"
+      ],
+      [
+       "Hombres principiante",
+       "50/55"
+      ],
+      [
+       "Hombres intermedio",
+       "60/65"
+      ],
+      [
+       "Hombres avanzado",
+       "70"
+      ],
+      [
+       "Hombres Rx",
+       "80"
+      ]
+     ]
+    },
+    {
+     "t": "p",
+     "text": "4/11",
+     "heading": "NORMAL",
+     "bold": false
+    },
+    {
+     "t": "p",
+     "text": "A) WARM UP",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "MOVILIDAD - 2 RONDAS ",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "10 Activaciones de muñeca",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Rotación de Tronco (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Tabla Cadera (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Abdominales Agrupados",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Sentadillas Laterales (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Buenos Días",
+     "level": 0
+    },
+    {
+     "t": "table",
+     "rows": [
+      [
+       "WOD A",
+       "WOD B"
+      ],
+      [
+       "3 RONDAS",
+       "3 RONDAS"
+      ],
+      [
+       "20 Jumping Jacks\n6 Burpees\n3 Hang Power Clean and Jerk (aproximar al peso)",
+       "20 Jumping Jacks\n20 Skipping\n5 Walk Out\n5 HR Push Ups\n5 Sprawl"
+      ]
+     ]
+    },
+    {
+     "t": "p",
+     "text": "B) WODs",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "WOD A",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "3 RONDAS - TC: 5’",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "8 Hang Power Clean and Jerk (MUJERES: 25/30/35, HOMBRES: 40/45/50)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Burpees",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "REST 2’",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "FOR TIME - TC: 5’",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "24 Hang Power Clean and Jerk (MUJERES: 25/30/35, HOMBRES: 40/45/50)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "30 Burpees",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "REST 8’ ENTRE WODs – DEBE SER UNA PAUSA COMPLETA ANTES DE PREPARARSE PARA EL WOD B",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "WOD B",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "2’ Work x 6 (12’) -  ALTERNO ",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "300 mts Run (arrancando desde abajo)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "MINUTO 1: 3/4/5/6 Wall Walk o 8/10/12 HSPU",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "MINUTO 2: 150/200 mts SkyErg",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "6/11",
+     "heading": "NORMAL",
+     "bold": false
+    },
+    {
+     "t": "p",
+     "text": "A) WARM UP",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "MOVILIDAD - 2 RONDAS ",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "10 Activaciones de muñeca",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Rotación de Tronco (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Movilidad de Cadera, 90 a 90 (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Espinales Nados Cortos",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Sentadillas Laterales (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "3 RONDAS – PARA APROXIMAR AL PESO Y A LA INTENSIDAD DEL WOD",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "2 Deadlift",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "2 Hang Power Clean",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "2 Push Jerk",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "6 Burpees",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "20 Skipping",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "20 Jumping Jacks",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "B) WODs",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "PARTNER WOD - TC: 35’ / 40’",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "4 PARTES ",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "table",
+     "rows": [
+      [
+       "300 Synchro Run",
+       "",
+       ""
+      ],
+      [
+       "4 RONDAS (2 c/u)",
+       "4 RONDAS (2 c/u)",
+       "4 RONDAS (2 c/u)"
+      ],
+      [
+       "4 Burpees",
+       "4 Box Jump",
+       "4 Single DB Devil Press"
+      ],
+      [
+       "4 - 3 - 2 - 1 Clean*",
+       "4 - 3 - 2 - 1 Push Jerk*",
+       "4 - 3 - 2 - 1 Clean and Jerk*"
+      ]
+     ]
+    },
+    {
+     "t": "p",
+     "text": "PARTE 1: 4 Clean / 4 Jerk / 4 Clean and Jerk (PESO 1)",
+     "heading": "NORMAL",
+     "bold": false
+    },
+    {
+     "t": "p",
+     "text": "PARTE 2: 3 Clean / 3 Jerk / 3 Clean and Jerk (PESO 2)",
+     "heading": "NORMAL",
+     "bold": false
+    },
+    {
+     "t": "p",
+     "text": "PARTE 3: 2 Clean / 2 Jerk / 2 Clean and Jerk (PESO 3)",
+     "heading": "NORMAL",
+     "bold": false
+    },
+    {
+     "t": "p",
+     "text": "PARTE 4: 1 Clean / 1 Jerk / 1 Clean and Jerk (PESO 4)",
+     "heading": "NORMAL",
+     "bold": false
+    },
+    {
+     "t": "p",
+     "text": "TABLA DE PESOS RECOMENDADOS",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "table",
+     "rows": [
+      [
+       "",
+       "PESO 1",
+       "PESO 2",
+       "PESO 3",
+       "PESO 4"
+      ],
+      [
+       "Mujeres principiante",
+       "25",
+       "30",
+       "35",
+       "40"
+      ],
+      [
+       "Mujeres intermedio",
+       "30",
+       "35",
+       "40",
+       "45"
+      ],
+      [
+       "Mujeres avanzado",
+       "35",
+       "40",
+       "45",
+       "50"
+      ],
+      [
+       "Mujeres Rx",
+       "40",
+       "45",
+       "50",
+       "55"
+      ],
+      [
+       "Hombres principiante",
+       "40",
+       "45",
+       "50",
+       "50"
+      ],
+      [
+       "Hombres intermedio",
+       "45",
+       "50",
+       "55",
+       "60"
+      ],
+      [
+       "Hombres avanzado",
+       "50",
+       "60",
+       "65",
+       "70"
+      ],
+      [
+       "Hombres Rx",
+       "60",
+       "70",
+       "75",
+       "80"
+      ]
+     ]
+    },
+    {
+     "t": "p",
+     "text": "SEMANA 2",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "9/11 - FERIADO",
+     "heading": "NORMAL",
+     "bold": false
+    },
+    {
+     "t": "li",
+     "text": "WARM UP",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "MOVILIDAD - 2 RONDAS ",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "10 Activaciones de muñeca",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Rotación de Tronco (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Tabla Cadera (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Abdominales Agrupados",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Buenos Días",
+     "level": 0
+    },
+    {
+     "t": "table",
+     "rows": [
+      [
+       "3 RONDAS"
+      ],
+      [
+       "5 Burpees\n20 Jumping Jacks\n20 Skipping\n2 Deadlift\n2 Hang Power Clean\n2 Front Squat"
+      ]
+     ]
+    },
+    {
+     "t": "p",
+     "text": "B) WOD",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "WOD",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "4’ Work x 1’ Rest (x6) - ALTERNO",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "500 mts Run (arranco abajo) o 300 mts Run (arranco abajo) + 1 Escalera Chica",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "MIN 1: 1/2/3 Squat Clean",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "MIN 2: 150/200 mts RowErg ",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "MIN 3: 4/6 BMU o 8/10/12 Pull Ups o T2B",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "MIN 4: 150/200 mts SkyErg",
+     "level": 0
+    },
+    {
+     "t": "table",
+     "rows": [
+      [
+       "Mujeres principiante",
+       "35"
+      ],
+      [
+       "Mujeres intermedio",
+       "40"
+      ],
+      [
+       "Mujeres avanzado",
+       "45/50"
+      ],
+      [
+       "Mujeres Rx",
+       "55/60"
+      ],
+      [
+       "Hombres principiante",
+       "50"
+      ],
+      [
+       "Hombres intermedio",
+       "60"
+      ],
+      [
+       "Hombres avanzado",
+       "65/70"
+      ],
+      [
+       "Hombres Rx",
+       "75/80"
+      ]
+     ]
+    },
+    {
+     "t": "p",
+     "text": "11/11 - FERIADO",
+     "heading": "NORMAL",
+     "bold": false
+    },
+    {
+     "t": "p",
+     "text": "A) WARM UP",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "MOVILIDAD - 2 RONDAS ",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "10 Activaciones de muñeca",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Rotación de Tronco (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Tabla Cadera (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Abdominales Agrupados",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Buenos Días",
+     "level": 0
+    },
+    {
+     "t": "table",
+     "rows": [
+      [
+       "WOD A",
+       "WOD B"
+      ],
+      [
+       "1’30” x 3",
+       "1’30” x 3"
+      ],
+      [
+       "5 Burpees\n4 Deadlift\n3 Hang Power Clean\n2 Push Jerk\n(voy aproximando al peso del WOD)",
+       "10 Dominadas Escapulares\n5 Balanceos o 5 Pull Ups/T2B\n10 Toques de Hombro\n5 Sprawl"
+      ]
+     ]
+    },
+    {
+     "t": "p",
+     "text": "B) WODs",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "WOD A - SECTOR ESCALERA",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "10 – 8 – 6 – 4 – 2",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "Deadlift",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "Hang Power Clean",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "Front Squat",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "Push Jerk",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "AL FINAL DE BLOQUE DE RONDAS REALIZO:",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "15 Burpees",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "TC: 16’",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "*TABLA DE PESOS RECOMENDADOS",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "table",
+     "rows": [
+      [
+       "Mujeres principiante",
+       "25/30"
+      ],
+      [
+       "Mujeres intermedio",
+       "35"
+      ],
+      [
+       "Mujeres avanzado",
+       "40"
+      ],
+      [
+       "Mujeres Rx",
+       "45"
+      ],
+      [
+       "Hombres principiante",
+       "40/45"
+      ],
+      [
+       "Hombres intermedio",
+       "50"
+      ],
+      [
+       "Hombres avanzado",
+       "55"
+      ],
+      [
+       "Hombres Rx",
+       "60"
+      ]
+     ]
+    },
+    {
+     "t": "p",
+     "text": "REST 6’/8’ ENTRE WODs – LA PAUSA DEBE SER COMPLETA ANTES DE PASAR AL WOD SIGUIENTE",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "WOD B - SECTOR JAULA",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "1’ Work x 1’ Rest (x8) - EL OBJETIVO ES LOGRAR LAS MISMAS REPETICIONES DURANTE LAS 8 RONDAS",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "30” Sprint RowErg (1º - 2º - 3º - 4º)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "30” Sprint Bike (5º - 6º - 7º - 8º)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "MAX BMU / Pull Ups / T2B / K2C",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "13/11",
+     "heading": "NORMAL",
+     "bold": false
+    },
+    {
+     "t": "li",
+     "text": "WARM UP",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "MOVILIDAD - 2 RONDAS ",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "10 Activaciones de muñeca",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Rotación de Tronco (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Movilidad de Cadera, 90 a 90 (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Espinales Nados Cortos",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Sentadillas Laterales (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "3 RONDAS (c/u) – SUBIENDO PESO POR RONDA HASTA LLEGAR AL PESO DEL WOD",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "6 Sprawl",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "4 Front Rack Lunges (2 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "2 Thrusters",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "WODs",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "PARTNER WOD – DE A 4 PERSONAS",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "3’ Work x 3’ Rest (x5)",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "ALTERNAN PAREJA 1 y PAREJA 2, LA PRIMERA TRABAJA POR 3’ MIENTRAS LA OTRA DESCANSA, Y DESPUÉS DE 3’ ARRANCA LA SEGUNDA PAREJA.",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "AL PRINCIPIO DE CADA INTERVALO LA PAREJA QUE ESTÁ TRABAJANDO DEBE COMPLETAR:",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "30 Pull Ups / T2B (CAMBIOS OBLIGATORIOS CADA 5 REPETICIONES",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "MAX OBJETIVO GRUPAL",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "OBJETIVOS GRUPALES",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "80 / 100 / 120 Synchro Front Rack Lunges (UNO CON LA BARRA Y OTRO CON LAS KBs/DBs)*",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "60 / 80 / 100 Synchro Burpees",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "40 / 60 / 80 Synchro Thrusters (UNO TRABAJA CON LA BARRA Y OTRO CON LAS KBs/DBs)*",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "*PUEDEN CAMBIAR DE ELEMENTO LAS VECES QUE QUE QUIERAN",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "table",
+     "rows": [
+      [
+       "",
+       "Front Rack Lunges ",
+       "Thrusters"
+      ],
+      [
+       "Mujeres principiante",
+       "25",
+       "20"
+      ],
+      [
+       "Mujeres intermedio",
+       "30",
+       "25"
+      ],
+      [
+       "Mujeres avanzado",
+       "35",
+       "30"
+      ],
+      [
+       "Mujeres Rx",
+       "40",
+       "35"
+      ],
+      [
+       "Hombres principiante",
+       "35",
+       "30"
+      ],
+      [
+       "Hombres intermedio",
+       "40",
+       "35"
+      ],
+      [
+       "Hombres avanzado",
+       "45",
+       "40"
+      ],
+      [
+       "Hombres Rx",
+       "50",
+       "45"
+      ]
+     ]
+    },
+    {
+     "t": "p",
+     "text": "SI ES NECESARIO, AGREGAR UN INTERVALO MÁS POR PAREJA PARA QUE LO COMPLETEN",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "SEMANA 3",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "16/11",
+     "heading": "NORMAL",
+     "bold": false
+    },
+    {
+     "t": "li",
+     "text": "WARM UP",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "MOVILIDAD - 2 RONDAS ",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "10 Activaciones de muñeca",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Rotación de Tronco (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Tabla Cadera (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Abdominales Agrupados",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Buenos Días",
+     "level": 0
+    },
+    {
+     "t": "table",
+     "rows": [
+      [
+       "3 RONDAS"
+      ],
+      [
+       "5 Burpees\n20 Jumping Jacks\n20 Skipping\n2 Deadlift\n2 Hang Power Clean\n2 Front Squat"
+      ]
+     ]
+    },
+    {
+     "t": "p",
+     "text": "B) WOD",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "WOD",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "4’ Work x 1’ Rest (x8) - ALTERNO",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "500 mts Run (arranco abajo) o 300 mts Run (arranco abajo) + 1 Escalera Chica",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "MIN 1: 1/2/3 Squat Clean",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "MIN 2: 150/200 mts SkyErg ",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "MIN 3: 3/4/5 Wall Walk o 8/10/12 HSPU",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "MIN 4: 12/15/18 Wall Ball",
+     "level": 0
+    },
+    {
+     "t": "table",
+     "rows": [
+      [
+       "Mujeres principiante",
+       "35"
+      ],
+      [
+       "Mujeres intermedio",
+       "40"
+      ],
+      [
+       "Mujeres avanzado",
+       "45/50"
+      ],
+      [
+       "Mujeres Rx",
+       "55/60"
+      ],
+      [
+       "Hombres principiante",
+       "50"
+      ],
+      [
+       "Hombres intermedio",
+       "60"
+      ],
+      [
+       "Hombres avanzado",
+       "65/70"
+      ],
+      [
+       "Hombres Rx",
+       "75/80"
+      ]
+     ]
+    },
+    {
+     "t": "p",
+     "text": "18/11",
+     "heading": "NORMAL",
+     "bold": false
+    },
+    {
+     "t": "p",
+     "text": "A) WARM UP",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "MOVILIDAD - 2 RONDAS ",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "10 Activaciones de muñeca",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Rotación de Tronco (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Movilidad de Cadera, 90 a 90 (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Plancha Superman",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Squats",
+     "level": 0
+    },
+    {
+     "t": "table",
+     "rows": [
+      [
+       "WOD A",
+       "WOD B"
+      ],
+      [
+       "1’30” x 3",
+       "20” x 10” (x3)"
+      ],
+      [
+       "10 Dominadas Escapulares\n5 Balanceos Amplios\n5 Sprawl\n3 Push Jerk",
+       "RowErg\nBike\nJumping Jacks"
+      ]
+     ]
+    },
+    {
+     "t": "p",
+     "text": "B) WODs",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "WOD A",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "2’ Work x 1’ Rest (x6) – BUSCAR MEJORAR O IGUALAR LA CANTIDAD DE REPETICIONES DEL AMRAP ANTERIOR",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "REPETICIONES POR RONDA = 10",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "3 BMU o 3 Pull Ups/T2B",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "3 Push Jerk (M: 30/35/40/45, H: 45/50/55/60)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "4 Burpees Over Bar",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "REST 6’/8’ ENTRE WODs – LA PAUSA DEBE SER COMPLETA ANTES DE PASAR AL WOD SIGUIENTE",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "WOD B",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "2’ Work x 1’ Rest (x6) – BUSCAR MANTENER LOS MTS, CAL, Y REPS EN LA SEGUNDA PASADA ",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "RowErg",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "Bike",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "DU o SU",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "20/11",
+     "heading": "NORMAL",
+     "bold": false
+    },
+    {
+     "t": "li",
+     "text": "WARM UP",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "MOVILIDAD - 2 RONDAS ",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "10 Activaciones de muñeca",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Rotación de Tronco (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Movilidad de Cadera, 90 a 90 (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Espinales Nados Cortos",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Sentadillas Laterales (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "3 RONDAS c/u  – EN FORMATO RELEVO",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "2 Deadlift",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "2 Hang Power Clean",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "2 Front Squat",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "2 Push Press",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "6 Burpees",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "20 Skipping",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "WODs",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "PARTNER WOD",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "FOR TIME",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "PARTE 1",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "500 mts Synchro Run",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "80 Synchro Squats",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "80 Deadlift (DIVIDEN COMO QUIEREN)",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "PARTE 2",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "500 mts Synchro Run",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "60 Synchro HR Push Ups",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "60 Hang Power Clean (DIVIDEN COMO QUIEREN)",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "PARTE 3",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "300 mts Synchro Run",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "40 Synchro Shuttle Run (armar segmentos de 7 mts en la terraza)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "40 Front Squat (DIVIDEN COMO QUIEREN)",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "PARTE 4",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "300 mts Synchro Run",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "20 Synchro Burpee Lunges",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "20 Thrusters (DIVIDEN COMO QUIEREN)",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "TC: 25’ / 30’ / 35’",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "table",
+     "rows": [
+      [
+       "",
+       "Deadlift",
+       "Hang Power Clean / Front Squat",
+       "Thrusters"
+      ],
+      [
+       "Mujeres principiante",
+       "40",
+       "30",
+       "25"
+      ],
+      [
+       "Mujeres intermedio",
+       "45",
+       "35",
+       "30"
+      ],
+      [
+       "Mujeres avanzado",
+       "50",
+       "40",
+       "35"
+      ],
+      [
+       "Mujeres Rx",
+       "55",
+       "45",
+       "40"
+      ],
+      [
+       "Hombres principiante",
+       "55",
+       "45",
+       "40"
+      ],
+      [
+       "Hombres intermedio",
+       "60",
+       "50",
+       "45"
+      ],
+      [
+       "Hombres avanzado",
+       "65",
+       "55",
+       "50"
+      ],
+      [
+       "Hombres Rx",
+       "70",
+       "60",
+       "55"
+      ]
+     ]
+    },
+    {
+     "t": "p",
+     "text": "SEMANA 4",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "23/11 - FERIADO",
+     "heading": "NORMAL",
+     "bold": false
+    },
+    {
+     "t": "li",
+     "text": "WARM UP",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "MOVILIDAD - 2 RONDAS ",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "10 Activaciones de muñeca",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Rotación de Tronco (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Movilidad de Cadera, 90 a 90 (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Espinales Nados Cortos",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Sentadillas Laterales (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "table",
+     "rows": [
+      [
+       "WOD A",
+       "WOD B"
+      ],
+      [
+       "3 RONDAS",
+       "3 RONDAS"
+      ],
+      [
+       "2 Deadlift\n2 Hang Power Clean\n5 Step Burpee\n20 Jumping Jacks",
+       "5 Balanceos Amplios\n5 Burpees\n5 Squats\n20 Jumping Jacks"
+      ]
+     ]
+    },
+    {
+     "t": "li",
+     "text": "WODs",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "WOD A – SECTOR ESCALERA",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "8 RONDAS - TC: 16’",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "Power Clean*",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "8 / 10 / 12 Step Burpee",
+     "level": 0
+    },
+    {
+     "t": "table",
+     "rows": [
+      [
+       "",
+       "RONDA 1 - 2",
+       "RONDA 3 - 4",
+       "RONDA 5 - 6",
+       "RONDA 7 - 8"
+      ],
+      [
+       "",
+       "4 REPS",
+       "3 REPS",
+       "2 REPS",
+       "1 REP"
+      ],
+      [
+       "Mujeres principiante",
+       "30",
+       "30",
+       "35",
+       "35/40"
+      ],
+      [
+       "Mujeres intermedio",
+       "35",
+       "35",
+       "40",
+       "45/50"
+      ],
+      [
+       "Mujeres avanzado",
+       "40",
+       "45",
+       "50",
+       "55"
+      ],
+      [
+       "Mujeres Rx",
+       "45",
+       "50",
+       "55",
+       "60"
+      ],
+      [
+       "Hombres principiante",
+       "40",
+       "40",
+       "50",
+       "55/60"
+      ],
+      [
+       "Hombres intermedio",
+       "50",
+       "55",
+       "60",
+       "65/70"
+      ],
+      [
+       "Hombres avanzado",
+       "50",
+       "60",
+       "70",
+       "80"
+      ],
+      [
+       "Hombres Rx",
+       "60",
+       "70",
+       "80",
+       "90"
+      ]
+     ]
+    },
+    {
+     "t": "p",
+     "text": "REST 6’/8’ ENTRE WODs – DEBE SER UNA PAUSA COMPLETA ANTES DE PREPARARSE PARA EL WOD B",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "WOD B – SECTOR JAULA",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "2’ Work’ x 2’ Work (x4, alterno)",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "5 Pull Ups / T2B",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Push Ups",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "15 Squats",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "1’ RowErg",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "1’ Cal Bike",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "25/11",
+     "heading": "NORMAL",
+     "bold": false
+    },
+    {
+     "t": "li",
+     "text": "WARM UP",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "MOVILIDAD - 2 RONDAS ",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "10 Activaciones de muñeca",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Rotación de Tronco (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Movilidad de Cadera, 90 a 90 (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Espinales Nados Cortos",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Buenos Días",
+     "level": 0
+    },
+    {
+     "t": "table",
+     "rows": [
+      [
+       "WOD A",
+       "WOD B"
+      ],
+      [
+       "3 RONDAS",
+       "3 RONDAS"
+      ],
+      [
+       "3 Deadlift\n20” Iso Sled Push (en pared)\n5 Burpees\n20 Skipping",
+       "5 Walk Out\n20” OH Hold (con disco)\n5 Push Press (con disco)\n20 Jumping Jacks"
+      ]
+     ]
+    },
+    {
+     "t": "li",
+     "text": "WODs",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "WOD A",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "2’ Work x 1’ Rest (x6, alterno)",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "300 mts Run (arrancando abajo)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "4/6 Deadlift (M: 45/50/55/60, H: 60/70/80/90)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "20 mts Sled Push (M: 80/100, H: 100/120)",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "REST 6’/8’ ENTRE WODs – LA PAUSA DEBE SER COMPLETA ANTES DE PASAR AL WOD SIGUIENTE",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "WOD B",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "2’ Work x 1’ Rest (x6)",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "3/4/5 Wall Walk o 10/12/14 HSPU",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10/12/14 Box Jump",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "27/11",
+     "heading": "NORMAL",
+     "bold": false
+    },
+    {
+     "t": "p",
+     "text": "A) WARM UP",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "MOVILIDAD - 2 RONDAS ",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "10 Activaciones de muñeca",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Rotación de Tronco (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Movilidad de Cadera, 90 a 90 (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Espinales Nados Cortos",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "10 Sentadillas Laterales (5 c/l)",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "3 RONDAS c/u – PARA APROXIMAR AL PESO Y A LA INTENSIDAD DEL WOD",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "2 Deadlift",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "2 Hang Power Clean",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "2 Front Squat",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "2 Push Press",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "20 Jumping Jacks",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "20 Skipping",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "5 Sprawl",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "B) WODs",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "PARTNER WOD - FOR TIME",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "AL PRINCIPIO DE CADA BLOQUE DEBEN COMPLETAR",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "30 (mujeres) / 40 (hombres) Pull Ups o T2B  (DIVIDEN)",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "BLOQUE 1",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "4 RONDAS",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "6 Synchro Burpee Touch and Go",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "6 Hang Power Clean (DIVIDEN)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "6 Front Squat (DIVIDEN)",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "BLOQUE 2",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "3 RONDAS",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "8 Synchro Burpee Touch and Go",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "8 Hang Power Clean (DIVIDEN)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "8 Front Rack Lunges (DIVIDEN)",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "BLOQUE 3",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "2 RONDAS",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "12 Synchro Burpee Touch and Go",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "12 Hang Power Clean (DIVIDEN)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "12 Push Jerk (TOTAL, DIVIDEN)",
+     "level": 0
+    },
+    {
+     "t": "p",
+     "text": "BLOQUE 4",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "p",
+     "text": "1 RONDA",
+     "heading": "NORMAL",
+     "bold": true
+    },
+    {
+     "t": "li",
+     "text": "24 Synchro Burpee Touch and Go",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "24 Hang Power Clean (DIVIDEN)",
+     "level": 0
+    },
+    {
+     "t": "li",
+     "text": "24 Thrusters (DIVIDEN)",
+     "level": 0
+    },
+    {
+     "t": "table",
+     "rows": [
+      [
+       "",
+       "BLOQUE 1",
+       "",
+       "BLOQUE 2",
+       "",
+       "BLOQUE 3",
+       "",
+       "BLOQUE 4",
+       ""
+      ],
+      [
+       "Mujeres principiante",
+       "35",
+       "",
+       "30",
+       "",
+       "25",
+       "",
+       "20",
+       ""
+      ],
+      [
+       "Mujeres intermedio",
+       "40",
+       "",
+       "35",
+       "",
+       "30",
+       "",
+       "25",
+       ""
+      ],
+      [
+       "Mujeres avanzado",
+       "45",
+       "",
+       "40",
+       "",
+       "35",
+       "",
+       "30",
+       ""
+      ],
+      [
+       "Mujeres Rx",
+       "50",
+       "",
+       "45",
+       "",
+       "40",
+       "",
+       "35",
+       ""
+      ],
+      [
+       "Hombres principiante",
+       "55",
+       "",
+       "50",
+       "",
+       "45",
+       "",
+       "40",
+       ""
+      ],
+      [
+       "Hombres intermedio",
+       "60",
+       "",
+       "55",
+       "",
+       "50",
+       "",
+       "45",
+       ""
+      ],
+      [
+       "Hombres avanzado",
+       "65",
+       "",
+       "60",
+       "",
+       "55",
+       "",
+       "50",
+       ""
+      ],
+      [
+       "Hombres Rx",
+       "70",
+       "",
+       "65",
+       "",
+       "60",
+       "",
+       "55",
+       ""
+      ]
+     ]
+    },
+    {
+     "t": "p",
+     "text": "TC: 35’ / 40’",
+     "heading": "NORMAL",
+     "bold": true
+    }
+   ]
+  }
+ ]
+}
